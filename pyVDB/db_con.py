@@ -19,7 +19,7 @@ class DbConnector(object):
         if self.newFile:
             conTemp = sqlite3.connect(db_file_temp)
             conTemp.execute("create table results(v1id integer, v2id integer, result integer, regions text)")
-            conTemp.execute("create table dat_blobs(vid integer primary key, img_dat blob, vdat text)")
+            conTemp.execute("create table dat_blobs(vid integer primary key, img_dat blob, vdat blob)")
             conTemp.execute("create table videos(path text,length real, size real, okflag integer, vdatid integer)")#, foreign key(vdatid) references dat_blobs(vid)")
             conTemp.commit()
             for line in conTemp.iterdump():
@@ -45,15 +45,26 @@ class DbConnector(object):
         self.cur.execute("select count(1) from videos where path=?",(filename,))
         return self.cur.fetchone()[0]
 
-    def fetch_video(self,vid_obj):
-        temp = ("0",0,0,0,0)
-        self.cur.execute("select * from videos where path=?", (vid_obj.fileName,))
+    def trace_exists(self,filename):
+        id = self.fetch_video(filename).vdatid
+        temp = (0,"0","0")
+        self.cur.execute("select * from videos where vid=?", (id,))
         temp = self.cur.fetchone()
+        if temp[0] == "0":
+            return False
+        return True
+        
+    def fetch_video(self,filename):
+        temp = ("0",0,0,0,0)
+        self.cur.execute("select * from videos where path=?", (filename,))
+        temp = self.cur.fetchone()
+        vid_obj = vid_file()
         vid_obj.fileName = temp[0]
         vid_obj.size     = temp[1]
         vid_obj.length   = temp[2]
         vid_obj.okflag   = temp[3]
         vid_obj.vdatid   = temp[4]
+        return vid_obj
 
     def get_last_vid(self):
         if self.newFile:

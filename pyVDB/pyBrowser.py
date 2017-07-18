@@ -17,6 +17,7 @@ iconWidth = 300
 width = 640
 height = 480
 thumb_time = 10000
+trace_fps=5.0
 default_sort = "size"
 default_desc = True
 vExts = [ ".mp4", ".mov",".mpg",".mpeg",".wmv",".m4v", ".avi", ".flv" ]
@@ -145,6 +146,7 @@ class MyWindow(Gtk.Window):
 
     def fdupe_clicked(self,widget):
         global directory
+        dupe_finder(directory)
         
     def on_sort_changed(self, combo):
         tree_iter = combo.get_active_iter()
@@ -174,13 +176,26 @@ class dupe_finder(object):
             if flExt in vExts:
                 videos.append(filename)
         for video in videos:
-            video_temp = vid_file(video)
-            dbCon.fetch_video(video_temp)
-            temp_vid = vid_temp
-            dbCon.vur.execute("select * from dat_blobs where vid=?", video_temp.vid)
-            temp = (0,0,[0])
-            temp = self.cur.fetchone()
-            #if temp[3][0] == 0:
+            if not dbCon.trace_exists(video):
+                video_id = dbCon.fetch_video(filename).vdatid
+                frame_counter=0.0
+                trace = []
+                cap=cv2.VideoCapture(filename)
+                ret,buf = cap.read()
+                while(cap.isOpened()):
+                     if cap.get(cv2.CAP_PROP_POS_MSEC) >= frame_counter*1000.0/trace_fps:
+                         rbuf = buf.resize(buf,fx=buf.size[0]/2,fy=buf.size[1]/2,interpolation=INTER_AREA)
+                         trace.append(rbuf)
+                         frame_counter+=1.0
+                     ret,buf = cap.read()
+                     if cv2.waitKey(1) & 0xFF == ord('q'):
+                         break
+                     else:
+                         break
+                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(rbuf.tostring(), ), (video_id,))
+                dbCon.con.commit()
+                
+                
                 
 class video_icon(vid_file, Gtk.EventBox):
     def __init__(self,fileName):
@@ -191,7 +206,7 @@ class video_icon(vid_file, Gtk.EventBox):
         self.size=0.0
         self.length=0.0
         if(dbCon.video_exists(self.fileName)):
-            dbCon.fetch_video(self)
+            dbCon.fetch_video(self.fileName)
             dbCon.cur.execute('select img_dat from dat_blobs where vid=?',(self.vdatid ,))
             imageData = dbCon.cur.fetchone()[0]
             with open(temp_icon, "wb") as output_file:
