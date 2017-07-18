@@ -11,8 +11,9 @@ import cv2
 import sqlite3
 from wand.image import Image
 from pymediainfo import MediaInfo
-    
-iconSize = 300
+
+iconHeight = 180
+iconWidth = 300
 width = 640
 height = 480
 thumb_time = 10000
@@ -145,7 +146,6 @@ class MyWindow(Gtk.Window):
     def fdupe_clicked(self,widget):
         global directory
         
-        
     def on_sort_changed(self, combo):
         tree_iter = combo.get_active_iter()
         if tree_iter != None:
@@ -182,9 +182,6 @@ class dupe_finder(object):
             temp = self.cur.fetchone()
             #if temp[3][0] == 0:
                 
-                
-        
-        
 class video_icon(vid_file, Gtk.EventBox):
     def __init__(self,fileName):
         global vid
@@ -210,8 +207,7 @@ class video_icon(vid_file, Gtk.EventBox):
         image = Gtk.Image()
         image.set_from_file(temp_icon)
         self.add(image)
-        #self.set_tooltip_text("Filename: "+self.fileName+ "\nSize: "+humanize.naturalsize(self.size)+"\nLength: {:0.1f}".format(self.length/1000.0)+"s")
-        #self.set_custom(image)
+        self.set_tooltip_text("Filename: "+self.fileName+ "\nSize: "+humanize.naturalsize(self.size)+"\nLength: {:0.1f}".format(self.length/1000.0)+"s")
         
     def createIcon(self,filename):
         global vid
@@ -227,8 +223,8 @@ class video_icon(vid_file, Gtk.EventBox):
         image = Image(filename=temp_icon)
         image.trim(fuzz=5000)
         scale = 1.0
-        xScale = 320.0/image.width
-        yScale = 200.0/image.height
+        xScale = iconWidth/image.width
+        yScale = iconHeight/image.height
         if xScale < yScale :
             scale = xScale
         else:
