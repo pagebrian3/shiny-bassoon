@@ -9,7 +9,7 @@ import humanize
 from pathlib import Path
 import cv2
 import sqlite3
-import PythonMagick as PM
+from wand.image import Image
 from pymediainfo import MediaInfo
     
 iconSize = 300
@@ -51,6 +51,8 @@ class MyWindow(Gtk.Window):
         self.sort_desc=default_desc #True, False
         browse_button = Gtk.Button(label="...")
         browse_button.connect("clicked",self.browse_clicked)
+        fdupe_button = Gtk.Button(label="Find Dupes")
+        fdupe_button.connect("clicked",self.fdupe_clicked)
         sort_opt = Gtk.Box()
         sort_list = Gtk.ListStore(str)
         opts = ["size",  "length", "name"]
@@ -139,6 +141,10 @@ class MyWindow(Gtk.Window):
             self.populate_icons(True)
         dialog.destroy()
         self.show_all()
+
+    def fdupe_clicked(self,widget):
+        global directory
+        
         
     def on_sort_changed(self, combo):
         tree_iter = combo.get_active_iter()
@@ -158,6 +164,26 @@ class MyWindow(Gtk.Window):
 
     def on_delete(self, widget):
         dbCon.save_db_file()
+        
+class dupe_finder(object):
+    def __init__(self,directory):
+        videos = []
+        for filename in os.listdir(directory):
+            fName, fExt = os.path.splitext(filename)
+            flExt = fExt.lower()           
+            if flExt in vExts:
+                videos.append(filename)
+        for video in videos:
+            video_temp = vid_file(video)
+            dbCon.fetch_video(video_temp)
+            temp_vid = vid_temp
+            dbCon.vur.execute("select * from dat_blobs where vid=?", video_temp.vid)
+            temp = (0,0,[0])
+            temp = self.cur.fetchone()
+            #if temp[3][0] == 0:
+                
+                
+        
         
 class video_icon(vid_file, Gtk.EventBox):
     def __init__(self,fileName):
@@ -185,7 +211,7 @@ class video_icon(vid_file, Gtk.EventBox):
         image.set_from_file(temp_icon)
         self.add(image)
         #self.set_tooltip_text("Filename: "+self.fileName+ "\nSize: "+humanize.naturalsize(self.size)+"\nLength: {:0.1f}".format(self.length/1000.0)+"s")
-        self.set_custom(image)
+        #self.set_custom(image)
         
     def createIcon(self,filename):
         global vid
@@ -197,10 +223,18 @@ class video_icon(vid_file, Gtk.EventBox):
                 break
             else:
                 break
-        image = PM.Image(buf.shape[0],buf.shape[1],"BGR",0, buf.data)
-        scale = iconSize/buf.shape[1]
-        res = cv2.resize(buf,None,fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-        cv2.imwrite(temp_icon,res)       
+        cv2.imwrite(temp_icon, buf)
+        image = Image(filename=temp_icon)
+        image.trim(fuzz=5000)
+        scale = 1.0
+        xScale = 320.0/image.width
+        yScale = 200.0/image.height
+        if xScale < yScale :
+            scale = xScale
+        else:
+            scale = yScale
+        image.resize(int(image.width*scale),  int(image.height*scale))
+        image.save(filename=temp_icon)
         dbCon.cur.execute('insert into dat_blobs(vid, img_dat, vdat) values (?,?, "0")', (vid,sqlite3.Binary(open(temp_icon,'rb').read())))
         dbCon.con.commit()
         
