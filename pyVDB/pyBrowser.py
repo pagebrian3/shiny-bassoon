@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import db_con
+import vid_file
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
@@ -9,6 +10,7 @@ import humanize
 from pathlib import Path
 import cv2
 import sqlite3
+import marshal
 from wand.image import Image
 from pymediainfo import MediaInfo
 
@@ -32,16 +34,6 @@ directory = "/home/ungermax/mt_test/"
 dbCon = db_con.DbConnector(app_path)
 vid = dbCon.get_last_vid()
 
-class vid_file(object):
-    def __init__(self, fileName="0", size=0, length=0, okflag=0, vdatid =0):
-        self.fileName = fileName or "0"
-        self.size = size or 0
-        self.length = length or 0
-        self.okflag = okflag or 0
-        self.vdatid  =  vdatid  or 0
-
-    def __repr__(self):
-        return "(%s:%i:%i:%i:%i:%i)" % (self.fileName, self.size, self.okflag, self.length, self.vdatid )
 
 class MyWindow(Gtk.Window):
     def __init__(self):
@@ -77,12 +69,12 @@ class MyWindow(Gtk.Window):
         sort_opt.add(sort_label)
         sort_opt.add(self.sort_combo)
         sort_opt.add(self.asc_button)
+        sort_opt.pack_end(fdupe_button,  False,  False,  0)
         sort_opt.pack_end(browse_button,  False, False, 0 ) 
         box_outer.pack_start(sort_opt, False, True, 0)
         self.scrollWin = Gtk.ScrolledWindow()
         box_outer.pack_start(self.scrollWin, True, True, 0)
         self.populate_icons()
-        
         
     def populate_icons(self,  clean=False):
         if clean:
@@ -174,30 +166,44 @@ class dupe_finder(object):
             fName, fExt = os.path.splitext(filename)
             flExt = fExt.lower()           
             if flExt in vExts:
-                videos.append(filename)
+                videos.append(directory+filename)
         for video in videos:
             if not dbCon.trace_exists(video):
-                video_id = dbCon.fetch_video(filename).vdatid
+                vid_obj= dbCon.fetch_video(video)
+                video_id = vid_obj.vdatid
+                length = vid_obj.length
                 frame_counter=0.0
                 trace = []
-                cap=cv2.VideoCapture(filename)
+                cap=cv2.VideoCapture(video)
                 ret,buf = cap.read()
                 while(cap.isOpened()):
-                     if cap.get(cv2.CAP_PROP_POS_MSEC) >= frame_counter*1000.0/trace_fps:
-                         rbuf = buf.resize(buf,fx=buf.size[0]/2,fy=buf.size[1]/2,interpolation=INTER_AREA)
-                         trace.append(rbuf)
-                         frame_counter+=1.0
-                     ret,buf = cap.read()
-                     if cv2.waitKey(1) & 0xFF == ord('q'):
-                         break
-                     else:
-                         break
-                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(rbuf.tostring(), ), (video_id,))
+                    #print("BLAH "+str(frame_counter*1000.0/trace_fps)+" "+str(len(trace))+" "+str(cap.get(cv2.CAP_PROP_POS_MSEC))+" "+str(length))
+                    time = cap.get(cv2.CAP_PROP_POS_MSEC)
+                    if time >= length-200.0:
+                        break
+                    if time >= frame_counter*1000.0/trace_fps:
+                        rbuf = cv2.resize(buf, dsize=(2, 2),interpolation=cv2.INTER_AREA)
+                        frame_counter+=1.0
+                        for i in rbuf:
+                            for j in i:
+                                for k in j:
+                                    trace.append(k)
+                    
+                    ret,buf = cap.read()
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                #print("BLAH"+str(trace[0]))
+                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(marshal.dumps(trace), video_id))
                 dbCon.con.commit()
+        dbCon.cur.execute('select vid from dat_blobs order by vid')
+        for i in vids[:-1]:
+            dbCon.cur.execute('select vdat from dat_blobs where vid=?',(i,))
+            vdat1 = dbCon.cur.fetchone()
+            for j in vids[i+1:]:
+                dbCon.cur.execute('select vdat from dat_blobs where vid=?',(j,))
+                vdat2 = dbCon.cur.fetchone()
                 
-                
-                
-class video_icon(vid_file, Gtk.EventBox):
+class video_icon(vid_file.vid_file, Gtk.EventBox):
     def __init__(self,fileName):
         global vid
         super().__init__()
@@ -205,8 +211,12 @@ class video_icon(vid_file, Gtk.EventBox):
         self.fileName =  directory+fileName
         self.size=0.0
         self.length=0.0
+        
         if(dbCon.video_exists(self.fileName)):
-            dbCon.fetch_video(self.fileName)
+            vid_temp = dbCon.fetch_video(self.fileName)
+            self.vdatid = vid_temp.vdatid
+            self.size = vid_temp.size
+            self.length = vid_temp.length
             dbCon.cur.execute('select img_dat from dat_blobs where vid=?',(self.vdatid ,))
             imageData = dbCon.cur.fetchone()[0]
             with open(temp_icon, "wb") as output_file:
@@ -216,23 +226,24 @@ class video_icon(vid_file, Gtk.EventBox):
             self.vdatid  = vid
             self.size = os.stat(self.fileName).st_size
             self.length = MediaInfo.parse(self.fileName).tracks[0].duration
-            self.createIcon(self.fileName)
-            dbCon.cur.execute("insert into videos values (?,?,?,?,?)", (self.fileName, self.size, self.length, 1, vid))
+            self.createIcon()
+            dbCon.cur.execute("insert into videos values (?,?,?,?,?)", (self.fileName, self.size, self.length, 1, self.vdatid))
             dbCon.con.commit()
         image = Gtk.Image()
         image.set_from_file(temp_icon)
         self.add(image)
         self.set_tooltip_text("Filename: "+self.fileName+ "\nSize: "+humanize.naturalsize(self.size)+"\nLength: {:0.1f}".format(self.length/1000.0)+"s")
         
-    def createIcon(self,filename):
+    def createIcon(self):
         global vid
-        cap=cv2.VideoCapture(filename)
+        cap=cv2.VideoCapture(self.fileName)
         ret,buf = cap.read()
-        while(cap.isOpened() and cap.get(cv2.CAP_PROP_POS_MSEC) < thumb_time):
+        thumb_t = thumb_time
+        if self.length < thumb_time:
+            thumb_t = self.length/2.0
+        while(True):
             ret,buf = cap.read()
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-            else:
+            if cap.get(cv2.CAP_PROP_POS_MSEC) > thumb_t or (cv2.waitKey(1) & 0xFF == ord('q')):
                 break
         cv2.imwrite(temp_icon, buf)
         image = Image(filename=temp_icon)

@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import sqlite3
+import vid_file
 import io
 import os
 from pathlib import Path
@@ -47,10 +48,9 @@ class DbConnector(object):
 
     def trace_exists(self,filename):
         id = self.fetch_video(filename).vdatid
-        temp = (0,"0","0")
-        self.cur.execute("select * from videos where vid=?", (id,))
-        temp = self.cur.fetchone()
-        if temp[0] == "0":
+        self.cur.execute("select vdat from dat_blobs where vid=?", (id,))
+        result = self.cur.fetchone()
+        if result[0] == "0":
             return False
         return True
         
@@ -58,7 +58,7 @@ class DbConnector(object):
         temp = ("0",0,0,0,0)
         self.cur.execute("select * from videos where path=?", (filename,))
         temp = self.cur.fetchone()
-        vid_obj = vid_file()
+        vid_obj = vid_file.vid_file()
         vid_obj.fileName = temp[0]
         vid_obj.size     = temp[1]
         vid_obj.length   = temp[2]
