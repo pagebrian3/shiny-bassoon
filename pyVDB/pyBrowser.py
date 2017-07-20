@@ -3,14 +3,16 @@
 import db_con
 import vid_file
 import gi
+import pickle
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 import os
+import io
+import subprocess
 import humanize
 from pathlib import Path
 import cv2
 import sqlite3
-import marshal
 from wand.image import Image
 from pymediainfo import MediaInfo
 
@@ -19,7 +21,9 @@ iconWidth = 300
 width = 640
 height = 480
 thumb_time = 10000
+comp_time = 30
 trace_fps=5.0
+slice_spacing = 60
 default_sort = "size"
 default_desc = True
 vExts = [ ".mp4", ".mov",".mpg",".mpeg",".wmv",".m4v", ".avi", ".flv" ]
@@ -169,6 +173,7 @@ class dupe_finder(object):
                 videos.append(directory+filename)
         for video in videos:
             if not dbCon.trace_exists(video):
+                print(video)
                 vid_obj= dbCon.fetch_video(video)
                 video_id = vid_obj.vdatid
                 length = vid_obj.length
@@ -192,16 +197,44 @@ class dupe_finder(object):
                     ret,buf = cap.read()
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
-                #print("BLAH"+str(trace[0]))
-                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(marshal.dumps(trace), video_id))
+                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(sqlite3.Binary(pickle.dumps(trace)), video_id))
                 dbCon.con.commit()
         dbCon.cur.execute('select vid from dat_blobs order by vid')
+        vids = dbCon.cur.fetchall()
+        dbCon.cur.execute('select * from results')
+        results = dbCon.cur.fetchall()
+        first_pos=0
         for i in vids[:-1]:
-            dbCon.cur.execute('select vdat from dat_blobs where vid=?',(i,))
-            vdat1 = dbCon.cur.fetchone()
-            for j in vids[i+1:]:
-                dbCon.cur.execute('select vdat from dat_blobs where vid=?',(j,))
-                vdat2 = dbCon.cur.fetchone()
+            vdat1 = []
+            dbCon.cur.execute('select vdat from dat_blobs where vid=?', i)
+            for row in dbCon.cur:
+                vdat1 =pickle.loads(row[0])
+            for j in vids[first_pos+1:]:
+                vdat2 = []
+                print(str(i) +" "+str(j))
+                #Need to add check to results so we don't repeat results
+                dbCon.cur.execute('select vdat from dat_blobs where vid=?', j)
+                for row in dbCon.cur:
+                    vdat2 = pickle.loads(row[0])
+                #slice loop
+                print(str(len(vdat1))+str(int(len(vdat1)-12*trace_fps*comp_time))+" "+str(int(12*trace_fps*slice_spacing)))
+                for t_s in range(0,int(len(vdat1)-12*trace_fps*comp_time), int(12*trace_fps*slice_spacing)):
+                   
+                    #starting offset for 2nd trace
+                    #this is the loop for the indiviual tests
+                    for t_x in range(0,int(len(vdat2)-12*trace_fps*comp_time),12):
+                        print(str(t_s)+" "+str(t_x))
+                        accum=[]
+                        for i in range(12):
+                            accum.append(0)
+                        #offset loop
+                        for t_o in range(0,int(12*comp_time*trace_fps),12):
+                            #data member loop
+                            for t_d in range(0,12):
+                                print()
+                                accum[t_d]+=pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)
+                                print("ACCUM "+str(t_o)+" "+str(accum[t_d])+" "+str(len(vdat1))+" "+str(len(vdat2))+" "+str(t_s)+" "+str(t_x)+" "+" "+str(t_d))
+            first_pos+=1
                 
 class video_icon(vid_file.vid_file, Gtk.EventBox):
     def __init__(self,fileName):
@@ -236,16 +269,17 @@ class video_icon(vid_file.vid_file, Gtk.EventBox):
         
     def createIcon(self):
         global vid
-        cap=cv2.VideoCapture(self.fileName)
-        ret,buf = cap.read()
+        #cap=cv2.VideoCapture(self.fileName)
+        #ret,buf = cap.read()
         thumb_t = thumb_time
         if self.length < thumb_time:
             thumb_t = self.length/2.0
-        while(True):
-            ret,buf = cap.read()
-            if cap.get(cv2.CAP_PROP_POS_MSEC) > thumb_t or (cv2.waitKey(1) & 0xFF == ord('q')):
-                break
-        cv2.imwrite(temp_icon, buf)
+        subprocess.run('ffmpeg -y -nostats -loglevel 0 -ss 00:00:%i.00 -i %s -vframes 1 %s' % (thumb_t/1000, self.fileName, temp_icon), shell=True)
+        #while(True):
+        #    ret,buf = cap.read()
+        #    if cap.get(cv2.CAP_PROP_POS_MSEC) > thumb_t or (cv2.waitKey(1) & 0xFF == ord('q')):
+        #        break
+        #cv2.imwrite(temp_icon, buf)
         image = Image(filename=temp_icon)
         image.trim(fuzz=5000)
         scale = 1.0

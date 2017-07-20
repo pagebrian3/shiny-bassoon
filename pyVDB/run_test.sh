@@ -1,5 +1,5 @@
 #!/bin/bash
 
-rm -rf ~/.video_proj/vdb.sql
+rm -rf ~/.video_proj
 
 ./pyBrowser.py
