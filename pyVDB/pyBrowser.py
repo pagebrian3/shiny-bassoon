@@ -193,7 +193,6 @@ class dupe_finder(object):
                             for j in i:
                                 for k in j:
                                     trace.append(k)
-                    
                     ret,buf = cap.read()
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
@@ -269,17 +268,10 @@ class video_icon(vid_file.vid_file, Gtk.EventBox):
         
     def createIcon(self):
         global vid
-        #cap=cv2.VideoCapture(self.fileName)
-        #ret,buf = cap.read()
         thumb_t = thumb_time
         if self.length < thumb_time:
             thumb_t = self.length/2.0
         subprocess.run('ffmpeg -y -nostats -loglevel 0 -ss 00:00:%i.00 -i %s -vframes 1 %s' % (thumb_t/1000, self.fileName, temp_icon), shell=True)
-        #while(True):
-        #    ret,buf = cap.read()
-        #    if cap.get(cv2.CAP_PROP_POS_MSEC) > thumb_t or (cv2.waitKey(1) & 0xFF == ord('q')):
-        #        break
-        #cv2.imwrite(temp_icon, buf)
         image = Image(filename=temp_icon)
         image.trim(fuzz=5000)
         scale = 1.0
