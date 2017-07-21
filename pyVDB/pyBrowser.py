@@ -22,7 +22,7 @@ iconWidth = 300
 width = 640
 height = 480
 thumb_time = 10000
-thresh = 5000
+thresh = 10000
 comp_time = 20
 trace_fps=5.0
 slice_spacing = 60
@@ -144,7 +144,7 @@ class MyWindow(Gtk.Window):
 
     def fdupe_clicked(self,widget):
         global directory
-        dupe_finder(directory)
+        dupe_finder2(directory)
         
     def on_sort_changed(self, combo):
         tree_iter = combo.get_active_iter()
@@ -165,7 +165,7 @@ class MyWindow(Gtk.Window):
     def on_delete(self, widget):
         dbCon.save_db_file()
         
-class dupe_finder(object):
+class dupe_finder1(object):
     def __init__(self,directory):
         videos = []
         for filename in os.listdir(directory):
@@ -248,8 +248,96 @@ class dupe_finder(object):
                         if counter == 12:
                             match=True
                         if match:
-                            print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))
-                
+                            print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))                
+                result = 0
+                if match:
+                    result = 1
+                dbCon.cur.execute('insert into results values (?,?,?)',(i[0], j[0],result))       
+            first_pos+=1
+
+class dupe_finder2(object):
+    def __init__(self,directory):
+        videos = []
+        for filename in os.listdir(directory):
+            fName, fExt = os.path.splitext(filename)
+            flExt = fExt.lower()           
+            if flExt in vExts:
+                videos.append(directory+filename)
+        for video in videos:
+            if not dbCon.trace_exists(video):
+                vid_obj= dbCon.fetch_video(video)
+                video_id = vid_obj.vdatid
+                print(video)
+                subprocess.run('rm -rf %s/out*.jpg' % (app_path), shell=True)
+                subprocess.run('ffmpeg -y -nostats -loglevel 0 -i \"%s\" -vf fps=5,scale=2:2 %s/out%%05d.jpg' % (video, app_path), shell=True)
+                icons = []
+                trace = []
+                for filename in os.listdir(app_path):
+                    fName, fExt = os.path.splitext(filename)
+                    flExt = fExt.lower()           
+                    if flExt == ".jpg":
+                        icons.append(filename)
+                icons=sorted(icons)
+                for icon in icons:
+                    with Image(filename=app_path+"/"+icon)  as img:
+                        for row in img:
+                            for pixel in row:
+                                trace.append(int(255*pixel.red))
+                                trace.append(int(255*pixel.green))
+                                trace.append(int(255*pixel.blue))
+                #print(trace)
+                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(sqlite3.Binary(pickle.dumps(trace)), video_id))
+                dbCon.con.commit()
+        dbCon.cur.execute('select vid from dat_blobs order by vid')
+        vids = dbCon.cur.fetchall()
+        dbCon.cur.execute('select * from results')
+        results = dbCon.cur.fetchall()
+        result_map = dict()
+        for a in results:
+            result_map.update({(a[0],a[1]):a[2]})
+        first_pos=0
+        #loop over files
+        for i in vids[:-1]:
+            dbCon.cur.execute('select vdat from dat_blobs where vid=?', i)
+            vdat1 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
+            #loop over files after i
+            for j in vids[first_pos+1:]:
+                print(str(i[0])+" "+str(j[0]))
+                if (i[0],j[0]) in result_map:
+                    continue
+                match=False
+                dbCon.cur.execute('select vdat from dat_blobs where vid=?', j)
+                vdat2 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
+                #print(str(len(vdat1))+str(int(len(vdat1)-12*trace_fps*comp_time))+" "+str(int(12*trace_fps*slice_spacing)))
+                #loop over slices
+                for t_s in range(0,int(len(vdat1)-12*trace_fps*comp_time), int(12*trace_fps*slice_spacing)):
+                    if match:
+                        break
+                    #starting offset for 2nd trace
+                    #this is the loop for the indiviual tests
+                    for t_x in range(0,int(len(vdat2)-12*trace_fps*comp_time),12):
+                        if match:
+                            break
+                        accum=np.zeros(12)
+                        #offset loop
+                        for t_o in range(0,int(12*comp_time*trace_fps),12):
+                            counter = 0
+                            for a in accum:
+                                if a > thresh:
+                                    counter+=1
+                            if counter != 0:
+                                break
+                            #data member loop
+                            for t_d in range(0,12):
+                                accum[t_d]+=pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)
+                        counter = 0
+                        for a in accum:
+                            if a < thresh:
+                                counter+=1
+                        if counter == 12:
+                            match=True
+                        if match:
+                            print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))                
                 result = 0
                 if match:
                     result = 1
