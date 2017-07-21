@@ -13,6 +13,7 @@ import humanize
 from pathlib import Path
 import cv2
 import sqlite3
+import numpy as np
 from wand.image import Image
 from pymediainfo import MediaInfo
 
@@ -21,7 +22,8 @@ iconWidth = 300
 width = 640
 height = 480
 thumb_time = 10000
-comp_time = 30
+thresh = 5000
+comp_time = 20
 trace_fps=5.0
 slice_spacing = 60
 default_sort = "size"
@@ -202,37 +204,56 @@ class dupe_finder(object):
         vids = dbCon.cur.fetchall()
         dbCon.cur.execute('select * from results')
         results = dbCon.cur.fetchall()
+        result_map = dict()
+        for a in results:
+            result_map.update({(a[0],a[1]):a[2]})
         first_pos=0
+        #loop over files
         for i in vids[:-1]:
-            vdat1 = []
             dbCon.cur.execute('select vdat from dat_blobs where vid=?', i)
-            for row in dbCon.cur:
-                vdat1 =pickle.loads(row[0])
+            vdat1 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
+            #loop over files after i
             for j in vids[first_pos+1:]:
-                vdat2 = []
-                print(str(i) +" "+str(j))
-                #Need to add check to results so we don't repeat results
+                if (i[0],j[0]) in result_map:
+                    continue
+                match=False
                 dbCon.cur.execute('select vdat from dat_blobs where vid=?', j)
-                for row in dbCon.cur:
-                    vdat2 = pickle.loads(row[0])
-                #slice loop
-                print(str(len(vdat1))+str(int(len(vdat1)-12*trace_fps*comp_time))+" "+str(int(12*trace_fps*slice_spacing)))
+                vdat2 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
+                #print(str(len(vdat1))+str(int(len(vdat1)-12*trace_fps*comp_time))+" "+str(int(12*trace_fps*slice_spacing)))
+                #loop over slices
                 for t_s in range(0,int(len(vdat1)-12*trace_fps*comp_time), int(12*trace_fps*slice_spacing)):
-                   
+                    if match:
+                        break
                     #starting offset for 2nd trace
                     #this is the loop for the indiviual tests
                     for t_x in range(0,int(len(vdat2)-12*trace_fps*comp_time),12):
-                        print(str(t_s)+" "+str(t_x))
-                        accum=[]
-                        for i in range(12):
-                            accum.append(0)
+                        if match:
+                            break
+                        accum=np.zeros(12)
                         #offset loop
                         for t_o in range(0,int(12*comp_time*trace_fps),12):
+                            counter = 0
+                            for a in accum:
+                                if a > thresh:
+                                    counter+=1
+                            if counter != 0:
+                                break
                             #data member loop
                             for t_d in range(0,12):
-                                print()
                                 accum[t_d]+=pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)
-                        print("ACCUM "+str(t_o)+" "+str(accum[t_d])+" "+str(len(vdat1))+" "+str(len(vdat2))+" "+str(t_s)+" "+str(t_x)+" "+" "+str(t_d))
+                        counter = 0
+                        for a in accum:
+                            if a < thresh:
+                                counter+=1
+                        if counter == 12:
+                            match=True
+                        if match:
+                            print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))
+                
+                result = 0
+                if match:
+                    result = 1
+                dbCon.cur.execute('insert into results values (?,?,?)',(i[0], j[0],result))       
             first_pos+=1
                 
 class video_icon(vid_file.vid_file, Gtk.EventBox):
@@ -281,7 +302,7 @@ class video_icon(vid_file.vid_file, Gtk.EventBox):
             scale = xScale
         else:
             scale = yScale
-        image.resize(int(image.width*scale),  int(image.height*scale))
+        image.resize(int(image.width*scale), int(image.height*scale))
         image.save(filename=temp_icon)
         dbCon.cur.execute('insert into dat_blobs(vid, img_dat, vdat) values (?,?, "0")', (vid,sqlite3.Binary(open(temp_icon,'rb').read())))
         dbCon.con.commit()

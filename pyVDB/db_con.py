@@ -19,7 +19,7 @@ class DbConnector(object):
         db_file_temp = self.db_path+"/temp.sql"
         if self.newFile:
             conTemp = sqlite3.connect(db_file_temp)
-            conTemp.execute("create table results(v1id integer, v2id integer, result integer, regions text)")
+            conTemp.execute("create table results(v1id integer, v2id integer, result integer)")
             conTemp.execute("create table dat_blobs(vid integer primary key, img_dat blob, vdat blob)")
             conTemp.execute("create table videos(path text,length real, size real, okflag integer, vdatid integer)")#, foreign key(vdatid) references dat_blobs(vid)")
             conTemp.commit()
