@@ -232,7 +232,7 @@ class dupe_finder(object):
                             for t_d in range(0,12):
                                 print()
                                 accum[t_d]+=pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)
-                                print("ACCUM "+str(t_o)+" "+str(accum[t_d])+" "+str(len(vdat1))+" "+str(len(vdat2))+" "+str(t_s)+" "+str(t_x)+" "+" "+str(t_d))
+                        print("ACCUM "+str(t_o)+" "+str(accum[t_d])+" "+str(len(vdat1))+" "+str(len(vdat2))+" "+str(t_s)+" "+str(t_x)+" "+" "+str(t_d))
             first_pos+=1
                 
 class video_icon(vid_file.vid_file, Gtk.EventBox):
@@ -271,7 +271,7 @@ class video_icon(vid_file.vid_file, Gtk.EventBox):
         thumb_t = thumb_time
         if self.length < thumb_time:
             thumb_t = self.length/2.0
-        subprocess.run('ffmpeg -y -nostats -loglevel 0 -ss 00:00:%i.00 -i %s -vframes 1 %s' % (thumb_t/1000, self.fileName, temp_icon), shell=True)
+        subprocess.run('ffmpeg -y -nostats -loglevel 0 -ss 00:00:%i.00 -i \"%s\" -vframes 1 %s' % (thumb_t/1000, self.fileName, temp_icon), shell=True)
         image = Image(filename=temp_icon)
         image.trim(fuzz=5000)
         scale = 1.0
