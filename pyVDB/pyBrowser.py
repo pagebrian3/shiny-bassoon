@@ -13,6 +13,8 @@ import humanize
 from pathlib import Path
 import sqlite3
 import numpy as np
+import multiprocessing
+import tempfile
 from wand.image import Image
 from pymediainfo import MediaInfo
 
@@ -25,6 +27,8 @@ thresh = 2000
 comp_time = 20
 trace_fps=5.0
 slice_spacing = 60
+PROCESSES = 2
+FUZZ=5000
 default_sort = "size"
 default_desc = True
 vExts = [ ".mp4", ".mov",".mpg",".mpeg",".wmv",".m4v", ".avi", ".flv" ]
@@ -37,6 +41,27 @@ temp_icon = app_path+"/temp.png"
 directory = "/home/ungermax/mt_test/"
 dbCon = db_con.DbConnector(app_path)
 vid = dbCon.get_last_vid()
+
+def calculate_trace(videoFile, vid):
+    #print("Processing: " + videoFile + " "+str(vid))
+    temp_dir = tempfile.TemporaryDirectory()
+    #add post processing of frames  EXPENSIVE
+    subprocess.run('ffmpeg -y -nostats -loglevel 0 -i \"%s\" -r 5 -s 2x2  %s/out%%05d.tiff' % (videoFile,temp_dir.name), shell=True)
+    icons = []
+    trace = []
+    for filename in os.listdir(temp_dir.name):
+         fName, fExt = os.path.splitext(filename)
+         flExt = fExt.lower()           
+         if flExt == ".tiff": icons.append(filename)
+    icons=sorted(icons)
+    for icon in icons:
+        with Image(filename=temp_dir.name+"/"+icon) as img:
+            for row in img:
+                for pixel in row:
+                    trace.append(int(255*pixel.red))
+                    trace.append(int(255*pixel.green))
+                    trace.append(int(255*pixel.blue))
+    return (vid,trace)
 
 
 class MyWindow(Gtk.Window):
@@ -151,80 +176,68 @@ class MyWindow(Gtk.Window):
 
 class dupe_finder(object):
     def __init__(self,directory):
-        videos = []
-        for filename in os.listdir(directory):
-            fName, fExt = os.path.splitext(filename)
-            flExt = fExt.lower()           
-            if flExt in vExts: videos.append(directory+filename)
-        for video in videos:
-            if not dbCon.trace_exists(video):
-                vid_obj= dbCon.fetch_video(video)
-                video_id = vid_obj.vdatid
-                #print(video + " "+str(video_id))
-                subprocess.run('rm -rf %s/*.tiff' % (app_path), shell=True)
-                subprocess.run('ffmpeg -y -nostats -loglevel 0 -i \"%s\" -r 5 -s 2x2  %s/out%%05d.tiff' % (video, app_path), shell=True)
-                icons = []
-                trace = []
-                for filename in os.listdir(app_path):
-                    fName, fExt = os.path.splitext(filename)
-                    flExt = fExt.lower()           
-                    if flExt == ".tiff": icons.append(filename)
-                icons=sorted(icons)
-                for icon in icons:
-                    with Image(filename=app_path+"/"+icon)  as img:
-                        for row in img:
-                            for pixel in row:
-                                trace.append(int(255*pixel.red))
-                                trace.append(int(255*pixel.green))
-                                trace.append(int(255*pixel.blue))
+        with multiprocessing.Pool(PROCESSES) as pool:
+            videos = []
+            vids = []
+            for filename in os.listdir(directory):
+                fName, fExt = os.path.splitext(filename)
+                flExt = fExt.lower()           
+                if flExt in vExts:
+                    full_path = directory+filename
+                    vid_obj= dbCon.fetch_video(full_path)
+                    video_id = vid_obj.vdatid
+                    vids.append((video_id,))
+                    if not dbCon.trace_exists(full_path):
+                        #print("Appending: "+full_path)
+                        videos.append((full_path,video_id))
+            result_array=[pool.apply_async(calculate_trace, v) for v in videos]
+            traces = []
+            for res in result_array: traces.append(res.get())
+            for trace in traces:
                 #print(trace)
-                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(sqlite3.Binary(pickle.dumps(trace)), video_id))
+                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(sqlite3.Binary(pickle.dumps(trace[1])), trace[0]))
                 dbCon.con.commit()
-        dbCon.cur.execute('select vid from dat_blobs order by vid')
-        vids = dbCon.cur.fetchall()
-        dbCon.cur.execute('select * from results')
-        results = dbCon.cur.fetchall()
-        result_map = dict()
-        for a in results: result_map.update({(a[0],a[1]):a[2]})
-        first_pos=0
-        #loop over files
-        for i in vids[:-1]:
-            dbCon.cur.execute('select vdat from dat_blobs where vid=?', i)
-            vdat1 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
-            #loop over files after i
-            for j in vids[first_pos+1:]:
-                #print(str(i[0])+" "+str(j[0]))
-                if (i[0],j[0]) in result_map: continue
-                match=False
-                dbCon.cur.execute('select vdat from dat_blobs where vid=?', j)
-                vdat2 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
-                #print(str(len(vdat1))+str(int(len(vdat1)-12*trace_fps*comp_time))+" "+str(int(12*trace_fps*slice_spacing)))
-                #loop over slices
-                for t_s in range(0,int(len(vdat1)-12*trace_fps*comp_time), int(12*trace_fps*slice_spacing)):
-                    if match: break
-                    #starting offset for 2nd trace
-                    #this is the loop for the indiviual tests
-                    for t_x in range(0,int(len(vdat2)-12*trace_fps*comp_time),12):
+            dbCon.cur.execute('select * from results')
+            results = dbCon.cur.fetchall()
+            result_map = dict()
+            for a in results: result_map.update({(a[0],a[1]):a[2]})
+            first_pos=0
+            #loop over files  TODO-make this parallel when we have larger sample
+            for i in vids[:-1]:
+                dbCon.cur.execute('select vdat from dat_blobs where vid=?', i)
+                vdat1 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
+                #loop over files after i
+                for j in vids[first_pos+1:]:
+                    #print(str(i[0])+" "+str(j[0]))
+                    if (i[0],j[0]) in result_map: continue
+                    match=False
+                    dbCon.cur.execute('select vdat from dat_blobs where vid=?', j)
+                    vdat2 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
+                    #loop over slices
+                    for t_s in range(0,int(len(vdat1)-12*trace_fps*comp_time), int(12*trace_fps*slice_spacing)):
                         if match: break
-                        accum=np.zeros(12)
-                        #offset loop
-                        for t_o in range(0,int(12*comp_time*trace_fps),12):
+                        #starting offset for 2nd trace -this is the loop for the indiviual tests
+                        for t_x in range(0,int(len(vdat2)-12*trace_fps*comp_time),12):
+                            if match: break
+                            accum=np.zeros(12)
+                            #offset loop
+                            for t_o in range(0,int(12*comp_time*trace_fps),12):
+                                counter = 0
+                                for a in accum:
+                                    if a > thresh: counter+=1
+                                if counter != 0: break
+                                #data member loop
+                                for t_d in range(0,12): accum[t_d]+=pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)
                             counter = 0
                             for a in accum:
-                                if a > thresh: counter+=1
-                            if counter != 0: break
-                            #data member loop
-                            for t_d in range(0,12): accum[t_d]+=pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)
-                        counter = 0
-                        for a in accum:
-                            if a < thresh: counter+=1
-                        if counter == 12:
-                            match=True
-                            print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))                
-                result = 0
-                if match: result = 1
-                dbCon.cur.execute('insert into results values (?,?,?)',(i[0], j[0],result))       
-            first_pos+=1
+                                if a < thresh: counter+=1
+                            if counter == 12:
+                                match=True
+                                #print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))                
+                    result = 0
+                    if match: result = 1
+                    dbCon.cur.execute('insert into results values (?,?,?)',(i[0], j[0],result))       
+                first_pos+=1 
                 
 class video_icon(vid_file.vid_file, Gtk.EventBox):
     def __init__(self,fileName):
@@ -243,6 +256,7 @@ class video_icon(vid_file.vid_file, Gtk.EventBox):
             dbCon.cur.execute('select img_dat from dat_blobs where vid=?',(self.vdatid ,))
             imageData = dbCon.cur.fetchone()[0]
             with open(temp_icon, "wb") as output_file:
+
                 output_file.write(imageData)                       
         else:
             vid+=1
@@ -256,21 +270,12 @@ class video_icon(vid_file.vid_file, Gtk.EventBox):
         image.set_from_file(temp_icon)
         self.add(image)
         self.set_tooltip_text("Filename: "+self.fileName+ "\nSize: "+humanize.naturalsize(self.size)+"\nLength: {:0.1f}".format(self.length/1000.0)+"s")
-        
+
     def createIcon(self):
         global vid
         thumb_t = thumb_time
         if self.length < thumb_time: thumb_t = self.length/2.0
-        subprocess.run('ffmpeg -y -nostats -loglevel 0 -ss 00:00:%i.00 -i \"%s\" -vframes 1 %s' % (thumb_t/1000, self.fileName, temp_icon), shell=True)
-        image = Image(filename=temp_icon)
-        image.trim(fuzz=5000)
-        scale = 1.0
-        xScale = iconWidth/image.width
-        yScale = iconHeight/image.height
-        if xScale < yScale : scale = xScale
-        else: scale = yScale
-        image.resize(int(image.width*scale), int(image.height*scale))
-        image.save(filename=temp_icon)
+        subprocess.run('ffmpeg -y -nostats -loglevel 0 -ss 00:00:%i.00 -i \"%s\" -vframes 1 -f image2pipe -vcodec png - | convert png:- -fuzz %i -trim -thumbnail %ix%i %s' % (thumb_t/1000, self.fileName, FUZZ,iconWidth,iconHeight,temp_icon), shell=True)
         dbCon.cur.execute('insert into dat_blobs(vid, img_dat, vdat) values (?,?, "0")', (vid,sqlite3.Binary(open(temp_icon,'rb').read())))
         dbCon.con.commit()
         
