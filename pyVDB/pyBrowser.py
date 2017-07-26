@@ -19,13 +19,13 @@ from wand.image import Image
 from pymediainfo import MediaInfo
 
 iconHeight = 180
-iconWidth = 300
+iconWidth = 320
 width = 640
 height = 480
-thumb_time = 10000
+thumb_time = 12000
 thresh = 2000
 comp_time = 20
-trace_fps=5.0
+trace_fps= 20
 slice_spacing = 60
 PROCESSES = 2
 FUZZ=5000
@@ -46,7 +46,7 @@ def calculate_trace(videoFile, vid):
     #print("Processing: " + videoFile + " "+str(vid))
     temp_dir = tempfile.TemporaryDirectory()
     #add post processing of frames  EXPENSIVE
-    subprocess.run('ffmpeg -y -nostats -loglevel 0 -i \"%s\" -r 5 -s 2x2  %s/out%%05d.tiff' % (videoFile,temp_dir.name), shell=True)
+    subprocess.run('ffmpeg -y -nostats -loglevel 0 -i \"%s\" -r %.2f -s 2x2  %s/out%%05d.tiff' % (videoFile,trace_fps,temp_dir.name), shell=True)
     icons = []
     trace = []
     for filename in os.listdir(temp_dir.name):
@@ -62,7 +62,6 @@ def calculate_trace(videoFile, vid):
                     trace.append(int(255*pixel.green))
                     trace.append(int(255*pixel.blue))
     return (vid,trace)
-
 
 class MyWindow(Gtk.Window):
     def __init__(self):
@@ -154,8 +153,7 @@ class MyWindow(Gtk.Window):
         self.show_all()
 
     def fdupe_clicked(self,widget):
-        global directory
-        dupe_finder(directory)
+        dupe_finder()
         
     def on_sort_changed(self, combo):
         tree_iter = combo.get_active_iter()
@@ -175,7 +173,7 @@ class MyWindow(Gtk.Window):
         dbCon.save_db_file()
 
 class dupe_finder(object):
-    def __init__(self,directory):
+    def __init__(self):
         with multiprocessing.Pool(PROCESSES) as pool:
             videos = []
             vids = []
@@ -225,15 +223,15 @@ class dupe_finder(object):
                                 counter = 0
                                 for a in accum:
                                     if a > thresh: counter+=1
-                                if counter != 0: break
+                                #if counter != 0: break
                                 #data member loop
                                 for t_d in range(0,12): accum[t_d]+=pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)
                             counter = 0
                             for a in accum:
                                 if a < thresh: counter+=1
-                            if counter == 12:
-                                match=True
-                                #print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))                
+                            #if counter == 12:
+                            #    match=True
+                            print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))                
                     result = 0
                     if match: result = 1
                     dbCon.cur.execute('insert into results values (?,?,?)',(i[0], j[0],result))       
@@ -246,8 +244,7 @@ class video_icon(vid_file.vid_file, Gtk.EventBox):
         Gtk.Image.__init__(self)
         self.fileName =  directory+fileName
         self.size=0.0
-        self.length=0.0
-        
+        self.length=0.0      
         if(dbCon.video_exists(self.fileName)):
             vid_temp = dbCon.fetch_video(self.fileName)
             self.vdatid = vid_temp.vdatid
@@ -256,7 +253,6 @@ class video_icon(vid_file.vid_file, Gtk.EventBox):
             dbCon.cur.execute('select img_dat from dat_blobs where vid=?',(self.vdatid ,))
             imageData = dbCon.cur.fetchone()[0]
             with open(temp_icon, "wb") as output_file:
-
                 output_file.write(imageData)                       
         else:
             vid+=1
