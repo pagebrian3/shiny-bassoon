@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+import zlib
+import time
 import db_con
 import vid_file
 import gi
@@ -7,7 +9,6 @@ import pickle
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 import os
-import io
 import subprocess
 import humanize
 from pathlib import Path
@@ -23,9 +24,10 @@ iconWidth = 320
 width = 640
 height = 480
 thumb_time = 12000
-thresh = 2000
 comp_time = 20
-trace_fps= 20
+trace_fps= 15.0
+thresh = 1000.0*comp_time*trace_fps
+fudge = 8
 slice_spacing = 60
 PROCESSES = 2
 FUZZ=5000
@@ -177,6 +179,7 @@ class dupe_finder(object):
         with multiprocessing.Pool(PROCESSES) as pool:
             videos = []
             vids = []
+            time1 = time.perf_counter()
             for filename in os.listdir(directory):
                 fName, fExt = os.path.splitext(filename)
                 flExt = fExt.lower()           
@@ -193,8 +196,8 @@ class dupe_finder(object):
             for res in result_array: traces.append(res.get())
             for trace in traces:
                 #print(trace)
-                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(sqlite3.Binary(pickle.dumps(trace[1])), trace[0]))
-                dbCon.con.commit()
+                dbCon.cur.execute("update dat_blobs set vdat=? where vid=?",(sqlite3.Binary(zlib.compress(pickle.dumps(trace[1]))), trace[0]))
+            dbCon.con.commit()
             dbCon.cur.execute('select * from results')
             results = dbCon.cur.fetchall()
             result_map = dict()
@@ -203,14 +206,14 @@ class dupe_finder(object):
             #loop over files  TODO-make this parallel when we have larger sample
             for i in vids[:-1]:
                 dbCon.cur.execute('select vdat from dat_blobs where vid=?', i)
-                vdat1 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
+                vdat1 = np.array(pickle.loads(zlib.decompress(dbCon.cur.fetchone()[0])))
                 #loop over files after i
                 for j in vids[first_pos+1:]:
                     #print(str(i[0])+" "+str(j[0]))
                     if (i[0],j[0]) in result_map: continue
                     match=False
                     dbCon.cur.execute('select vdat from dat_blobs where vid=?', j)
-                    vdat2 = np.array(pickle.loads(dbCon.cur.fetchone()[0]))
+                    vdat2 = np.array(pickle.loads(zlib.decompress(dbCon.cur.fetchone()[0])))
                     #loop over slices
                     for t_s in range(0,int(len(vdat1)-12*trace_fps*comp_time), int(12*trace_fps*slice_spacing)):
                         if match: break
@@ -223,19 +226,23 @@ class dupe_finder(object):
                                 counter = 0
                                 for a in accum:
                                     if a > thresh: counter+=1
-                                #if counter != 0: break
-                                #data member loop
-                                for t_d in range(0,12): accum[t_d]+=pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)
+                                if counter != 0: break
+                                #pixel/color loop
+                                for t_d in range(0,12): 
+                                    value = pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)-fudge**2
+                                    if value < 0: value = 0
+                                    accum[t_d]+=value
                             counter = 0
                             for a in accum:
                                 if a < thresh: counter+=1
-                            #if counter == 12:
-                            #    match=True
-                            print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))                
+                            if counter == 12: match=True
+                            if match : print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))                
                     result = 0
                     if match: result = 1
                     dbCon.cur.execute('insert into results values (?,?,?)',(i[0], j[0],result))       
-                first_pos+=1 
+                first_pos+=1
+            dbCon.con.commit()
+            print("TIME: "+str(time.perf_counter()-time1))
                 
 class video_icon(vid_file.vid_file, Gtk.EventBox):
     def __init__(self,fileName):
@@ -259,21 +266,16 @@ class video_icon(vid_file.vid_file, Gtk.EventBox):
             self.vdatid  = vid
             self.size = os.stat(self.fileName).st_size
             self.length = MediaInfo.parse(self.fileName).tracks[0].duration
-            self.createIcon()
+            thumb_t = thumb_time
+            if self.length < thumb_time: thumb_t = self.length/2.0
+            subprocess.run('ffmpeg -y -nostats -loglevel 0 -ss 00:00:%i.00 -i \"%s\" -vframes 1 -f image2pipe -vcodec png - | convert png:- -fuzz %i -trim -thumbnail %ix%i %s' % (thumb_t/1000, self.fileName, FUZZ,iconWidth,iconHeight,temp_icon), shell=True)
+            dbCon.cur.execute('insert into dat_blobs(vid, img_dat, vdat) values (?,?, "0")', (vid,sqlite3.Binary(open(temp_icon,'rb').read())))
             dbCon.cur.execute("insert into videos values (?,?,?,?,?)", (self.fileName, self.size, self.length, 1, self.vdatid))
             dbCon.con.commit()
         image = Gtk.Image()
         image.set_from_file(temp_icon)
         self.add(image)
         self.set_tooltip_text("Filename: "+self.fileName+ "\nSize: "+humanize.naturalsize(self.size)+"\nLength: {:0.1f}".format(self.length/1000.0)+"s")
-
-    def createIcon(self):
-        global vid
-        thumb_t = thumb_time
-        if self.length < thumb_time: thumb_t = self.length/2.0
-        subprocess.run('ffmpeg -y -nostats -loglevel 0 -ss 00:00:%i.00 -i \"%s\" -vframes 1 -f image2pipe -vcodec png - | convert png:- -fuzz %i -trim -thumbnail %ix%i %s' % (thumb_t/1000, self.fileName, FUZZ,iconWidth,iconHeight,temp_icon), shell=True)
-        dbCon.cur.execute('insert into dat_blobs(vid, img_dat, vdat) values (?,?, "0")', (vid,sqlite3.Binary(open(temp_icon,'rb').read())))
-        dbCon.con.commit()
         
     def __repr__(self):
         return repr(self.fileName)
