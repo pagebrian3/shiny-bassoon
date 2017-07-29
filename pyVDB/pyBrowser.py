@@ -39,7 +39,7 @@ app_path = home_dir+"/.video_proj"
 if not Path(app_path).is_dir(): os.mkdir(app_path)
 db_file = app_path+"/vdb.sql"
 db_file_temp= app_path+"/temp.sql"
-temp_icon = app_path+"/temp.png"
+temp_icon = app_path+"/temp.jpg"
 directory = "/home/ungermax/mt_test/"
 dbCon = db_con.DbConnector(app_path)
 vid = dbCon.get_last_vid()
@@ -68,6 +68,7 @@ def calculate_trace(videoFile, vid):
 class MyWindow(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self,title="PyVDBrowser: " + directory)
+        time1 = time.perf_counter()
         self.set_default_size(width,height)
         box_outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6)
         self.add(box_outer)
@@ -102,6 +103,7 @@ class MyWindow(Gtk.Window):
         self.scrollWin = Gtk.ScrolledWindow()
         box_outer.pack_start(self.scrollWin, True, True, 0)
         self.populate_icons()
+        print("TIME1: "+str(time.perf_counter()-time1))
         
     def populate_icons(self,  clean=False):
         if clean: self.scrollWin.remove(self.fBox)
@@ -242,7 +244,7 @@ class dupe_finder(object):
                     dbCon.cur.execute('insert into results values (?,?,?)',(i[0], j[0],result))       
                 first_pos+=1
             dbCon.con.commit()
-            print("TIME: "+str(time.perf_counter()-time1))
+            print("TIME2: "+str(time.perf_counter()-time1))
                 
 class video_icon(vid_file.vid_file, Gtk.EventBox):
     def __init__(self,fileName):
