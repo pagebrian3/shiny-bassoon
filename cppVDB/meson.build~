@@ -1,0 +1,3 @@
+project('cppVDB','cpp')
+gtkmmdep = dependency('gtkmm-2.4')
+executable('a','main.cpp', dependencies : gtkmmdep)
