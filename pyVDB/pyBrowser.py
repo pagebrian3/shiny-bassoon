@@ -45,16 +45,15 @@ dbCon = db_con.DbConnector(app_path)
 vid = dbCon.get_last_vid()
 
 def calculate_trace(videoFile, vid):
-    #print("Processing: " + videoFile + " "+str(vid))
     temp_dir = tempfile.TemporaryDirectory()
     #add post processing of frames  EXPENSIVE
-    subprocess.run('ffmpeg -y -nostats -loglevel 0 -i \"%s\" -r %.2f -s 2x2  %s/out%%05d.tiff' % (videoFile,trace_fps,temp_dir.name), shell=True)
+    subprocess.run('ffmpeg -y -nostats -loglevel 0 -i \"%s\" -r %.2f -s 2x2  %s/out%%05d.bmp' % (videoFile,trace_fps,temp_dir.name), shell=True)
     icons = []
     trace = []
     for filename in os.listdir(temp_dir.name):
          fName, fExt = os.path.splitext(filename)
          flExt = fExt.lower()           
-         if flExt == ".tiff": icons.append(filename)
+         if flExt == ".bmp": icons.append(filename)
     icons=sorted(icons)
     for icon in icons:
         with Image(filename=temp_dir.name+"/"+icon) as img:
