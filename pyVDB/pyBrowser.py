@@ -24,12 +24,15 @@ iconWidth = 320
 width = 640
 height = 480
 thumb_time = 12000
+trace_time = "00:00:10"
 comp_time = 20
 trace_fps= 15.0
+border_fps= 0.5
 thresh = 1000.0*comp_time*trace_fps
+black_thresh = 1.0
 fudge = 8
 slice_spacing = 60
-PROCESSES = 2
+PROCESSES = 1
 FUZZ=5000
 default_sort = "size"
 default_desc = True
@@ -46,7 +49,45 @@ vid = dbCon.get_last_vid()
 
 def calculate_trace(videoFile, vid):
     temp_dir = tempfile.TemporaryDirectory()
-    #add post processing of frames  EXPENSIVE
+    print(videoFile)
+    subprocess.run('ffmpeg -y -nostats -loglevel 0 -ss %s -i \"%s\" -r %.2f  %s/border%%05d.bmp' % (trace_time, videoFile,border_fps,temp_dir.name), shell=True)
+    icons = []
+    for filename in os.listdir(temp_dir.name):
+         fName, fExt = os.path.splitext(filename)
+         flExt = fExt.lower()           
+         if flExt == ".bmp": icons.append(filename)
+    icons=sorted(icons)
+    last_image = Image(filename=temp_dir.name+"/"+icons[0])
+    accum = np.zeros((last_image.size[0],last_image.size[1]), dtype=np.int32)
+    icon_counter=0
+    #use Image.difference instead.
+    for icon in icons[1:]:
+        with Image(filename=temp_dir.name+"/"+icon) as img:
+            print(str(vid)+" "+str(icon_counter))
+            for row1,row2,row_accum in zip(img,last_image,accum):
+                for pixel1,pixel2,pixel_accum in zip(row1,row2,row_accum):
+                    pixel_accum+=pow(int(255*pixel1.red)-int(255*pixel2.red),2)+pow(int(255*pixel1.green)-int(255*pixel2.green),2)+pow(int(255*pixel1.blue)-int(255*pixel2.blue),2)                           
+            last_image=img
+        icon_counter+=1
+    array_dims = accum.size
+    cuts = [0,array_dims[0]-1,0,array_dims[1]-1]
+    for i in range(0,array_dims[0]/2):
+        if np.sum(accum[i]) > black_thresh*array_dims[1]:
+            cuts[0]=i
+            break
+    for i in reversed(range(array_dims[0]-1,array_dims[0]/2)):
+        if np.sum(accum[i]) > black_thresh*array_dims[1]:
+            cuts[1]=i
+            break
+    for i in range(0,array_dims[1]/2):
+        if np.sum(accum[:,i]) > black_thresh*array_dims[0]:
+            cuts[2]=i
+            break
+    for i in reversed(range(array_dims[1]-1,array_dims[1]/2)):
+        if np.sum(accum[:,i]) > black_thresh*array_dims[0]:
+            cuts[3]=i
+            break
+    print(cuts)
     subprocess.run('ffmpeg -y -nostats -loglevel 0 -i \"%s\" -r %.2f -s 2x2  %s/out%%05d.bmp' % (videoFile,trace_fps,temp_dir.name), shell=True)
     icons = []
     trace = []
