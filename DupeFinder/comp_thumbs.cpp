@@ -60,12 +60,27 @@ void create_trace(boost::filesystem::directory_entry & path) {
   std::vector<boost::filesystem::directory_entry> bmpList;
   for (boost::filesystem::directory_entry & x : boost::filesystem::recursive_directory_iterator(p))  bmpList.push_back(x);
   std:sort(bmpList.begin(),bmpList.end());
-  for(int i = 0; i < bmpList.size()-1; i++) {
-    Magick::Image a(bmpList[i].path().c_str());
-    Magick::Image b(bmpList[i+1].path().c_str());
+  Magick::Image a;
+  Magick::Image b;
+  b.read(bmpList[0].path().c_str());
+  Magick::Geometry geom = b.size();
+  std::vector<double> rowSums(geom.height());
+  std::vector<double> colSums(geom.width());
+  for(int i = 1; i < bmpList.size()-1; i++) {
+    a = b;
+    b.read(bmpList[i].path().c_str());
     a.composite(b,0,0,Magick::DifferenceCompositeOp);
-    a.write((boost::format("%s/diff%05d.bmp") % home % i).str());
+    for(int i = 0; i < geom.height(); i++) for(int j = 0; j < geom.width(); j++) {
+	double value =sqrt(1.0/3.0*(pow(a.pixelColor(i,j).redQuantum(),2.0)+pow(a.pixelColor(i,j).greenQuantum(),2.0)+pow(a.pixelColor(i,j).blueQuantum(),2.0)));
+	rowSums[i]+=value;
+	colSums[j]+=value;
+      }
   }
+  std::cout << "Row Vals: ";
+  for(int i = 0; i < rowSums.size(); i++) std::cout << rowSums[i] <<" ";
+  std::cout <<std::endl << "Column Vals: ";
+  for(int i = 0; i < colSums.size(); i++) std::cout << colSums[i] <<" ";
+  
   return;
 }
 
