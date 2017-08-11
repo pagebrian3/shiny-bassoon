@@ -5,4 +5,4 @@ chmod +x comp_thumbs
 #rm -rf mytestfile.root
 
 export VDPAU_DRIVER=nvidia
-./comp_thumbs /home/ungermax/mt_test
+./comp_thumbs /home/ungermax/test_vids
