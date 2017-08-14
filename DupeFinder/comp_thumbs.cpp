@@ -16,8 +16,6 @@
 
 void create_trace(boost::filesystem::directory_entry &path);
 
-bool process_image(Magick::Image & image);
-
 int main(int argc, char* argv[])
 {
   Magick::InitializeMagick(*argv);
@@ -93,27 +91,28 @@ void create_trace(boost::filesystem::directory_entry & path) {
   while(colSums[x2] < CUT_THRESH) x2--;
   while(rowSums[y1] < CUT_THRESH) y1++;
   while(rowSums[y2] < CUT_THRESH) y2--;
+  x2-=x1;
+  y2-=y1;
   std::system((boost::format("rm %s/*.bmp") % home).str().c_str());
-  std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %s -i \"%s\" -r %d -vf \"crop=%i:%i:%i:%i\",scale=2x2 %s/out%%05d.bmp") % TRACE_TIME % path % TRACE_FPS % x2-x1% y2-y1 % x1 % y1 %home).str().c_str());
+  std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %s -i \"%s\" -r %d -vf \"crop=%i:%i:%i:%i\",scale=2x2 %s/out%%05d.bmp") % TRACE_TIME % path % TRACE_FPS % x2 % y2 % x1 % y1 %home).str().c_str());
   bmpList.clear();
   for (boost::filesystem::directory_entry & x : boost::filesystem::recursive_directory_iterator(p))  bmpList.push_back(x);
-  std:sort(bmpList.begin(),bmpList.end());
+  std::sort(bmpList.begin(),bmpList.end());
+  int listSize = bmpList.size();
+  std::vector<int> data;
   Magick::Image temp;
   for(auto a: bmpList) {
-    temp.read(a.str()); 
-  
+    temp.read(a.path().c_str());
+    for(int j = 0; j < 2; j++) for(int k = 0; k < 2; k++) { 
+	aC=a.pixelColor(j,k);
+	data[6*j+3*k]=aC.redQuantum();
+	data[6*j+3*k+1]=aC.greenQuantum();
+	data[6*j+3*k+2]=aC.blueQuantum();
+      }
+  }
   return;
 }
 
-bool process_image(Magick::Image &image)
-{
-  image.trim();
-  if(image.size().width() < 10 || image.size().height() < 10) {
-    std::cout << "Blank Frame" <<std::endl;
-    return false;
-  }
-  image.resize("320x200");
-  return true;
-}
+
 
 
