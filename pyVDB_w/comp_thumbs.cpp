@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
   if(length <= TRACE_TIME) start_time=0.0; 
   double frame_spacing = (length-start_time)/BORDER_FRAMES;
   std::cout <<(boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %.03d -vframes 1 %s") % path % start_time % imgp ).str().c_str() << std::endl;
-    std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %.03d -vframes 1 %s") % path % start_time % imgp ).str().c_str());
+  std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %.03d -vframes 1 %s") % path % start_time % imgp ).str().c_str());
   std::vector<boost::filesystem::directory_entry> bmpList;
   MagickWandGenesis();
   MagickWand *image_wand1=NewMagickWand();
@@ -100,8 +100,9 @@ int main(int argc, char* argv[])
   x2-=x1-1;  //the -1 corrects for the fact that x2 and y2 are sizes, not positions
   y2-=y1-1;
   std::cout << x2 << " "<<y2 <<" "<<x1 <<" "<<y1 << std::endl;
+  boost::filesystem::remove(imgp);
   std::cout << (boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %d -vf fps=%d -filter \"crop=%i:%i:%i:%i,scale=2x2\" %s/out%%05d%s") % path % TRACE_TIME % TRACE_FPS % x2 % y2 % x1 % y1 %home % EXTENSION).str().c_str();
-  std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %s -vf fps=%d -filter \"crop=%i:%i:%i:%i,scale=2x2\" %s/out%%05d%s") % path % TRACE_TIME % TRACE_FPS % x2 % y2 % x1 % y1 %home % EXTENSION).str().c_str());
+  std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %d -vf fps=%d -filter \"crop=%i:%i:%i:%i,scale=2x2\" %s/out%%05d%s") % path % TRACE_TIME % TRACE_FPS % x2 % y2 % x1 % y1 %home % EXTENSION).str().c_str());
   bmpList.clear();
   boost::filesystem::path p(home);
   for (boost::filesystem::directory_entry & x : boost::filesystem::recursive_directory_iterator(p))  bmpList.push_back(x);
@@ -113,12 +114,12 @@ int main(int argc, char* argv[])
   for(auto tFile: bmpList) {
     MagickReadImage(image_wand1,tFile.path().c_str());
     PixelIterator *iterator = NewPixelIterator(image_wand1);
-    for (y=0; y < (long) MagickGetImageHeight(image_wand1); y++)
+    for (y=0; y < 2; y++)
       {
 	PixelWand ** pixels=PixelGetNextIteratorRow(iterator,&width);
 	if (pixels == (PixelWand **) NULL) 
 	  break;
-	for (x=0; x < (long) width; x++)
+	for (x=0; x < 2; x++)
 	  {
 	    PixelGetMagickColor(pixels[x],&pixel);
 	    data[12*i+6*y+3*x]=scale*pixel.red;
@@ -133,7 +134,7 @@ int main(int argc, char* argv[])
   std::strcat(outfile,".txt");
   std::cout << outfile << " " << data.size() << std::endl;
   std::ofstream * outFile = new std::ofstream(outfile);
-  for(auto a: data) *outFile << a <<"\t";
+  for(auto trace_dat: data) *outFile << trace_dat <<"\t";
   outFile->close();
   delete outFile;
   //boost::filesystem::remove(temp_dir);
