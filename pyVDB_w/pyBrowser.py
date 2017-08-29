@@ -52,10 +52,10 @@ def calculate_trace(vid_obj):
     vid = vid_obj.vdatid
     length = vid_obj.length
     temp_dir = tempfile.TemporaryDirectory()
-    print(videoFile + " " + str(length))
     subprocess.run('./comp_thumbs %s %i' % (videoFile,vid), shell=True)
     datFile = open("trace"+str(vid)+".txt")
     trace = datFile.read().split()
+    os.remove("trace"+str(vid)+".txt")
     return (vid,trace)
 
 class MyWindow(Gtk.Window):
@@ -174,7 +174,6 @@ class dupe_finder(object):
         with multiprocessing.Pool(PROCESSES) as pool:
             videos = []
             vids = []
-            time1 = time.perf_counter()
             for filename in os.listdir(directory):
                 fName, fExt = os.path.splitext(filename)
                 flExt = fExt.lower()           
@@ -184,7 +183,6 @@ class dupe_finder(object):
                     video_id = vid_obj.vdatid
                     vids.append((video_id,))
                     if not dbCon.trace_exists(full_path):
-                        #print("Appending: "+full_path)
                         videos.append((vid_obj,))
             result_array=[pool.apply_async(calculate_trace, v) for v in videos]
             traces = []
@@ -198,6 +196,7 @@ class dupe_finder(object):
             result_map = dict()
             for a in results: result_map.update({(a[0],a[1]):a[2]})
             first_pos=0
+            time1 = time.perf_counter()
             #loop over files  TODO-make this parallel when we have larger sample
             for i in vids[:-1]:
                 dbCon.cur.execute('select vdat from dat_blobs where vid=?', i)
@@ -231,7 +230,7 @@ class dupe_finder(object):
                             for a in accum:
                                 if a < thresh: counter+=1
                             if counter == 12: match=True
-                            if match : print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))                
+                            if match : print("ACCUM "+str(i[0])+" "+str(j[0])+" "+str(t_o)+" slice "+str(t_s)+" 2nd offset "+str(t_x)+" "+str(accum))           
                     result = 0
                     if match: result = 1
                     dbCon.cur.execute('insert into results values (?,?,?)',(i[0], j[0],result))       

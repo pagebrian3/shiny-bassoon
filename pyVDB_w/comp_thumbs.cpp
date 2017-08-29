@@ -124,7 +124,6 @@ int main(int argc, char* argv[])
   char outfile[100]="trace";
   std::strcat(outfile,argv[2]);
   std::strcat(outfile,".txt");
-  std::cout << outfile << " " << data.size() << std::endl;
   std::ofstream * outFile = new std::ofstream(outfile);
   for(auto trace_dat: data) *outFile << trace_dat <<"\t";
   outFile->close();
