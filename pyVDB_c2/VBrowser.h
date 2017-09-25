@@ -1,18 +1,32 @@
-#include <gtk/gtk.h>
+#include <gtkmm-3.0/gtkmm.h>
+#include "DbConnector.h"
 
-class VBrowser
+class VBrowser: public Gtk::Window
 {
  public:
-  VBrowser(GtkWidget * window);
+  VBrowser();
   ~VBrowser();
+  void populate_icons(bool clean = false);
  private:
-  GtkWidget * fWindow;
+  Gtk::ScrolledWindow * fScrollWin;
+  Gtk::FlowBox * fFBox;
   std::string sort_by;
   bool sort_desc;
-  GtkButton * browse_button;
-  GtkButton * fdupe_button;
-  GtkComboBoxText * 
-  
-  
+  Gtk::Button * browse_button;
+  Gtk::Button * fdupe_button;
+  Gtk::ComboBoxText * sort_combo;
+  DbConnector * dbCon;
+  bfs::path path;
 };
+
+
+class VideoIcon : public Gtk::EventBox
+{
+  public:
   
+  VideoIcon(char *fileName, DbConnector * DbCon);
+
+  private:
+
+  vid_file fVidFile;
+};  
