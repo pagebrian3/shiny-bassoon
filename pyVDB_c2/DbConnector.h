@@ -25,12 +25,23 @@ class DbConnector {
 
   vid_file fetch_video(std::string filename);
 
-  char * fetch_icon(int vid);
+  void fetch_icon(int &vid);
 
+  void save_icon(int &vid);
+  
   int get_last_vid();
+
+  char * temp_icon_file();
+
+  void fetch_results(std::map<std::pair<int,int>, int> & map);
+
+  void save_trace(int vid, std::vector<int> & trace);
+
+  void fetch_trace(int vid, std::vector<int> & trace);
   
  private:
 
   sqlite3 * db;
+  char * temp_icon;
 
 }

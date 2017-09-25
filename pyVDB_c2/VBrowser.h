@@ -7,6 +7,10 @@ class VBrowser: public Gtk::Window
   VBrowser();
   ~VBrowser();
   void populate_icons(bool clean = false);
+  int sort_videos(VideoIcon vFile1, VideoIcon vFile2);
+  void browse_clicked();
+  void on_delete();
+  
  private:
   Gtk::ScrolledWindow * fScrollWin;
   Gtk::FlowBox * fFBox;
@@ -23,10 +27,9 @@ class VBrowser: public Gtk::Window
 class VideoIcon : public Gtk::EventBox
 {
   public:
-  
   VideoIcon(char *fileName, DbConnector * DbCon);
+  vid_file get_vid_file();
 
   private:
-
   vid_file fVidFile;
 };  
