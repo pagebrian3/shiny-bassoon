@@ -1,12 +1,8 @@
 #include "VBrowser.h"
-#include "MediaInfo/MediaInfo.h"
 #include <wand/MagickWand.h>
 #include <boost/format.hpp>
 #include <boost/process.hpp>
-#include <iostream>
-#include <string>
-#include <vector>
-#include <cstdlib>
+//#include <iostream>
 #include <set>
 #define FUDGE 8
 #define TRACE_TIME 10.0
@@ -26,6 +22,7 @@
 std::set<std::string> extensions{".mp4",".wmv",".mov",".rm",".m4v",".flv",".avi",".qt",".mpg",".mpeg",".mpv",".3gp"};
 
 VBrowser::VBrowser() {
+  dbCon = new DbConnector();//"/home/ungermax/.video_proj/");
   Gtk::VBox * box_outer = new Gtk::VBox(false, 6);
   this->add(*box_outer);
   path = DEFAULT_PATH;

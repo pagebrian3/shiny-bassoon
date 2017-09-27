@@ -10,6 +10,7 @@
 VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon){
   char * img_dat;
   if(dbCon->video_exists(fileName)) {
+    std::cout << fileName << " Exists" <<std::endl;
     fVidFile = dbCon->fetch_video(fileName);
     dbCon->fetch_icon(fVidFile.vdatid);
   }

@@ -1,22 +1,32 @@
 #include <DbConnector.h>
 #include <sstream>
 #include <boost/tokenizer.hpp>
+#include <iostream>
 
-DbConnector::DbConnector(bfs::path path) {
+DbConnector::DbConnector() {
   bool newFile = true;
+  bfs::path path = "/home/ungermax/.video_proj/";
   bfs::path db_path = path;
   bfs::path icon_path = path;
   db_path+="/vdb.sql";
   icon_path+="/temp.png";
+  temp_icon = new char[icon_path.size()];
   strcpy(temp_icon, icon_path.c_str());
   if (bfs::exists(db_path)) newFile=false;
   sqlite3_open(db_path.c_str(),&db);
   if (newFile) {
-    sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
+    min_vid=1;
+    std::cout << "NEW FILE" << std::endl;
+    int rc = sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
+    std::cout << "Error code: " << rc << " ";
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
+    std::cout << "Error code: " << rc << " ";
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key, trace_dat blob)", NULL,NULL, NULL);
+    std::cout << "Error code: " << rc << " ";
     sqlite3_exec(db,"create table videos(path text,length real, size real, okflag integer, vdatid integer)", NULL,NULL, NULL);
+    std::cout << "Error code: " << rc << " ";
   }
+  else min_vid=this->get_last_vid();
 }
 
 void DbConnector::save_db_file() {
@@ -87,7 +97,7 @@ void DbConnector::fetch_icon(int vid){
 void DbConnector::save_icon(int vid) {
   
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid ,  imgdat) VALUES (? , ?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,imgdat) VALUES (? , ?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
     throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);
@@ -153,15 +163,13 @@ bool DbConnector::trace_exists(int vid){
 bool DbConnector::video_exists(std::string filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM videos WHERE path = ? limit 1)", -1, &stmt, NULL);
-  if (rc != SQLITE_OK)
-    throw std::string(sqlite3_errmsg(db));
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_text(stmt, 1, filename.c_str(),-1, NULL);    // Using parameters ("?") is not
   if (rc != SQLITE_OK) {                 // really necessary, but recommended
     std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
     sqlite3_finalize(stmt);            // formatting problems and SQL
     throw errmsg;                      // injection attacks.
   }
-
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
     std::string errmsg(sqlite3_errmsg(db));
@@ -173,8 +181,9 @@ bool DbConnector::video_exists(std::string filename){
     throw std::string("video not found");
   }
 
-  bool result = sqlite3_column_text(stmt, 0);
-
+  bool result = sqlite3_column_int(stmt, 0);
+  //if(result) std::cout << "Found " << filename<<std::endl;
+  //else std::cout << "Couldn't Find " << filename<<std::endl;
   sqlite3_finalize(stmt);
   return result;
 }

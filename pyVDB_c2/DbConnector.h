@@ -1,6 +1,7 @@
 #include <boost/filesystem.hpp>
 #include <sqlite3.h>
 #include <map>
+#include <iostream>
 
 namespace bfs = boost::filesystem;
 
@@ -16,7 +17,7 @@ class DbConnector {
 
  public:
 
-  DbConnector(bfs::path db_path);
+  DbConnector();
 
   void save_db_file();
 
@@ -45,6 +46,7 @@ class DbConnector {
  private:
 
   sqlite3 * db;
-  char * temp_icon;
+  char* temp_icon;
+  int min_vid;
 
 };
