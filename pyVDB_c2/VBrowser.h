@@ -6,13 +6,15 @@ class VBrowser: public Gtk::Window
   VBrowser();
   ~VBrowser();
   void populate_icons(bool clean = false);
-  int sort_videos(VideoIcon vFile1, VideoIcon vFile2);
+  int sort_videos(Gtk::FlowBoxChild *vFile1, Gtk::FlowBoxChild *vFile2);
   void browse_clicked();
   void on_delete();
   void calculate_trace(vid_file obj);
   void fdupe_clicked();
   void asc_clicked();
   void on_sort_changed();
+  std::string get_sort();
+  void set_sort(std::string sort);
   
  private:
   Gtk::ScrolledWindow * fScrollWin;

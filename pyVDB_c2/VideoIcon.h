@@ -4,7 +4,7 @@
 class VideoIcon : public Gtk::EventBox
 {
   public:
-  VideoIcon(char *fileName, DbConnector * DbCon);
+  VideoIcon(std::string fileName, DbConnector * DbCon);
   vid_file get_vid_file();
 
   private:
