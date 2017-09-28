@@ -7,9 +7,9 @@ namespace bfs = boost::filesystem;
 
 typedef struct {
   std::string fileName;
-  double size;
-  double length;
-  bool okflag;
+  int size;
+  int length;
+  int okflag;
   int vdatid;
 } vid_file;
 
@@ -26,6 +26,8 @@ class DbConnector {
   bool trace_exists(int vid);
 
   vid_file fetch_video(std::string filename);
+
+  void save_video(vid_file a);
 
   void fetch_icon(int vid);
 

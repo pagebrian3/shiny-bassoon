@@ -24,12 +24,13 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon){
      // Copy string to wstring.
      std::copy(fileName.begin(), fileName.end(), fileNameW.begin());
     MI.Open(fileNameW);
-    double length = std::atof(reinterpret_cast<const char*>(MI.Get(MediaInfoLib::Stream_General, 0 ,__T("mdhd_Duration"), MediaInfoLib::Info_Text, MediaInfoLib::Info_Name).c_str())); //Might be duration instead of length
+    int length = std::atof(reinterpret_cast<const char*>(MI.Get(MediaInfoLib::Stream_General, 0 ,__T("mdhd_Duration"), MediaInfoLib::Info_Text, MediaInfoLib::Info_Name).c_str())); //Might be duration instead of length
     fVidFile.length = length;
     double thumb_t = THUMB_TIME;
     if(length < THUMB_TIME) thumb_t = length/2.0;
     thumb_t/=1000.0;
     std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss 00:00:%i.00 -i \"%s\" -vframes 1 -f image2pipe -vcodec png - | convert png:- -fuzz %i -trim -thumbnail %ix%i %s") % thumb_t % fileName % FUZZ % ICON_WIDTH % ICON_HEIGHT % temp_icon ).str().c_str());
+    dbCon->save_video(fVidFile);
     dbCon->save_icon(fVidFile.vdatid);
   }
   Gtk::Image image(dbCon->temp_icon_file());

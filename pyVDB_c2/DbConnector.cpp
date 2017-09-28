@@ -23,7 +23,7 @@ DbConnector::DbConnector() {
     std::cout << "Error code: " << rc << " ";
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key, trace_dat blob)", NULL,NULL, NULL);
     std::cout << "Error code: " << rc << " ";
-    sqlite3_exec(db,"create table videos(path text,length real, size real, okflag integer, vdatid integer)", NULL,NULL, NULL);
+    sqlite3_exec(db,"create table videos(path text,length integer, size integer, okflag integer, vdatid integer)", NULL,NULL, NULL);
     std::cout << "Error code: " << rc << " ";
   }
   else min_vid=this->get_last_vid();
@@ -57,8 +57,8 @@ vid_file DbConnector::fetch_video(std::string filename){
   }
     
   std::string file(reinterpret_cast<const char*> (sqlite3_column_text(stmt, 0)));
-  double length = sqlite3_column_double(stmt,1);
-  double size = sqlite3_column_double(stmt,2);
+  int length = sqlite3_column_double(stmt,1);
+  int size = sqlite3_column_double(stmt,2);
   int flag = sqlite3_column_int(stmt,3);
   int vid = sqlite3_column_int(stmt,4);
   sqlite3_finalize(stmt);
@@ -94,10 +94,39 @@ void DbConnector::fetch_icon(int vid){
   return;
 }
 
+void DbConnector::save_video(vid_file a) {
+  a.vdatid=min_vid;
+  min_vid++;
+  a.okflag=1;
+  sqlite3_stmt *stmt;
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,length,size,okflag,vdatid) VALUES (?,?,?,?,?) ", -1, &stmt, NULL);
+  if (rc != SQLITE_OK)
+    throw std::string(sqlite3_errmsg(db));
+    rc = sqlite3_bind_text(stmt, 1, a.fileName.c_str(), -1, NULL);
+  rc = sqlite3_bind_int(stmt, 2, a.length);
+  rc = sqlite3_bind_int(stmt, 3, a.size);
+  rc = sqlite3_bind_int(stmt, 4, a.okflag);
+  rc = sqlite3_bind_int(stmt, 5, a.vdatid);
+  if (rc != SQLITE_OK) {                 // really necessary, but recommended
+    std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
+    sqlite3_finalize(stmt);            // formatting problems and SQL
+    throw errmsg;                      // injection attacks.
+  }
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+    std::string errmsg(sqlite3_errmsg(db));
+    sqlite3_finalize(stmt);
+    throw errmsg;
+  } 
+  sqlite3_finalize(stmt);
+  return;
+}
+
+
 void DbConnector::save_icon(int vid) {
   
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,imgdat) VALUES (? , ?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,img_dat) VALUES (? , ?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
     throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);
@@ -119,16 +148,7 @@ void DbConnector::save_icon(int vid) {
     sqlite3_finalize(stmt);            // formatting problems and SQL
     throw errmsg;                      // injection attacks.
   }
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
-    std::string errmsg(sqlite3_errmsg(db));
-    sqlite3_finalize(stmt);
-    throw errmsg;
-  }
-  if (rc == SQLITE_DONE) {
-    sqlite3_finalize(stmt);
-    throw std::string("ERROR of some sort");
-  }  
+  rc = sqlite3_step(stmt); 
   sqlite3_finalize(stmt);
   if (sizeof(*memblock) > 4) delete[] memblock;
   return;
@@ -257,11 +277,7 @@ void DbConnector::update_results(int  i, int  j, int  k) {
     std::string errmsg(sqlite3_errmsg(db));
     sqlite3_finalize(stmt);
     throw errmsg;
-  }
-  if (rc == SQLITE_DONE) {
-    sqlite3_finalize(stmt);
-    throw std::string("ERROR of some sort");
-  }  
+  } 
   sqlite3_finalize(stmt);
   return;
 }
@@ -320,10 +336,6 @@ void DbConnector::save_trace(int  vid, std::vector<int> & trace) {
     std::string errmsg(sqlite3_errmsg(db));
     sqlite3_finalize(stmt);
     throw errmsg;
-  }
-  if (rc == SQLITE_DONE) {
-    sqlite3_finalize(stmt);
-    throw std::string("ERROR of some sort");
   }  
   sqlite3_finalize(stmt);
   return;

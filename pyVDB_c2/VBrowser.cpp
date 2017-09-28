@@ -73,8 +73,8 @@ void VBrowser::populate_icons(bool clean) {
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(extensions.count(extension)) {
 	std::string pathName(x.path().native());
-	VideoIcon icon(pathName.c_str(),dbCon);
-	fFBox->add(icon);
+	VideoIcon *icon = new VideoIcon(pathName.c_str(),dbCon);
+	fFBox->add(*icon);
       }
     }
   fFBox->invalidate_sort();
