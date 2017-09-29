@@ -2,6 +2,7 @@
 #include <sstream>
 #include <boost/tokenizer.hpp>
 #include <iostream>
+#include "zlib.h"
 
 DbConnector::DbConnector() {
   bool newFile = true;
@@ -18,7 +19,7 @@ DbConnector::DbConnector() {
     min_vid=1;
     int rc = sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
-    sqlite3_exec(db,"create table trace_blobs(vid integer primary key, trace_dat blob)", NULL,NULL, NULL);
+    sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat blob)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table videos(path text,length integer, size integer, okflag integer, vdatid integer)", NULL,NULL, NULL);
   }
   else min_vid=this->get_last_vid();
@@ -105,9 +106,7 @@ void DbConnector::save_video(VidFile* a) {
   return;
 }
 
-
-void DbConnector::save_icon(int vid) {
-  
+void DbConnector::save_icon(int vid) {  
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,img_dat) VALUES (? , ?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
@@ -269,7 +268,7 @@ void DbConnector::update_results(int  i, int  j, int  k) {
   
 void DbConnector::fetch_trace(int vid, std::vector<int> & trace) {
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "SELECT trace_dat FROM trace_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "SELECT uncomp_size,trace_dat FROM trace_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
     throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);    // Using parameters ("?") is not
@@ -284,10 +283,16 @@ void DbConnector::fetch_trace(int vid, std::vector<int> & trace) {
     sqlite3_finalize(stmt);
     throw errmsg;
   }
+  unsigned long int uncomp_size = sqlite3_column_int(stmt,0);
   std::string result;
-  result.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0)));
+  result.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
+  unsigned long int size = result.length();
+  char dest[uncomp_size];
+  uncompress(reinterpret_cast<Bytef*>(dest),&uncomp_size,reinterpret_cast<const Bytef*>(result.c_str()),sizeof(char)*size);
   boost::char_separator<char> sep("\t");
-  boost::tokenizer<boost::char_separator<char>> tokens(result, sep);
+  std::string dests;
+  dests.assign(reinterpret_cast<char *>(dest));
+  boost::tokenizer<boost::char_separator<char>> tokens(dests, sep);
   trace.clear();
   for (const std::string& t : tokens)  trace.push_back(atoi(t.c_str()));
   sqlite3_finalize(stmt);
@@ -296,16 +301,18 @@ void DbConnector::fetch_trace(int vid, std::vector<int> & trace) {
 
 void DbConnector::save_trace(int  vid, std::vector<int> & trace) {
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO trace_blobs (vid , trace_dat) VALUES (? , ?) ", -1, &stmt, NULL);
-  if (rc != SQLITE_OK)
-    throw std::string(sqlite3_errmsg(db));
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO trace_blobs (vid, uncomp_size, trace_dat) VALUES (? , ?, ?) ", -1, &stmt, NULL);
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);
   std::ifstream input (temp_icon, std::ios::in|std::ios::binary|std::ios::ate);
   std::stringstream stream;
-  for(int & i: trace) {
-    stream << i << "\t";
-    }  
-  rc = sqlite3_bind_blob(stmt, 2, stream.str().c_str(), sizeof(char)*stream.str().size(),SQLITE_STATIC);                               // Using parameters ("?") is not
+  for(int & i: trace) stream << i << "\t";
+  unsigned long dest_size = stream.str().size();
+  sqlite3_bind_int(stmt, 2, dest_size);
+  char dest[dest_size];
+  unsigned long source_size=dest_size;
+  compress(reinterpret_cast<Bytef*>(dest), &dest_size, reinterpret_cast<const Bytef*>(stream.str().c_str()),source_size);
+  rc = sqlite3_bind_blob(stmt, 3, dest, sizeof(char)*dest_size,SQLITE_STATIC);                               // Using parameters ("?") is not
   if (rc != SQLITE_OK) {                 // really necessary, but recommended
     std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
     sqlite3_finalize(stmt);            // formatting problems and SQL
