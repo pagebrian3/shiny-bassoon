@@ -49,15 +49,11 @@ VidFile * DbConnector::fetch_video(std::string filename){
     sqlite3_finalize(stmt);
     throw std::string("customer not found");
   }
-   
-
   int length = sqlite3_column_int(stmt,0);
   int size = sqlite3_column_int(stmt,1);
   int flag = sqlite3_column_int(stmt,2);
   int vid = sqlite3_column_int(stmt,3);
-  sqlite3_finalize(stmt);
-  std::cout << "VID "<<vid<<std::endl;
-  
+  sqlite3_finalize(stmt); 
   VidFile * result = new VidFile(filename, length, size, flag, vid);
   return result;
 }
@@ -81,7 +77,6 @@ void DbConnector::fetch_icon(int vid){
   }   
   std::ofstream output(temp_icon, std::ios::out|std::ios::binary|std::ios::ate);
   int size = sqlite3_column_bytes(stmt,0);
-  std::cout << "Size RC vid" << size <<" " <<rc<<" "<<vid<< std::endl;
   output.write((char*)sqlite3_column_blob(stmt,0),size);
   sqlite3_finalize(stmt);
   output.close();
@@ -129,7 +124,6 @@ void DbConnector::save_icon(int vid) {
       input.read (reinterpret_cast<char *>(memblock), size);
       input.close();
       length = sizeof(unsigned char)*size;
-      std::cout << "size , length: " << size <<" , "<<length << std::endl;
     }  
   rc = sqlite3_bind_blob(stmt, 2, memblock,length, SQLITE_STATIC);// Using parameters ("?") is not
   if (rc != SQLITE_OK) {                 // really necessary, but recommended
@@ -164,7 +158,7 @@ bool DbConnector::trace_exists(int vid){
     sqlite3_finalize(stmt);
     throw std::string("trace not found");
   }
-  bool result = sqlite3_column_text(stmt, 0);
+  bool result = sqlite3_column_int(stmt, 0);
   sqlite3_finalize(stmt);
   return result;
 }
@@ -222,8 +216,16 @@ char * DbConnector::temp_icon_file() {
 }
   
 void DbConnector::fetch_results(std::map<std::pair<int,int>, int> & map) {
+  sqlite3_stmt *cstmt;
+  int rc = sqlite3_prepare_v2(db,"SELECT Count(*) FROM results", -1, &cstmt, NULL);
+  sqlite3_step(cstmt);
+  if (sqlite3_column_int(cstmt, 0) == 0) {
+    sqlite3_finalize(cstmt);
+    return;
+  }
+  sqlite3_finalize(cstmt);
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "SELECT * FROM results", -1, &stmt, NULL);
+  rc = sqlite3_prepare_v2(db, "SELECT * FROM results", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = 0; 
   int a,b,c;
@@ -237,10 +239,6 @@ void DbConnector::fetch_results(std::map<std::pair<int,int>, int> & map) {
     std::string errmsg(sqlite3_errmsg(db));
     sqlite3_finalize(stmt);
     throw errmsg;
-  }
-  if (rc == SQLITE_DONE) {
-    sqlite3_finalize(stmt);
-    throw std::string("customer not found");
   }
   sqlite3_finalize(stmt);
   return;
@@ -286,10 +284,6 @@ void DbConnector::fetch_trace(int vid, std::vector<int> & trace) {
     sqlite3_finalize(stmt);
     throw errmsg;
   }
-  if (rc == SQLITE_DONE) {
-    sqlite3_finalize(stmt);
-    throw std::string("icon not found");
-  }    
   std::string result;
   result.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0)));
   boost::char_separator<char> sep("\t");
@@ -301,7 +295,6 @@ void DbConnector::fetch_trace(int vid, std::vector<int> & trace) {
 }
 
 void DbConnector::save_trace(int  vid, std::vector<int> & trace) {
-  
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO trace_blobs (vid , trace_dat) VALUES (? , ?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
@@ -312,7 +305,7 @@ void DbConnector::save_trace(int  vid, std::vector<int> & trace) {
   for(int & i: trace) {
     stream << i << "\t";
     }  
-  rc = sqlite3_bind_blob(stmt, 2, stream.str().c_str(), sizeof(stream.str().c_str()),SQLITE_STATIC);                               // Using parameters ("?") is not
+  rc = sqlite3_bind_blob(stmt, 2, stream.str().c_str(), sizeof(char)*stream.str().size(),SQLITE_STATIC);                               // Using parameters ("?") is not
   if (rc != SQLITE_OK) {                 // really necessary, but recommended
     std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
     sqlite3_finalize(stmt);            // formatting problems and SQL

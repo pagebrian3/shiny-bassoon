@@ -8,11 +8,9 @@
 #define FUZZ 5000
 
 VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon):Gtk::Image()  {
-  std::cout << "NEW " << fileName << std::endl;
   char * img_dat;
   if(dbCon->video_exists(fileName)) {
     fVidFile = dbCon->fetch_video(fileName);
-    std::cout << fileName << " Exists vid " <<fVidFile->vid<<std::endl;
     dbCon->fetch_icon(fVidFile->vid);
   }
   else {
@@ -21,12 +19,10 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon):Gtk::Image()  {
     fVidFile->fileName=fileName;
     fVidFile->size = bfs::file_size(fileName);
     MediaInfoLib::MediaInfo MI; 
-    std::wstring fileNameW(fileName.length(), L' '); // Make room for characters
-  
-     // Copy string to wstring.
-     std::copy(fileName.begin(), fileName.end(), fileNameW.begin());
+    std::wstring fileNameW(fileName.length(), L' '); //Make room for characters 
+     std::copy(fileName.begin(), fileName.end(), fileNameW.begin());      // Copy string to wstring.
     MI.Open(fileNameW);
-    int length = std::atof(reinterpret_cast<const char*>(MI.Get(MediaInfoLib::Stream_General, 0 ,__T("mdhd_Duration"), MediaInfoLib::Info_Text, MediaInfoLib::Info_Name).c_str())); //Might be duration instead of length
+    int length = std::atoi(reinterpret_cast<const char*>(MI.Get(MediaInfoLib::Stream_General, 0 ,__T("mdhd_Duration"), MediaInfoLib::Info_Text, MediaInfoLib::Info_Name).c_str())); //Might be duration instead of length
     fVidFile->length = length;
     double thumb_t = THUMB_TIME;
     if(length < THUMB_TIME) thumb_t = length/2.0;

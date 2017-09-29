@@ -121,19 +121,23 @@ void VBrowser::on_delete() {
 void VBrowser::fdupe_clicked(){
   std::vector<VidFile *> videos;
   std::vector<int> vids;
-  for (bfs::directory_entry & x : bfs::recursive_directory_iterator(path))
-    {
-      auto extension = x.path().extension().generic_string();
-      std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-      if(extensions.count(extension)) {
-	bfs::path full_path = bfs::absolute(x.path());
-	VidFile * vid_obj = dbCon->fetch_video(full_path.c_str());
-	int video_id = vid_obj->vid;
-	vids.push_back(video_id);
-	if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
-      }
+  for (bfs::directory_entry & x : bfs::recursive_directory_iterator(path)) {
+    auto extension = x.path().extension().generic_string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+    if(extensions.count(extension)) {
+      bfs::path full_path = bfs::absolute(x.path());
+      VidFile * vid_obj = dbCon->fetch_video(full_path.c_str());
+      int video_id = vid_obj->vid;
+      vids.push_back(video_id);
+      bool exists = dbCon->trace_exists(video_id);
+      std::cout << "EXISTS " << exists << std::endl;
+      if(!exists) videos.push_back(vid_obj);
     }
-  for(auto & b: videos) calculate_trace(b);        
+  }
+  for(auto & b: videos) {
+    std::cout <<"Calculating trace for: "<< b->vid << std::endl;
+    calculate_trace(b);
+  }
   std::map<std::pair<int,int>,int> result_map;
   std::vector<int> vdat1, vdat2;
   bool match = false;
@@ -181,14 +185,14 @@ void VBrowser::fdupe_clicked(){
 }
 
 void VBrowser::calculate_trace(VidFile * obj) {
-  boost::filesystem::path path(obj->fileName);
-  boost::filesystem::path temp_dir = boost::filesystem::unique_path();
+  bfs::path path(obj->fileName);
+  bfs::path temp_dir = bfs::unique_path();
   char home[100]=HOME_PATH;
   char img_path[100]="border.png";
   char imgp[100] =HOME_PATH;
   std::strcat(imgp,img_path);
   std::strcat(home,temp_dir.c_str());
-  boost::filesystem::create_directory(home);
+  bfs::create_directory(home);
   boost::process::ipstream is;
   boost::process::system((boost::format("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 %s" ) % path).str().c_str(),boost::process::std_out > is);
   std::string outString;
@@ -198,7 +202,7 @@ void VBrowser::calculate_trace(VidFile * obj) {
   if(length <= TRACE_TIME) start_time=0.0; 
   double frame_spacing = (length-start_time)/BORDER_FRAMES;
   std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %.03d -vframes 1 %s") % path % start_time % imgp ).str().c_str());
-  std::vector<boost::filesystem::directory_entry> bmpList;
+  std::vector<bfs::directory_entry> bmpList;
   MagickWandGenesis();
   MagickWand *image_wand1=NewMagickWand();
   MagickWand *image_wand2=NewMagickWand();
@@ -250,12 +254,12 @@ void VBrowser::calculate_trace(VidFile * obj) {
   x2-=x1-1;  //the -1 corrects for the fact that x2 and y2 are sizes, not positions
   y2-=y1-1;
   //std::cout << x2 << " "<<y2 <<" "<<x1 <<" "<<y1 << std::endl;
-  boost::filesystem::remove(imgp);
+  bfs::remove(imgp);
   //std::cout << (boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %d -vf fps=%d -filter \"crop=%i:%i:%i:%i,scale=2x2\" %s/out%%05d%s") % path % TRACE_TIME % TRACE_FPS % x2 % y2 % x1 % y1 %home % EXTENSION).str().c_str();
   std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %d -vf fps=%d -filter \"crop=%i:%i:%i:%i,scale=2x2\" %s/out%%05d%s") % path % TRACE_TIME % TRACE_FPS % x2 % y2 % x1 % y1 %home % EXTENSION).str().c_str());
   bmpList.clear();
-  boost::filesystem::path p(home);
-  for (boost::filesystem::directory_entry & x : boost::filesystem::recursive_directory_iterator(p))  bmpList.push_back(x);
+  bfs::path p(home);
+  for (bfs::directory_entry & x : bfs::recursive_directory_iterator(p))  bmpList.push_back(x);
   std::sort(bmpList.begin(),bmpList.end());
   int listSize = bmpList.size();
   std::vector<int> data(12*listSize);
@@ -265,19 +269,16 @@ void VBrowser::calculate_trace(VidFile * obj) {
   for(auto tFile: bmpList) {
     auto status = MagickReadImage(image_wand1,tFile.path().c_str());
     iterator = NewPixelIterator(image_wand1);
-    for (y=0; y < 2; y++)
-      {
-	pixels=PixelGetNextIteratorRow(iterator,&width);
-	if (pixels == (PixelWand **) NULL) 
-	  break;
-	for (x=0; x < 2; x++)
-	  {
-	    PixelGetMagickColor(pixels[x],&pixel);    
-	    data[12*i+6*y+3*x]=scale*pixel.red;
-	    data[12*i+6*y+3*x+1]=scale*pixel.green;
-	    data[12*i+6*y+3*x+2]=scale*pixel.blue;
-	  }
+    for (y=0; y < 2; y++) {
+      pixels=PixelGetNextIteratorRow(iterator,&width);
+      if (pixels == (PixelWand **) NULL) break;
+      for (x=0; x < 2; x++) {
+	PixelGetMagickColor(pixels[x],&pixel);    
+	data[12*i+6*y+3*x]=scale*pixel.red;
+	data[12*i+6*y+3*x+1]=scale*pixel.green;
+	data[12*i+6*y+3*x+2]=scale*pixel.blue;
       }
+    }
     i++;
   }
   dbCon->save_trace(obj->vid, data);  
