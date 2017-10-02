@@ -20,7 +20,7 @@ DbConnector::DbConnector() {
     int rc = sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat blob)", NULL,NULL, NULL);
-    sqlite3_exec(db,"create table videos(path text,length integer, size integer, okflag integer, vdatid integer)", NULL,NULL, NULL);
+    sqlite3_exec(db,"create table videos(path text,length double, size integer, okflag integer, vdatid integer)", NULL,NULL, NULL);
   }
   else min_vid=this->get_last_vid();
 }
@@ -29,16 +29,16 @@ void DbConnector::save_db_file() {
   sqlite3_close(db);
 }
 
-VidFile * DbConnector::fetch_video(std::string filename){
+VidFile * DbConnector::fetch_video(std::string  filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT length, size, okflag, vdatid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
     throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_text(stmt, 1, filename.c_str(),-1, NULL);    // Using parameters ("?") is not
-  if (rc != SQLITE_OK) {                 // really necessary, but recommended
-    std::string errmsg(sqlite3_errmsg(db)); // (especially for strings) to avoid
-    sqlite3_finalize(stmt);            // formatting problems and SQL
-    throw errmsg;                      // injection attacks.
+  rc = sqlite3_bind_text(stmt, 1, filename.c_str(),-1, NULL);    
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
   }
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
@@ -50,7 +50,7 @@ VidFile * DbConnector::fetch_video(std::string filename){
     sqlite3_finalize(stmt);
     throw std::string("customer not found");
   }
-  int length = sqlite3_column_int(stmt,0);
+  double length = sqlite3_column_double(stmt,0);
   int size = sqlite3_column_int(stmt,1);
   int flag = sqlite3_column_int(stmt,2);
   int vid = sqlite3_column_int(stmt,3);
@@ -64,11 +64,11 @@ void DbConnector::fetch_icon(int vid){
   int rc = sqlite3_prepare_v2(db, "SELECT img_dat FROM icon_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
     throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_int(stmt, 1, vid);    // Using parameters ("?") is not
-  if (rc != SQLITE_OK) {                 // really necessary, but recommended
-    std::string errmsg(sqlite3_errmsg(db)); // (especially for strings) to avoid
-    sqlite3_finalize(stmt);            // formatting problems and SQL
-    throw errmsg;                      // injection attacks.
+  rc = sqlite3_bind_int(stmt, 1, vid);    
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
   }
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
@@ -92,7 +92,7 @@ void DbConnector::save_video(VidFile* a) {
   int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,length,size,okflag,vdatid) VALUES (?,?,?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   sqlite3_bind_text(stmt, 1, a->fileName.c_str(), -1, NULL);
-  sqlite3_bind_int(stmt, 2, a->length);
+  sqlite3_bind_double(stmt, 2, a->length);
   sqlite3_bind_int(stmt, 3, a->size);
   sqlite3_bind_int(stmt, 4, a->okflag);
   sqlite3_bind_int(stmt, 5, a->vid);
@@ -124,15 +124,15 @@ void DbConnector::save_icon(int vid) {
       input.close();
       length = sizeof(unsigned char)*size;
     }  
-  rc = sqlite3_bind_blob(stmt, 2, memblock,length, SQLITE_STATIC);// Using parameters ("?") is not
-  if (rc != SQLITE_OK) {                 // really necessary, but recommended
-    std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
-    sqlite3_finalize(stmt);            // formatting problems and SQL
-    throw errmsg;                      // injection attacks.
+  rc = sqlite3_bind_blob(stmt, 2, memblock,length, SQLITE_STATIC);
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
   }
   rc = sqlite3_step(stmt); 
   sqlite3_finalize(stmt);
-  if (sizeof(*memblock) > 4) delete[] memblock;
+  delete[] memblock;
   return;
 }
 
@@ -141,11 +141,11 @@ bool DbConnector::trace_exists(int vid){
   int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM trace_blobs WHERE vid = ? limit 1)", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
     throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_int(stmt, 1, vid);    // Using parameters ("?") is not
-  if (rc != SQLITE_OK) {                 // really necessary, but recommended
-    std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
-    sqlite3_finalize(stmt);            // formatting problems and SQL
-    throw errmsg;                      // injection attacks.
+  rc = sqlite3_bind_int(stmt, 1, vid);    
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
   }
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
@@ -166,11 +166,11 @@ bool DbConnector::video_exists(std::string filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM videos WHERE path = ? limit 1)", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_text(stmt, 1, filename.c_str(),-1, NULL);    // Using parameters ("?") is not
-  if (rc != SQLITE_OK) {                 // really necessary, but recommended
-    std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
-    sqlite3_finalize(stmt);            // formatting problems and SQL
-    throw errmsg;                      // injection attacks.
+  rc = sqlite3_bind_text(stmt, 1, filename.c_str(),-1, NULL);    
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
   }
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
@@ -251,10 +251,10 @@ void DbConnector::update_results(int  i, int  j, int  k) {
   rc = sqlite3_bind_int(stmt, 1, i);
   rc = sqlite3_bind_int(stmt, 2, j);
   rc = sqlite3_bind_int(stmt, 3, k);
-  if (rc != SQLITE_OK) {                 // really necessary, but recommended
-    std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
-    sqlite3_finalize(stmt);            // formatting problems and SQL
-    throw errmsg;                      // injection attacks.
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
   }
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
@@ -271,11 +271,11 @@ void DbConnector::fetch_trace(int vid, std::vector<int> & trace) {
   int rc = sqlite3_prepare_v2(db, "SELECT uncomp_size,trace_dat FROM trace_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
     throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_int(stmt, 1, vid);    // Using parameters ("?") is not
-  if (rc != SQLITE_OK) {                 // really necessary, but recommended
-    std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
-    sqlite3_finalize(stmt);            // formatting problems and SQL
-    throw errmsg;                      // injection attacks.
+  rc = sqlite3_bind_int(stmt, 1, vid);    
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
   }
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
@@ -312,11 +312,11 @@ void DbConnector::save_trace(int  vid, std::vector<int> & trace) {
   char dest[dest_size];
   unsigned long source_size=dest_size;
   compress(reinterpret_cast<Bytef*>(dest), &dest_size, reinterpret_cast<const Bytef*>(stream.str().c_str()),source_size);
-  rc = sqlite3_bind_blob(stmt, 3, dest, sizeof(char)*dest_size,SQLITE_STATIC);                               // Using parameters ("?") is not
-  if (rc != SQLITE_OK) {                 // really necessary, but recommended
-    std::string errmsg(sqlite3_errmsg(db)); // (especially for std::strings) to avoid
-    sqlite3_finalize(stmt);            // formatting problems and SQL
-    throw errmsg;                      // injection attacks.
+  rc = sqlite3_bind_blob(stmt, 3, dest, sizeof(char)*dest_size,SQLITE_STATIC);
+  if (rc != SQLITE_OK) {                
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
   }
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {

@@ -12,11 +12,7 @@ class DbConnector {
 
   DbConnector();
 
-  void save_db_file();
-
   bool video_exists(std::string filename);
-
-  bool trace_exists(int vid);
 
   VidFile* fetch_video(std::string filename);
 
@@ -25,18 +21,22 @@ class DbConnector {
   void fetch_icon(int vid);
 
   void save_icon(int vid);
-  
-  int get_last_vid();
-
-  char * temp_icon_file();
 
   void fetch_results(std::map<std::pair<int,int>, int> & map);
 
   void update_results(int i, int j, int k);
 
+  bool trace_exists(int vid);
+
   void save_trace(int vid, std::vector<int> & trace);
 
   void fetch_trace(int vid, std::vector<int> & trace);
+
+   int get_last_vid();
+
+  char * temp_icon_file();
+
+  void save_db_file();
   
  private:
 
