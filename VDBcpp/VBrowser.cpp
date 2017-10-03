@@ -146,9 +146,12 @@ void VBrowser::fdupe_clicked(){
     dbCon->fetch_trace(vids[i],vdat1);
     //loop over files after i
     for(int j = i+1; j < vids.size(); j++) {
+      std::cout << vids[i] << " "<<vids[j] << std::endl;
       if (result_map[std::make_pair(vids[i],vids[j])]) continue;
       match=false;
       dbCon->fetch_trace(vids[j],vdat2);
+      std::cout <<"VDAT1 "<< vdat1[0] <<" "<< vdat1[1] <<" "<< vdat1[2] <<" "<< vdat1[3] <<std::endl;
+       std::cout <<"VDAT2 "<< vdat2[0] <<" "<< vdat2[1] <<" "<< vdat2[2] <<" "<< vdat2[3] <<std::endl;
       uint t_s,t_x, t_o, t_d;
       //loop over slices
       for(t_s =0; t_s < vdat1.size()-12*TRACE_FPS*COMP_TIME; t_s+= 12*TRACE_FPS*SLICE_SPACING){
@@ -189,13 +192,14 @@ void VBrowser::calculate_trace(VidFile * obj) {
   bfs::path imgp=home;
   imgp+="border.png";
   home+=temp_dir;
+  std::cout <<obj->vid<<" "<< path <<" "<<temp_dir << std::endl;
   bfs::create_directory(home);
   double length = obj->length;
   double start_time = TRACE_TIME;
   if(length <= TRACE_TIME) start_time=0.0; 
   double frame_spacing = (length-start_time)/BORDER_FRAMES;
-  std::string cmdTmpl("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %.4f -vframes 1 %s");
-  std::string command((boost::format(cmdTmpl) % path % start_time % imgp ).str());
+  std::string cmdTmpl("ffmpeg -y -nostats -loglevel 0 -ss %.4f -i \"%s\" -frames:v 1 %s");
+  std::string command((boost::format(cmdTmpl)% start_time % path % imgp ).str());
   std::system(command.c_str());
   MagickWand *image_wand1=NewMagickWand();
   MagickWand *image_wand2=NewMagickWand();
@@ -213,10 +217,11 @@ void VBrowser::calculate_trace(VidFile * obj) {
   std::vector<double> colSums(width);
   double corrFactorCol = 1.0/(double)(BORDER_FRAMES*height);
   double corrFactorRow = 1.0/(double)(BORDER_FRAMES*width);
+  bool skipBorder = false;
   for(int i = 1; i < BORDER_FRAMES; i++) {
     image_wand1 = CloneMagickWand(image_wand2);
     start_time+=frame_spacing;
-    std::system((boost::format(cmdTmpl) % path % start_time % imgp ).str().c_str());
+    std::system((boost::format(cmdTmpl) % start_time % path  % imgp ).str().c_str());
     MagickReadImage(image_wand2,imgp.string().c_str());
     MagickCompositeImage(image_wand1,image_wand2,DifferenceCompositeOp, 0,0);
     iterator = NewPixelIterator(image_wand1);
@@ -230,22 +235,31 @@ void VBrowser::calculate_trace(VidFile * obj) {
 	colSums[x]+=corrFactorCol*value;
       }
     }
-    //std::cout << rowSums[0] << " "<<rowSums[height-1] <<" "<<colSums[0] <<" "<<colSums[width-1]<< std::endl;
     if(rowSums[0] > CUT_THRESH &&
        rowSums[height-1] > CUT_THRESH &&
        colSums[0] > CUT_THRESH &&
-       colSums[width-1] > CUT_THRESH) break;
+       colSums[width-1] > CUT_THRESH) {
+      skipBorder = true;
+      break;
+    }
+  }  
+  std::string traceCmd;
+  if(skipBorder) {
+    traceCmd = (boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -filter:v \"fps=%.3f,scale=2x2\" %s/out%%05d%s") % start_time % path  % TRACE_FPS %home % EXTENSION).str();
   }
-  int x1(0), x2(width-1), y1(0), y2(height-1);
-  while(colSums[x1] < CUT_THRESH) x1++;
-  while(colSums[x2] < CUT_THRESH) x2--;
-  while(rowSums[y1] < CUT_THRESH) y1++;
-  while(rowSums[y2] < CUT_THRESH) y2--;
-  x2-=x1-1;  //the -1 corrects for the fact that x2 and y2 are sizes, not positions
-  y2-=y1-1;
-  //std::cout << x2 << " "<<y2 <<" "<<x1 <<" "<<y1 << std::endl;
+  else {  
+    int x1(0), x2(width-1), y1(0), y2(height-1);
+    while(colSums[x1] < CUT_THRESH) x1++;
+    while(colSums[x2] < CUT_THRESH) x2--;
+    while(rowSums[y1] < CUT_THRESH) y1++;
+    while(rowSums[y2] < CUT_THRESH) y2--;
+    x2-=x1-1;  
+    y2-=y1-1;
+    //std::cout << x2 << " "<<y2 <<" "<<x1 <<" "<<y1 << std::endl;
+    traceCmd = (boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -filter:v \"fps=%.3f,crop=%i:%i:%i:%i,scale=2x2\" %s/out%%05d%s") % start_time % path  % TRACE_FPS % x2 % y2 % x1 % y1 %home % EXTENSION).str();
+  }
   bfs::remove(imgp);
-  std::string traceCmd((boost::format("ffmpeg -y -nostats -loglevel 0 -i \"%s\" -ss %.4f -vf fps=%.4f -filter \"crop=%i:%i:%i:%i,scale=2x2\" %s/out%%05d%s") % path % TRACE_TIME % TRACE_FPS % x2 % y2 % x1 % y1 %home % EXTENSION).str());
+  
   std::system(traceCmd.c_str());
   bfs::path p(home);
   std::vector<bfs::directory_entry> bmpList;
@@ -274,7 +288,7 @@ void VBrowser::calculate_trace(VidFile * obj) {
   image_wand1=DestroyMagickWand(image_wand1);
   image_wand2=DestroyMagickWand(image_wand2);
   dbCon->save_trace(obj->vid, data);
-  std::cout <<obj->fileName <<" "<<data.size()/12 << std::endl;
+  std::cout <<"Trace for "<<obj->fileName <<" saved. Length "<<data.size()/12 <<" "<<data[0] <<" " <<data[1] <<" "<<data[2] <<" "<<data[3] <<" "<< std::endl;
   return;
 }
 

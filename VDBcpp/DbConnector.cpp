@@ -306,7 +306,11 @@ void DbConnector::save_trace(int  vid, std::vector<int> & trace) {
   rc = sqlite3_bind_int(stmt, 1, vid);
   std::ifstream input (temp_icon, std::ios::in|std::ios::binary|std::ios::ate);
   std::stringstream stream;
-  for(int & i: trace) stream << i << "\t";
+  for(int & i: trace) {
+    stream << i << "\t";
+    std::cout << i << " ";
+  }
+  std::cout << std::endl;
   unsigned long dest_size = stream.str().size();
   sqlite3_bind_int(stmt, 2, dest_size);
   char dest[dest_size];
