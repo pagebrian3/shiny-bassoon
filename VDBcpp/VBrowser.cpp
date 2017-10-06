@@ -1,11 +1,12 @@
 #include "VBrowser.h"
 #include <wand/MagickWand.h>
 #include <boost/format.hpp>
+#include <boost/process.hpp>
 #include <set>
 
 #define WIN_WIDTH 800
 #define WIN_HEIGHT 600
-#define FUDGE 8
+#define FUDGE 10
 #define TRACE_TIME 10.0
 #define TRACE_FPS 25.0
 #define BORDER_FRAMES 20.0
@@ -137,7 +138,7 @@ void VBrowser::fdupe_clicked(){
     calculate_trace(b);
   }
   std::map<std::pair<int,int>,int> result_map;
-  std::vector<int> vdat1, vdat2;
+  std::vector<unsigned short> vdat1, vdat2;
   bool match = false;
   int counter=0;
   dbCon->fetch_results(result_map);			
@@ -147,11 +148,14 @@ void VBrowser::fdupe_clicked(){
     //loop over files after i
     for(int j = i+1; j < vids.size(); j++) {
       std::cout << vids[i] << " "<<vids[j] << std::endl;
-      if (result_map[std::make_pair(vids[i],vids[j])]) continue;
+      if (result_map[std::make_pair(vids[i],vids[j])]) {
+	std::cout <<"ALREADY Computed." <<std::endl;
+	continue;
+      }
       match=false;
       dbCon->fetch_trace(vids[j],vdat2);
-      std::cout <<"VDAT1 "<< vdat1[0] <<" "<< vdat1[1] <<" "<< vdat1[2] <<" "<< vdat1[3] <<std::endl;
-       std::cout <<"VDAT2 "<< vdat2[0] <<" "<< vdat2[1] <<" "<< vdat2[2] <<" "<< vdat2[3] <<std::endl;
+      std::cout <<"VDAT1 "<<vdat1.size()<<" "<< vdat1[0] <<" "<< vdat1[1] <<" "<< vdat1[2] <<" "<< vdat1[3] <<std::endl;
+      std::cout <<"VDAT2 "<<vdat2.size()<<" "<< vdat2[0] <<" "<< vdat2[1] <<" "<< vdat2[2] <<" "<< vdat2[3] <<std::endl;
       uint t_s,t_x, t_o, t_d;
       //loop over slices
       for(t_s =0; t_s < vdat1.size()-12*TRACE_FPS*COMP_TIME; t_s+= 12*TRACE_FPS*SLICE_SPACING){
@@ -166,11 +170,16 @@ void VBrowser::fdupe_clicked(){
 	    for(auto & a : accum) if (a > THRESH) counter+=1;
 	    if(counter != 0) break;
 	    //pixel/color loop
+	    bool printStuff = false;
+	    if(vids[i]  == 2 && vids[j] == 3) printStuff = true;
+	    if(printStuff)std::cout <<i << " "<<j << " "<<t_s <<" "<<t_o<<" "<<t_d<<std::endl;
 	    for (t_d = 0; t_d < 12; t_d++) {
-	      int value = pow(int(vdat1[t_s+t_o+t_d])-int(vdat2[t_x+t_o+t_d]),2)-pow(FUDGE,2);
+	      int value = pow((int)(vdat1[t_s+t_o+t_d])-(int)(vdat2[t_x+t_o+t_d]),2)-pow(FUDGE,2);
 	      if(value < 0) value = 0;
 	      accum[t_d]+=value;
+	      if(printStuff)std::cout <<accum[t_d] << " ";
 	    }
+	    if(printStuff)std::cout << std::endl;
 	  }
 	  counter = 0;
 	  for(auto & a: accum)  if(a < THRESH) counter+=1;
@@ -187,18 +196,15 @@ void VBrowser::fdupe_clicked(){
 
 void VBrowser::calculate_trace(VidFile * obj) {
   bfs::path path(obj->fileName);
-  bfs::path temp_dir = bfs::unique_path();
-  bfs::path home=HOME_PATH;
-  bfs::path imgp=home;
+  bfs::path imgp=HOME_PATH;
   imgp+="border.png";
-  home+=temp_dir;
-  std::cout <<obj->vid<<" "<< path <<" "<<temp_dir << std::endl;
-  bfs::create_directory(home);
+  std::cout <<obj->vid<<" "<< path <<" " << std::endl;
   double length = obj->length;
   double start_time = TRACE_TIME;
-  if(length <= TRACE_TIME) start_time=0.0; 
+  if(length <= TRACE_TIME) start_time=0.0;
+  double frame_time = start_time;
   double frame_spacing = (length-start_time)/BORDER_FRAMES;
-  std::string cmdTmpl("ffmpeg -y -nostats -loglevel 0 -ss %.4f -i \"%s\" -frames:v 1 %s");
+  std::string cmdTmpl("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -frames:v 1 %s");
   std::string command((boost::format(cmdTmpl)% start_time % path % imgp ).str());
   std::system(command.c_str());
   MagickWand *image_wand1=NewMagickWand();
@@ -220,8 +226,8 @@ void VBrowser::calculate_trace(VidFile * obj) {
   bool skipBorder = false;
   for(int i = 1; i < BORDER_FRAMES; i++) {
     image_wand1 = CloneMagickWand(image_wand2);
-    start_time+=frame_spacing;
-    std::system((boost::format(cmdTmpl) % start_time % path  % imgp ).str().c_str());
+    frame_time+=frame_spacing;
+    std::system((boost::format(cmdTmpl) % frame_time % path  % imgp ).str().c_str());
     MagickReadImage(image_wand2,imgp.string().c_str());
     MagickCompositeImage(image_wand1,image_wand2,DifferenceCompositeOp, 0,0);
     iterator = NewPixelIterator(image_wand1);
@@ -242,10 +248,13 @@ void VBrowser::calculate_trace(VidFile * obj) {
       skipBorder = true;
       break;
     }
-  }  
-  std::string traceCmd;
+  }
+  bfs::remove(imgp);
+  image_wand1=DestroyMagickWand(image_wand1);
+  image_wand2=DestroyMagickWand(image_wand2);
+  boost::process::ipstream is;
   if(skipBorder) {
-    traceCmd = (boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -filter:v \"fps=%.3f,scale=2x2\" %s/out%%05d%s") % start_time % path  % TRACE_FPS %home % EXTENSION).str();
+    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % path  % TRACE_FPS).str(),boost::process::std_out > is);
   }
   else {  
     int x1(0), x2(width-1), y1(0), y2(height-1);
@@ -256,39 +265,11 @@ void VBrowser::calculate_trace(VidFile * obj) {
     x2-=x1-1;  
     y2-=y1-1;
     //std::cout << x2 << " "<<y2 <<" "<<x1 <<" "<<y1 << std::endl;
-    traceCmd = (boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -filter:v \"fps=%.3f,crop=%i:%i:%i:%i,scale=2x2\" %s/out%%05d%s") % start_time % path  % TRACE_FPS % x2 % y2 % x1 % y1 %home % EXTENSION).str();
+    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,crop=%i:%i:%i:%i,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % path  % TRACE_FPS % x2 % y2 % x1 % y1).str(),boost::process::std_out > is);
   }
-  bfs::remove(imgp);
-  
-  std::system(traceCmd.c_str());
-  bfs::path p(home);
-  std::vector<bfs::directory_entry> bmpList;
-  for (bfs::directory_entry & x : bfs::recursive_directory_iterator(p))  bmpList.push_back(x);
-  std::sort(bmpList.begin(),bmpList.end());
-  int listSize = bmpList.size();
-  std::vector<int> data(12*listSize);
-  int i = 0;
-  double scale = 1.0/256.0;
-  ClearMagickWand(image_wand1);
-  for(auto tFile: bmpList) {
-    auto status = MagickReadImage(image_wand1,tFile.path().c_str());
-    iterator = NewPixelIterator(image_wand1);
-    for (y=0; y < 2; y++) {
-      pixels=PixelGetNextIteratorRow(iterator,&width);
-      if (pixels == (PixelWand **) NULL) break;
-      for (x=0; x < 2; x++) {
-	PixelGetMagickColor(pixels[x],&pixel);    
-	data[12*i+6*y+3*x]=scale*pixel.red;
-	data[12*i+6*y+3*x+1]=scale*pixel.green;
-	data[12*i+6*y+3*x+2]=scale*pixel.blue;
-      }
-    }
-    i++;
-  }
-  image_wand1=DestroyMagickWand(image_wand1);
-  image_wand2=DestroyMagickWand(image_wand2);
-  dbCon->save_trace(obj->vid, data);
-  std::cout <<"Trace for "<<obj->fileName <<" saved. Length "<<data.size()/12 <<" "<<data[0] <<" " <<data[1] <<" "<<data[2] <<" "<<data[3] <<" "<< std::endl;
+  std::string outString;
+  std::getline(is,outString);
+  dbCon->save_trace(obj->vid, outString);
   return;
 }
 

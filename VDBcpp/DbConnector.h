@@ -28,9 +28,9 @@ class DbConnector {
 
   bool trace_exists(int vid);
 
-  void save_trace(int vid, std::vector<int> & trace);
+  void save_trace(int vid, std::string & trace);
 
-  void fetch_trace(int vid, std::vector<int> & trace);
+  void fetch_trace(int vid, std::vector<unsigned short> & trace);
 
    int get_last_vid();
 
