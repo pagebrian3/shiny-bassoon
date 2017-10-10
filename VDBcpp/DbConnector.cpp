@@ -284,7 +284,6 @@ void DbConnector::fetch_trace(int vid, std::vector<unsigned short> & trace) {
     throw errmsg;
   }
   unsigned long int uncomp_size = sqlite3_column_int(stmt,0);
-  std::cout <<"Read size: "<< uncomp_size << std::endl;
   std::string result;
   result.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
   trace.resize(uncomp_size);
@@ -293,9 +292,6 @@ void DbConnector::fetch_trace(int vid, std::vector<unsigned short> & trace) {
     if(value > 255) value = 256-(65536-value);
     trace[i] = value;
   }
-  std::cout <<"After decomp: " << uncomp_size  << " ";
-  for(int i = 0; i < 4; i++) std::cout << trace[i] << " ";
-  std::cout << std::endl;
   sqlite3_finalize(stmt);
   return;
 }

@@ -11,7 +11,7 @@
 #define TRACE_FPS 25.0
 #define BORDER_FRAMES 20.0
 #define CUT_THRESH 1000.0
-#define COMP_TIME 20.0
+#define COMP_TIME 10.0
 #define SLICE_SPACING 60
 #define THRESH 2000.0*COMP_TIME*TRACE_FPS
 #define EXTENSION ".png"
@@ -154,8 +154,8 @@ void VBrowser::fdupe_clicked(){
       }
       match=false;
       dbCon->fetch_trace(vids[j],vdat2);
-      std::cout <<"VDAT1 "<<vdat1.size()<<" "<< vdat1[0] <<" "<< vdat1[1] <<" "<< vdat1[2] <<" "<< vdat1[3] <<std::endl;
-      std::cout <<"VDAT2 "<<vdat2.size()<<" "<< vdat2[0] <<" "<< vdat2[1] <<" "<< vdat2[2] <<" "<< vdat2[3] <<std::endl;
+      //std::cout <<"VDAT1 "<<vdat1.size()<<" "<< vdat1[0] <<" "<< vdat1[1] <<" "<< vdat1[2] <<" "<< vdat1[3] <<std::endl;
+      //std::cout <<"VDAT2 "<<vdat2.size()<<" "<< vdat2[0] <<" "<< vdat2[1] <<" "<< vdat2[2] <<" "<< vdat2[3] <<std::endl;
       uint t_s,t_x, t_o, t_d;
       //loop over slices
       for(t_s =0; t_s < vdat1.size()-12*TRACE_FPS*COMP_TIME; t_s+= 12*TRACE_FPS*SLICE_SPACING){
@@ -170,16 +170,11 @@ void VBrowser::fdupe_clicked(){
 	    for(auto & a : accum) if (a > THRESH) counter+=1;
 	    if(counter != 0) break;
 	    //pixel/color loop
-	    bool printStuff = false;
-	    if(vids[i]  == 2 && vids[j] == 3) printStuff = true;
-	    if(printStuff)std::cout <<i << " "<<j << " "<<t_s <<" "<<t_o<<" "<<t_d<<std::endl;
 	    for (t_d = 0; t_d < 12; t_d++) {
 	      int value = pow((int)(vdat1[t_s+t_o+t_d])-(int)(vdat2[t_x+t_o+t_d]),2)-pow(FUDGE,2);
 	      if(value < 0) value = 0;
 	      accum[t_d]+=value;
-	      if(printStuff)std::cout <<accum[t_d] << " ";
 	    }
-	    if(printStuff)std::cout << std::endl;
 	  }
 	  counter = 0;
 	  for(auto & a: accum)  if(a < THRESH) counter+=1;
