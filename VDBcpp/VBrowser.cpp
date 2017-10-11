@@ -249,7 +249,7 @@ void VBrowser::calculate_trace(VidFile * obj) {
   image_wand2=DestroyMagickWand(image_wand2);
   boost::process::ipstream is;
   if(skipBorder) {
-    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % path  % TRACE_FPS).str(),boost::process::std_out > is);
+    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \'%s\' -filter:v \"fps=%.3f,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % path  % TRACE_FPS).str(),boost::process::std_out > is);
   }
   else {  
     int x1(0), x2(width-1), y1(0), y2(height-1);
@@ -260,7 +260,7 @@ void VBrowser::calculate_trace(VidFile * obj) {
     x2-=x1-1;  
     y2-=y1-1;
     //std::cout << x2 << " "<<y2 <<" "<<x1 <<" "<<y1 << std::endl;
-    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,crop=%i:%i:%i:%i,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % path  % TRACE_FPS % x2 % y2 % x1 % y1).str(),boost::process::std_out > is);
+    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -filter:v \"fps=%.3f,crop=%i:%i:%i:%i,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % path  % TRACE_FPS % x2 % y2 % x1 % y1).str(),boost::process::std_out > is);
   }
   std::string outString;
   std::getline(is,outString);
