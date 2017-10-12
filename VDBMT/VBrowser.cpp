@@ -140,7 +140,7 @@ void VBrowser::fdupe_clicked(){
   for(auto & b: videos) {
     jobs.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
   }
-  cxxpool::wait(jobs.begin(), jobs.end());
+  cxxpool::wait(jobs.begin(),jobs.end());
   std::map<std::pair<int,int>,int> result_map;
   std::vector<unsigned short> vdat1, vdat2;
   bool match = false;
@@ -164,7 +164,7 @@ void VBrowser::fdupe_clicked(){
       //loop over slices
       for(t_s =0; t_s < vdat1.size()-12*TRACE_FPS*COMP_TIME; t_s+= 12*TRACE_FPS*SLICE_SPACING){
 	if(match) break;
-	//starting offset for 2nd trace -this is the loop for the indiviual tests
+	//starting offset for 2nd trace-this is the loop for the indiviual tests
 	for(t_x=0; t_x < vdat2.size()-12*TRACE_FPS*COMP_TIME; t_x+=12){
 	  if(match) break;
 	  std::vector<int> accum(12);
