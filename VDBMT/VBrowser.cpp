@@ -2,6 +2,7 @@
 #include <wand/MagickWand.h>
 #include <boost/process.hpp>
 #include <boost/format.hpp>
+#include <boost/algorithm/string.hpp>
 #include <set>
 
 #define WIN_WIDTH 800
@@ -69,6 +70,7 @@ VBrowser::~VBrowser() {
 void VBrowser::populate_icons(bool clean) {
   if(clean) fScrollWin->remove();
   fFBox = new Gtk::FlowBox();
+  fFBox->set_homogeneous(false);
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
   std::vector<bfs::directory_entry> video_list;
   std::vector<std::future<VideoIcon * > > icons;
@@ -98,10 +100,10 @@ int VBrowser::sort_videos(Gtk::FlowBoxChild *videoFile1, Gtk::FlowBoxChild *vide
   int value=1;
   VidFile *v1=(reinterpret_cast<VideoIcon*>(videoFile1->get_child()))->get_vid_file();
   VidFile *v2=(reinterpret_cast<VideoIcon*>(videoFile2->get_child()))->get_vid_file();
-  if(!sort_desc) value *= -1;
+  if(sort_desc) value *= -1;
   if(!std::strcmp(this->get_sort().c_str(),"size")) return value*(v1->size - v2->size);
   else if(!std::strcmp(this->get_sort().c_str(),"length")) return value*(v1->length - v2->length);
-  else return value*v1->fileName.compare(v2->fileName);   
+  else return value*boost::algorithm::to_lower_copy(v1->fileName).compare(boost::algorithm::to_lower_copy(v2->fileName));   
 }
 
 void VBrowser::browse_clicked() {
