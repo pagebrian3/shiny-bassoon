@@ -199,8 +199,8 @@ void VBrowser::calculate_trace(VidFile * obj) {
   if(length <= TRACE_TIME) start_time=0.0;
   double frame_time = start_time;
   double frame_spacing = (length-start_time)/BORDER_FRAMES;
-  std::string cmdTmpl("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -frames:v 1 %s");
-  std::string command((boost::format(cmdTmpl)% start_time % path % imgp ).str());
+  std::string cmdTmpl("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 %s");
+  std::string command((boost::format(cmdTmpl)% start_time % obj->fixed_filename() % imgp ).str());
   std::system(command.c_str());
   MagickWand *image_wand1=NewMagickWand();
   MagickWand *image_wand2=NewMagickWand();
@@ -222,7 +222,7 @@ void VBrowser::calculate_trace(VidFile * obj) {
   for(int i = 1; i < BORDER_FRAMES; i++) {
     image_wand1 = CloneMagickWand(image_wand2);
     frame_time+=frame_spacing;
-    std::system((boost::format(cmdTmpl) % frame_time % path  % imgp ).str().c_str());
+    std::system((boost::format(cmdTmpl) % frame_time % obj->fixed_filename()  % imgp ).str().c_str());
     MagickReadImage(image_wand2,imgp.string().c_str());
     MagickCompositeImage(image_wand1,image_wand2,DifferenceCompositeOp, 0,0);
     iterator = NewPixelIterator(image_wand1);
@@ -249,7 +249,7 @@ void VBrowser::calculate_trace(VidFile * obj) {
   image_wand2=DestroyMagickWand(image_wand2);
   boost::process::ipstream is;
   if(skipBorder) {
-    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \'%s\' -filter:v \"fps=%.3f,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % path  % TRACE_FPS).str(),boost::process::std_out > is);
+    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -filter:v \"fps=%.3f,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fixed_filename()  % TRACE_FPS).str(),boost::process::std_out > is);
   }
   else {  
     int x1(0), x2(width-1), y1(0), y2(height-1);
@@ -260,7 +260,7 @@ void VBrowser::calculate_trace(VidFile * obj) {
     x2-=x1-1;  
     y2-=y1-1;
     //std::cout << x2 << " "<<y2 <<" "<<x1 <<" "<<y1 << std::endl;
-    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -filter:v \"fps=%.3f,crop=%i:%i:%i:%i,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % path  % TRACE_FPS % x2 % y2 % x1 % y1).str(),boost::process::std_out > is);
+    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i \"%s\" -filter:v \"fps=%.3f,crop=%i:%i:%i:%i,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fixed_filename()  % TRACE_FPS % x2 % y2 % x1 % y1).str(),boost::process::std_out > is);
   }
   std::string outString;
   std::getline(is,outString);
