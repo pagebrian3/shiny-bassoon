@@ -199,7 +199,7 @@ bool VBrowser::calculate_trace(VidFile * obj) {
   bfs::path path(obj->fileName);
   bfs::path imgp=HOME_PATH;
   imgp+=(boost::format("border%i.png") % obj->vid).str();
-  //std::cout <<obj->vid<<" "<< path <<" " << std::endl;
+  std::cout <<obj->vid<<" "<< path <<" " << std::endl;
   double length = obj->length;
   double start_time = TRACE_TIME;
   if(length <= TRACE_TIME) start_time=0.0;
