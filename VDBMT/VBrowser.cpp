@@ -74,7 +74,7 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
   std::vector<bfs::directory_entry> video_list;
   std::vector<std::future<VideoIcon * > > icons;
-  for (bfs::directory_entry & x : bfs::recursive_directory_iterator(path))
+  for (bfs::directory_entry & x : bfs::directory_iterator(path))
     {
       auto extension = x.path().extension().generic_string();
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
@@ -128,7 +128,7 @@ void VBrowser::on_delete() {
 void VBrowser::fdupe_clicked(){
   std::vector<VidFile *> videos;
   std::vector<int> vids;
-  for (bfs::directory_entry & x : bfs::recursive_directory_iterator(path)) {
+  for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
     auto extension = x.path().extension().generic_string();
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
     if(extensions.count(extension)) {
