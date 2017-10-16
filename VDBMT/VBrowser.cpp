@@ -20,7 +20,7 @@
 #define DEFAULT_PATH "/home/ungermax/mt_test/"
 #define DEFAULT_SORT "size"
 #define ICON_SIZE 6
-#define NUM_THREADS 2
+#define NUM_THREADS 1
 #define DEFAULT_DESC true
 
 std::set<std::string> extensions{".mp4",".wmv",".mov",".rm",".m4v",".flv",".avi",".qt",".mpg",".mpeg",".mpv",".3gp"};
@@ -80,6 +80,7 @@ void VBrowser::populate_icons(bool clean) {
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(extensions.count(extension)) {
 	std::string pathName(x.path().native());
+	std::cout << "PATH: "<<pathName<<std::endl;
 	icons.push_back(TPool->push([](std::string path,DbConnector * con) {return new VideoIcon(path,con);},pathName,dbCon));
       }
     }

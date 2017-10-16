@@ -6,7 +6,7 @@ class VidFile {
  VidFile(std::string file, float length, int size, int flag, int vid): fileName(file), length(length), size(size), okflag(flag), vid(vid){};
   std::string fixed_filename() {
     std::string temp(fileName);
-    std::string bad_chars("\'$ &();`");
+    std::string bad_chars("\'$&();`");
     for(int i = 0; i < temp.length();i++) 
       if(bad_chars.find(temp[i]) != std::string::npos ) temp.insert(i++,"\\");
     return temp;	 
