@@ -80,7 +80,7 @@ void VBrowser::populate_icons(bool clean) {
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(extensions.count(extension)) {
 	std::string pathName(x.path().native());
-	std::cout << "PATH: "<<pathName<<std::endl;
+	//std::cout << "PATH: "<<pathName<<std::endl;
 	icons.push_back(TPool->push([](std::string path,DbConnector * con) {return new VideoIcon(path,con);},pathName,dbCon));
       }
     }

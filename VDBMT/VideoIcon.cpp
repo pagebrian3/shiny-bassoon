@@ -21,11 +21,11 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon):Gtk::Image()  {
     fVidFile->size = bfs::file_size(fileName);
     boost::process::ipstream is;
     std::string cmd((boost::format("./info.sh %s") % fileName).str());
-    std::cout <<"COMMAND: " << cmd << std::endl;
+    //std::cout <<"COMMAND: " << cmd << std::endl;
     boost::process::system(cmd,  boost::process::std_out > is);
     std::string outString;
     std::getline(is, outString);
-    std::cout <<"HERE: " <<fileName <<" "<< outString << std::endl;
+    //std::cout <<"HERE: " <<fileName <<" "<< outString << std::endl;
     std::vector<std::string> split_string;
     boost::split(split_string,outString,boost::is_any_of(","));
     int width=std::stoi(split_string[0]);
