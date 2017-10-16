@@ -15,15 +15,14 @@
 #define COMP_TIME 10.0
 #define SLICE_SPACING 60
 #define THRESH 2000.0*COMP_TIME*TRACE_FPS
-#define EXTENSION ".png"
 #define HOME_PATH "/home/ungermax/.video_proj/"
 #define DEFAULT_PATH "/home/ungermax/mt_test/"
 #define DEFAULT_SORT "size"
 #define ICON_SIZE 6
-#define NUM_THREADS 1
+#define NUM_THREADS 4
 #define DEFAULT_DESC true
 
-std::set<std::string> extensions{".mp4",".wmv",".mov",".rm",".m4v",".flv",".avi",".qt",".mpg",".mpeg",".mpv",".3gp"};
+std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
 
 VBrowser::VBrowser() {
   MagickWandGenesis();
@@ -71,11 +70,11 @@ void VBrowser::populate_icons(bool clean) {
   if(clean) fScrollWin->remove();
   fFBox = new Gtk::FlowBox();
   fFBox->set_homogeneous(false);
+  fFBox->set_orientation(Gtk::ORIENTATION_HORIZONTAL);
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
   std::vector<bfs::directory_entry> video_list;
   std::vector<std::future<VideoIcon * > > icons;
-  for (bfs::directory_entry & x : bfs::directory_iterator(path))
-    {
+  for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
       auto extension = x.path().extension().generic_string();
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(extensions.count(extension)) {
