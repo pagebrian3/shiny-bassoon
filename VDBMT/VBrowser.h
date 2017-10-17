@@ -14,10 +14,14 @@ class VBrowser: public Gtk::Window
   void fdupe_clicked();
   void asc_clicked();
   void on_sort_changed();
+  bool compare_vids(int i, int j, std::map<int,std::vector<unsigned short> > & data);
   std::string get_sort();
   void set_sort(std::string sort);
   
  private:
+  int cWinWidth, cWinHeight, cFudge, cThreads;
+  float cTraceTime, cTraceFPS, cBorderFrames, cCutThresh, cCompTime, cSliceSpacing, cThresh;
+  std::string cDefaultPath;
   cxxpool::thread_pool * TPool;
   Glib::RefPtr<Gtk::Builder> refBuilder;
   Gtk::ScrolledWindow * fScrollWin;
