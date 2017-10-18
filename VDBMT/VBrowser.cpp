@@ -1,13 +1,10 @@
 #include "VBrowser.h"
-#include <wand/MagickWand.h>
 #include <boost/process.hpp>
 #include <boost/format.hpp>
-#include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include <set>
 
 std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
-namespace po = boost::program_options;
 
 VBrowser::VBrowser() {   
   po::options_description config("Configuration");
@@ -16,17 +13,23 @@ VBrowser::VBrowser() {
           "window width")
     ("win_height", po::value<int>(&cWinHeight)->default_value(600), 
           "window height")
+    ("thumb_width", po::value<int>()->default_value(320), 
+          "thumbnail max width")
+    ("thumb_height", po::value<int>()->default_value(180), 
+          "thumbnail max height")
     ("fudge", po::value<int>(&cFudge)->default_value(10), 
           "difference threshold")
     ("threads", po::value<int>(&cThreads)->default_value(2), 
            "Number of threads to use.")
     ("trace_time", po::value<float>(&cTraceTime)->default_value(10.0), 
           "trace starting time")
+    ("thumb_time", po::value<float>()->default_value(12.0), 
+          "thumbnail time")
     ("trace_fps", po::value<float>(&cTraceFPS)->default_value(30.0), 
           "trace fps")
-    ("border_frames", po::value<float>(&cBorderFrames)->default_value(20.0), 
+    ("border_frames", po::value<float>()->default_value(20.0), 
            "frames used to calculate border")
-    ("cut_thresh", po::value<float>(&cCutThresh)->default_value(1000.0), 
+    ("cut_thresh", po::value<float>()->default_value(1000.0), 
           "threshold used for border detection")
     ("comp_time", po::value<float>(&cCompTime)->default_value(10.0), 
            "length of slices to compare")
@@ -37,13 +40,11 @@ VBrowser::VBrowser() {
     ("default_path", 
      po::value< std::string >(&cDefaultPath)->default_value("/home/ungermax/mt_test/"), 
            "starting path");
-  po::variables_map vm;
   char* c = NULL;
   std::ifstream config_file("config.cfg");
   po::store(po::parse_config_file(config_file, config),vm);
   po::store(po::parse_command_line(1, &c, config),vm);
   po::notify(vm);
-  MagickWandGenesis();
   TPool = new cxxpool::thread_pool(cThreads);
   this->set_default_size(cWinWidth, cWinHeight);
   dbCon = new DbConnector();
@@ -98,7 +99,7 @@ void VBrowser::populate_icons(bool clean) {
       if(extensions.count(extension)) {
 	std::string pathName(x.path().native());
 	//std::cout << "PATH: "<<pathName<<std::endl;
-	icons.push_back(TPool->push([](std::string path,DbConnector * con) {return new VideoIcon(path,con);},pathName,dbCon));
+	icons.push_back(TPool->push([this](std::string path,DbConnector * con) {return new VideoIcon(path,con,&vm);},pathName,dbCon));
       }
     }
   for(auto &a: icons) fFBox->add(*(a.get()));
@@ -186,80 +187,14 @@ void VBrowser::fdupe_clicked(){
 }
 
 bool VBrowser::calculate_trace(VidFile * obj) {
-  bfs::path path(obj->fileName);
-  bfs::path imgp = getenv("HOME");
-  imgp+="/.video_proj/";
-  imgp+=(boost::format("border%i.png") % obj->vid).str();
-  std::cout <<obj->vid<<" "<< path <<" " << std::endl;
-  double length = obj->length;
-  double start_time = cTraceTime;
-  if(length <= start_time) start_time=0.0;
-  double frame_time = start_time;
-  double frame_spacing = (length-start_time)/cBorderFrames;
-  std::string cmdTmpl("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 %s");
-  std::string command((boost::format(cmdTmpl)% start_time % obj->fixed_filename() % imgp ).str());
-  std::system(command.c_str());
-  MagickWand *image_wand1=NewMagickWand();
-  MagickWand *image_wand2=NewMagickWand();
-  PixelIterator* iterator;
-  PixelWand ** pixels;
-  bool ok = MagickReadImage(image_wand2,imgp.string().c_str());
-  ExceptionType severity;
-  MagickPixelPacket pixel;
-  unsigned long width,height;
-  register long x;
-  long y;
-  height = MagickGetImageHeight(image_wand2);
-  width = MagickGetImageWidth(image_wand2);
-  std::vector<double> rowSums(height);
-  std::vector<double> colSums(width);
-  double corrFactorCol = 1.0/(double)(cBorderFrames*height);
-  double corrFactorRow = 1.0/(double)(cBorderFrames*width);
-  bool skipBorder = false;
-  for(int i = 1; i < cBorderFrames; i++) {
-    image_wand1 = CloneMagickWand(image_wand2);
-    frame_time+=frame_spacing;
-    std::system((boost::format(cmdTmpl) % frame_time % obj->fixed_filename()  % imgp ).str().c_str());
-    MagickReadImage(image_wand2,imgp.string().c_str());
-    MagickCompositeImage(image_wand1,image_wand2,DifferenceCompositeOp, 0,0);
-    iterator = NewPixelIterator(image_wand1);
-    for (y=0; y < height; y++) {
-      pixels=PixelGetNextIteratorRow(iterator,&width);
-      if (pixels == (PixelWand **) NULL) break;
-      for (x=0; x < (long) width; x++) {
-	PixelGetMagickColor(pixels[x],&pixel);
-	double value =sqrt(1.0/3.0*(pow(pixel.red,2.0)+pow(pixel.green,2.0)+pow(pixel.blue,2.0)));
-	rowSums[y]+=corrFactorRow*value;
-	colSums[x]+=corrFactorCol*value;
-      }
-    }
-    if(rowSums[0] > cCutThresh &&
-       rowSums[height-1] > cCutThresh &&
-       colSums[0] > cCutThresh &&
-       colSums[width-1] > cCutThresh) {
-      skipBorder = true;
-      break;
-    }
-  }
-  bfs::remove(imgp);
-  image_wand1=DestroyMagickWand(image_wand1);
-  image_wand2=DestroyMagickWand(image_wand2);
+  float start_time = vm["trace_time"].as<float>();
+  if(obj->length <= start_time) start_time=0.0;
   boost::process::ipstream is;
-  if(skipBorder) {
-    std::cout << "HERE1" << std::endl;
+  if(obj->crop.length() == 0) {
     boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fixed_filename()  % cTraceFPS).str(),boost::process::std_out > is);
   }
   else {
-    std::cout << "HERE2" << std::endl;
-    int x1(0), x2(width-1), y1(0), y2(height-1);
-    while(colSums[x1] < cCutThresh) x1++;
-    while(colSums[x2] < cCutThresh) x2--;
-    while(rowSums[y1] < cCutThresh) y1++;
-    while(rowSums[y2] < cCutThresh) y2--;
-    x2-=x1-1;  
-    y2-=y1-1;
-    std::cout << x2 << " "<<y2 <<" "<<x1 <<" "<<y1 << std::endl;
-    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,crop=%i:%i:%i:%i,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fixed_filename()  % cTraceFPS % x2 % y2 % x1 % y1).str(),boost::process::std_out > is);
+    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fixed_filename()  % cTraceFPS % obj->crop).str(),boost::process::std_out > is);
   }
   std::string outString;
   std::getline(is,outString);
@@ -288,7 +223,6 @@ bool VBrowser::compare_vids(int i, int j, std::map<int, std::vector<unsigned sho
   uint t_s,t_x, t_o, t_d;
   //loop over slices
   for(t_s =0; t_s < data[i].size()-12*cTraceFPS*cCompTime; t_s+= 12*cTraceFPS*cSliceSpacing){
-    if(i==2 && j==4) std::cout << t_s << std::endl;
     if(match) break;
     //starting offset for 2nd trace-this is the loop for the indiviual tests
     for(t_x=0; t_x < data[j].size()-12*cTraceFPS*cCompTime; t_x+=12){
@@ -300,14 +234,11 @@ bool VBrowser::compare_vids(int i, int j, std::map<int, std::vector<unsigned sho
 	for(auto & a : accum) if (a > cThresh*cCompTime*cTraceFPS) counter+=1;
 	if(counter != 0) break;
 	//pixel/color loop
-	if(i==2 && j==4)std::cout <<t_s<<" "<<t_o <<" "<<t_x<<std::endl;
 	for (t_d = 0; t_d < 12; t_d++) {
 	  int value = pow((int)(data[i][t_s+t_o+t_d])-(int)(data[j][t_x+t_o+t_d]),2)-pow(cFudge,2);
-	  if(i==2 && j ==4)std::cout << value <<" ";
 	  if(value < 0) value = 0;
 	  accum[t_d]+=value;
 	}
-	if(i==2 && j==4)std::cout << std::endl;
       }
       counter = 0;
       for(auto & a: accum)  if(a < cThresh*cCompTime*cTraceFPS) counter+=1;

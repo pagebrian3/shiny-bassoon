@@ -1,5 +1,8 @@
 #include "VideoIcon.h"
+#include <boost/program_options.hpp>
 #include "cxxpool.h"
+
+namespace po = boost::program_options;
 
 class VBrowser: public Gtk::Window
 {
@@ -19,6 +22,7 @@ class VBrowser: public Gtk::Window
   void set_sort(std::string sort);
   
  private:
+  po::variables_map vm;
   int cWinWidth, cWinHeight, cFudge, cThreads;
   float cTraceTime, cTraceFPS, cBorderFrames, cCutThresh, cCompTime, cSliceSpacing, cThresh;
   std::string cDefaultPath;

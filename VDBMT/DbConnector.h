@@ -34,8 +34,6 @@ class DbConnector {
 
   int get_last_vid();
 
-  char * temp_icon_file();
-
   void save_db_file();
   
  private:

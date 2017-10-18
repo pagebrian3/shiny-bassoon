@@ -16,10 +16,10 @@ main.o:  main.cc
 	$(CC) $(CFLAGS) $(GTKFLAGS) -c main.cc
 
 VideoIcon.o:  VideoIcon.cpp VideoIcon.h VidFile.h
-	$(CC) $(CFLAGS) $(GTKFLAGS) -c VideoIcon.cpp
+	$(CC) $(CFLAGS) $(GTKFLAGS) $(WANDFLAGS) -c VideoIcon.cpp
 
 VBrowser.o:  VBrowser.cpp VBrowser.h  VidFile.h
-	$(CC) $(CFLAGS) $(GTKFLAGS) $(WANDFLAGS) -c VBrowser.cpp
+	$(CC) $(CFLAGS) $(GTKFLAGS) -c VBrowser.cpp
 
 DbConnector.o:  DbConnector.cpp DbConnector.h VidFile.h 
 	$(CC) $(CFLAGS) $(GTKFLAGS) -c DbConnector.cpp

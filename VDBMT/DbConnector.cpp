@@ -20,7 +20,7 @@ DbConnector::DbConnector() {
     int rc = sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text)", NULL,NULL, NULL);
-    sqlite3_exec(db,"create table videos(path text,length double, size integer, okflag integer, vdatid integer)", NULL,NULL, NULL);
+    sqlite3_exec(db,"create table videos(path text,crop text, length double, size integer, okflag integer, vdatid integer)", NULL,NULL, NULL);
   }
   else min_vid=this->get_last_vid();
 }
@@ -31,7 +31,7 @@ void DbConnector::save_db_file() {
 
 VidFile * DbConnector::fetch_video(std::string  filename){
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "SELECT length, size, okflag, vdatid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "SELECT crop, length, size, okflag, vdatid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
     throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_text(stmt, 1, filename.c_str(),-1, NULL);    
@@ -48,14 +48,15 @@ VidFile * DbConnector::fetch_video(std::string  filename){
   }
   if (rc == SQLITE_DONE) {
     sqlite3_finalize(stmt);
-    throw std::string("customer not found");
+    throw std::string("something not found");
   }
-  double length = sqlite3_column_double(stmt,0);
-  int size = sqlite3_column_int(stmt,1);
-  int flag = sqlite3_column_int(stmt,2);
-  int vid = sqlite3_column_int(stmt,3);
+  std::string crop(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
+  float length = sqlite3_column_double(stmt,1);
+  int size = sqlite3_column_int(stmt,2);
+  int flag = sqlite3_column_int(stmt,3);
+  int vid = sqlite3_column_int(stmt,4);
   sqlite3_finalize(stmt); 
-  VidFile * result = new VidFile(filename, length, size, flag, vid);
+  VidFile * result = new VidFile(filename, length, size, flag, vid, crop);
   return result;
 }
 
@@ -90,13 +91,14 @@ void DbConnector::save_video(VidFile* a) {
   min_vid++;
   a->okflag=1;
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,length,size,okflag,vdatid) VALUES (?,?,?,?,?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,crop,length,size,okflag,vdatid) VALUES (?,?,?,?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   sqlite3_bind_text(stmt, 1, a->fileName.c_str(), -1, NULL);
-  sqlite3_bind_double(stmt, 2, a->length);
-  sqlite3_bind_int(stmt, 3, a->size);
-  sqlite3_bind_int(stmt, 4, a->okflag);
-  sqlite3_bind_int(stmt, 5, a->vid);
+  sqlite3_bind_text(stmt, 2, a->crop.c_str(), -1, NULL);
+  sqlite3_bind_double(stmt, 3, a->length);
+  sqlite3_bind_int(stmt, 4, a->size);
+  sqlite3_bind_int(stmt, 5, a->okflag);
+  sqlite3_bind_int(stmt, 6, a->vid);
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
     std::string errmsg(sqlite3_errmsg(db));
@@ -210,10 +212,6 @@ int DbConnector::get_last_vid(){
 
   sqlite3_finalize(stmt);
   return result;
-}
-
-char * DbConnector::temp_icon_file() {
-  return temp_icon;
 }
   
 void DbConnector::fetch_results(std::map<std::pair<int,int>, int> & map) {

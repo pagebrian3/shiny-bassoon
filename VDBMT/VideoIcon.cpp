@@ -1,22 +1,19 @@
 #include "VideoIcon.h"
 #include <boost/format.hpp>
 #include <boost/process.hpp>
+#include <wand/MagickWand.h>
 #include <iostream>
 
-#define THUMB_TIME  12.0
-#define ICON_WIDTH 320
-#define ICON_HEIGHT 180
-#define FUZZ 5000
-
-VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon):Gtk::Image()  {
+VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_map *vm):Gtk::Image()  {
   std::cout << fileName << std::endl;
+  bfs::path temp_icon = getenv("HOME");
+  temp_icon+="/.video_proj/";
   if(dbCon->video_exists(fileName)) {
     fVidFile = dbCon->fetch_video(fileName);
     dbCon->fetch_icon(fVidFile->vid);
   }
   else {
     fVidFile = new VidFile();
-    std::string temp_icon = dbCon->temp_icon_file();
     fVidFile->fileName=fileName;
     fVidFile->size = bfs::file_size(fileName);
     boost::process::ipstream is;
@@ -38,14 +35,18 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon):Gtk::Image()  {
       height=temp;
     }
     fVidFile->length = length;
+    std::string crop(find_border(fileName, length, vm));
+    double thumb_t = (*vm)["thumb_time"].as<float>();
+    if(length < thumb_t) thumb_t = length/2.0;
+    if(crop.length() != 0) crop.append(",");
+    fVidFile->crop=crop;
     dbCon->save_video(fVidFile);
-    double thumb_t = THUMB_TIME;
-    if(length < THUMB_TIME) thumb_t = length/2.0;
-    std::string cmdln3((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.03d -i %s -frames:v 1 -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - | convert -size %ix%i -depth 8 RGB:- -fuzz %i -trim -thumbnail %ix%i %s%i.jpg") % thumb_t % fVidFile->fixed_filename() % width % height % FUZZ % ICON_WIDTH % ICON_HEIGHT % temp_icon % fVidFile->vid).str());
-    std::system(cmdln3.c_str());    
+    std::string cmd1((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.03d -i %s -frames:v 1 -filter:v \"%sscale=w=%i:h=%i:force_original_aspect_ratio=decrease\" %s%i.jpg") % thumb_t % fVidFile->fixed_filename()% crop  % (*vm)["thumb_width"].as<int>()% (*vm)["thumb_height"].as<int>() % temp_icon.string() % fVidFile->vid).str());
+    std::cout << cmd1 << std::endl;
+    std::system(cmd1.c_str());    
     dbCon->save_icon(fVidFile->vid);
   }
-  std::string icon_file((boost::format("%s%i.jpg") % dbCon->temp_icon_file() % fVidFile->vid).str());
+  std::string icon_file((boost::format("%s%i.jpg") % temp_icon.string() % fVidFile->vid).str());
   this->set(icon_file);
   std::system((boost::format("rm %s") %icon_file).str().c_str());
   std::stringstream ss;
@@ -59,3 +60,80 @@ VideoIcon::~VideoIcon(){
 VidFile * VideoIcon::get_vid_file() {
   return fVidFile;
 };
+
+std::string VideoIcon::find_border(std::string fileName,float length, po::variables_map * vm) {
+  MagickWandGenesis();
+  std::string crop("");
+  bfs::path path(fileName);
+  bfs::path imgp = getenv("HOME");
+  imgp+="/.video_proj/";
+  imgp+=bfs::unique_path();
+  imgp+=".png";
+  std::cout <<" "<< path <<" " << std::endl;
+  float start_time = (*vm)["trace_time"].as<float>();
+  if(length <= start_time) start_time=0.0;
+  float frame_time = start_time;
+  float border_frames=(*vm)["border_frames"].as<float>();
+  float cut_thresh=(*vm)["cut_thresh"].as<float>();
+  float frame_spacing = (length-start_time)/border_frames;
+  std::string cmdTmpl("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 %s");
+  std::string command((boost::format(cmdTmpl)% start_time % fileName % imgp ).str());
+  
+  std::system(command.c_str());
+  MagickWand *image_wand1=NewMagickWand();
+  MagickWand *image_wand2=NewMagickWand();
+  PixelIterator* iterator;
+  PixelWand ** pixels;
+  bool ok = MagickReadImage(image_wand2,imgp.string().c_str());
+  ExceptionType severity;
+  MagickPixelPacket pixel;
+  unsigned long width,height;
+  register long x;
+  long y;
+  height = MagickGetImageHeight(image_wand2);
+  width = MagickGetImageWidth(image_wand2);
+  std::vector<double> rowSums(height);
+  std::vector<double> colSums(width);
+  double corrFactorCol = 1.0/(double)(border_frames*height);
+  double corrFactorRow = 1.0/(double)(border_frames*width);
+  bool skipBorder = false;
+  for(int i = 1; i < border_frames; i++) {
+    image_wand1 = CloneMagickWand(image_wand2);
+    frame_time+=frame_spacing;
+    std::system((boost::format(cmdTmpl) % frame_time % fileName  % imgp ).str().c_str());
+    MagickReadImage(image_wand2,imgp.string().c_str());
+    MagickCompositeImage(image_wand1,image_wand2,DifferenceCompositeOp, 0,0);
+    iterator = NewPixelIterator(image_wand1);
+    for (y=0; y < height; y++) {
+      pixels=PixelGetNextIteratorRow(iterator,&width);
+      if (pixels == (PixelWand **) NULL) break;
+      for (x=0; x < (long) width; x++) {
+	PixelGetMagickColor(pixels[x],&pixel);
+	double value =sqrt(1.0/3.0*(pow(pixel.red,2.0)+pow(pixel.green,2.0)+pow(pixel.blue,2.0)));
+	rowSums[y]+=corrFactorRow*value;
+	colSums[x]+=corrFactorCol*value;
+      }
+    }
+    if(rowSums[0] > cut_thresh &&
+       rowSums[height-1] > cut_thresh &&
+       colSums[0] > cut_thresh &&
+       colSums[width-1] > cut_thresh) {
+      skipBorder=true;
+      break;
+    }
+  }
+  if(!skipBorder) {
+    int x1(0), x2(width-1), y1(0), y2(height-1);
+    while(colSums[x1] < cut_thresh) x1++;
+    while(colSums[x2] < cut_thresh) x2--;
+    while(rowSums[y1] < cut_thresh) y1++;
+    while(rowSums[y2] < cut_thresh) y2--;
+    x2-=x1-1;  
+    y2-=y1-1;
+    crop = (boost::format("crop=%i:%i:%i:%i")% x2 % y2 % x1 % y1).str();
+  }
+  bfs::remove(imgp);
+  image_wand1=DestroyMagickWand(image_wand1);
+  image_wand2=DestroyMagickWand(image_wand2);
+  return crop;
+}
