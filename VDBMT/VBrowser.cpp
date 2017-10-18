@@ -167,7 +167,7 @@ void VBrowser::fdupe_clicked(){
   dbCon->fetch_results(result_map);
   //loop over files  TODO-make this parallel when we have larger sample
   for(int i = 0; i +1 < vids.size(); i++) {
-    dbCon->fetch_trace(vids[i],data_holder[i]);
+    dbCon->fetch_trace(vids[i],data_holder[vids[i]]);
     //loop over files after i
     for(int j = i+1; j < vids.size(); j++) {
       //std::cout << vids[i] << " "<<vids[j] << std::endl;
@@ -176,7 +176,7 @@ void VBrowser::fdupe_clicked(){
 	continue;
       }
       else {
-	dbCon->fetch_trace(vids[j],data_holder[j]);
+	dbCon->fetch_trace(vids[j],data_holder[vids[j]]);
 	work.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return compare_vids(i,j,data);},vids[i],vids[j],data_holder));
       }
     }

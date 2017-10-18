@@ -32,7 +32,7 @@ class DbConnector {
 
   void fetch_trace(int vid, std::vector<unsigned short> & trace);
 
-   int get_last_vid();
+  int get_last_vid();
 
   char * temp_icon_file();
 
