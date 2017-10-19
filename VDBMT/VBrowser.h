@@ -7,7 +7,7 @@ namespace po = boost::program_options;
 class VBrowser: public Gtk::Window
 {
  public:
-  VBrowser();
+  VBrowser(int argc, char * argv[]);
   ~VBrowser();
   void populate_icons(bool clean = false);
   int sort_videos(Gtk::FlowBoxChild *vFile1, Gtk::FlowBoxChild *vFile2);
@@ -23,9 +23,7 @@ class VBrowser: public Gtk::Window
   
  private:
   po::variables_map vm;
-  int cWinWidth, cWinHeight, cFudge, cThreads;
-  float cTraceTime, cTraceFPS, cBorderFrames, cCutThresh, cCompTime, cSliceSpacing, cThresh;
-  std::string cDefaultPath;
+  float cTraceFPS, cCompTime, cSliceSpacing, cThresh;
   cxxpool::thread_pool * TPool;
   Glib::RefPtr<Gtk::Builder> refBuilder;
   Gtk::ScrolledWindow * fScrollWin;

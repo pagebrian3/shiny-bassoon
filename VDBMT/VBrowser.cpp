@@ -6,22 +6,22 @@
 
 std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
 
-VBrowser::VBrowser() {   
+VBrowser::VBrowser(int argc, char * argv[]) {   
   po::options_description config("Configuration");
   config.add_options()
-    ("win_width", po::value<int>(&cWinWidth)->default_value(800), 
+    ("win_width", po::value<int>()->default_value(800), 
           "window width")
-    ("win_height", po::value<int>(&cWinHeight)->default_value(600), 
+    ("win_height", po::value<int>()->default_value(600), 
           "window height")
     ("thumb_width", po::value<int>()->default_value(320), 
           "thumbnail max width")
     ("thumb_height", po::value<int>()->default_value(180), 
           "thumbnail max height")
-    ("fudge", po::value<int>(&cFudge)->default_value(10), 
+    ("fudge", po::value<int>()->default_value(10), 
           "difference threshold")
-    ("threads", po::value<int>(&cThreads)->default_value(2), 
+    ("threads", po::value<int>()->default_value(2), 
            "Number of threads to use.")
-    ("trace_time", po::value<float>(&cTraceTime)->default_value(10.0), 
+    ("trace_time", po::value<float>()->default_value(10.0), 
           "trace starting time")
     ("thumb_time", po::value<float>()->default_value(12.0), 
           "thumbnail time")
@@ -35,22 +35,21 @@ VBrowser::VBrowser() {
            "length of slices to compare")
     ("slice_spacing", po::value<float>(&cSliceSpacing)->default_value(60.0), 
           "separation of slices in time")
-    ("thresh", po::value<float>(&cThresh)->default_value(3000.0), 
+    ("thresh", po::value<float>(&cThresh)->default_value(200.0), 
           "threshold for video similarity")
     ("default_path", 
-     po::value< std::string >(&cDefaultPath)->default_value("/home/ungermax/mt_test/"), 
+     po::value< std::string >()->default_value("/home/ungermax/mt_test/"), 
            "starting path");
-  char* c = NULL;
   std::ifstream config_file("config.cfg");
   po::store(po::parse_config_file(config_file, config),vm);
-  po::store(po::parse_command_line(1, &c, config),vm);
+  po::store(po::parse_command_line(argc, argv, config),vm);
   po::notify(vm);
-  TPool = new cxxpool::thread_pool(cThreads);
-  this->set_default_size(cWinWidth, cWinHeight);
+  TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
+  this->set_default_size(vm["win_width"].as<int>(), vm["win_height"].as<int>());
   dbCon = new DbConnector();
   Gtk::VBox * box_outer = new Gtk::VBox(false, 6);
   this->add(*box_outer);
-  path = cDefaultPath;
+  path = vm["default_path"].as<std::string>();
   sort_by="size"; //size, name, length
   sort_desc=true;  //true, false
   browse_button = new Gtk::Button("...");
@@ -173,7 +172,7 @@ void VBrowser::fdupe_clicked(){
     for(int j = i+1; j < vids.size(); j++) {
       //std::cout << vids[i] << " "<<vids[j] << std::endl;
       if (result_map[std::make_pair(vids[i],vids[j])]) {
-	std::cout <<"ALREADY Computed." <<std::endl;
+	//std::cout <<"ALREADY Computed." <<std::endl;
 	continue;
       }
       else {
@@ -217,7 +216,7 @@ void VBrowser::asc_clicked() {
 }
 
 bool VBrowser::compare_vids(int i, int j, std::map<int, std::vector<unsigned short> > & data) {
-  std::cout << i << " "<<j <<" "<<data[i].size() << " "<<data[j].size()<<std::endl;
+  //std::cout << i << " "<<j <<" "<<data[i].size() << " "<<data[j].size()<<std::endl;
   bool match=false;
   int counter=0;
   uint t_s,t_x, t_o, t_d;
@@ -235,7 +234,7 @@ bool VBrowser::compare_vids(int i, int j, std::map<int, std::vector<unsigned sho
 	if(counter != 0) break;
 	//pixel/color loop
 	for (t_d = 0; t_d < 12; t_d++) {
-	  int value = pow((int)(data[i][t_s+t_o+t_d])-(int)(data[j][t_x+t_o+t_d]),2)-pow(cFudge,2);
+	  int value = pow((int)(data[i][t_s+t_o+t_d])-(int)(data[j][t_x+t_o+t_d]),2)-pow(vm["fudge"].as<int>(),2);
 	  if(value < 0) value = 0;
 	  accum[t_d]+=value;
 	}
@@ -243,7 +242,7 @@ bool VBrowser::compare_vids(int i, int j, std::map<int, std::vector<unsigned sho
       counter = 0;
       for(auto & a: accum)  if(a < cThresh*cCompTime*cTraceFPS) counter+=1;
       if(counter == 12) match=true;
-      if(match) std::cout << "ACCUM " <<i<<" " <<j <<" " <<t_o <<" slice " <<t_s <<" 2nd offset " <<t_x <<" " <<accum[0]  <<std::endl;
+      if(match) std::cout << "ACCUM " <<i<<" " <<j <<" " <<t_o <<" slice " <<t_s <<" 2nd offset " <<t_x <<" " <<*max_element(accum.begin(),accum.end())  <<std::endl;
     }
   }
   int result = 1;
