@@ -5,8 +5,6 @@
 #include <iostream>
 
 VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_map *vm):Gtk::Image()  {
-  bfs::path temp_icon = getenv("HOME");
-  temp_icon+="/.video_proj/";
   if(dbCon->video_exists(fileName)) {
     fVidFile = dbCon->fetch_video(fileName);
     dbCon->fetch_icon(fVidFile->vid);
@@ -40,13 +38,13 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     if(crop.length() != 0) crop.append(",");
     fVidFile->crop=crop;
     dbCon->save_video(fVidFile);
-    std::string cmd1((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.03d -i %s -frames:v 1 -filter:v \"%sscale=w=%i:h=%i:force_original_aspect_ratio=decrease\" %s%i.jpg") % thumb_t % fVidFile->fixed_filename()% crop  % (*vm)["thumb_width"].as<int>()% (*vm)["thumb_height"].as<int>() % temp_icon.string() % fVidFile->vid).str());
+    std::string cmd1((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.03d -i %s -frames:v 1 -filter:v \"%sscale=w=%i:h=%i:force_original_aspect_ratio=decrease\" %s%i.jpg") % thumb_t % fVidFile->fixed_filename()% crop  % (*vm)["thumb_width"].as<int>()% (*vm)["thumb_height"].as<int>() % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
     //std::cout << cmd1 << std::endl;
     std::system(cmd1.c_str());    
     dbCon->save_icon(fVidFile->vid);
   }
   std::cout << fileName << " "<<fVidFile->vid<<std::endl;
-  std::string icon_file((boost::format("%s%i.jpg") % temp_icon.string() % fVidFile->vid).str());
+  std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
   this->set(icon_file);
   std::system((boost::format("rm %s") %icon_file).str().c_str());
   std::stringstream ss;

@@ -1,8 +1,8 @@
 #include <VBrowser.h>
 
-int main (int argc, char *argv[])
-{
-  auto app = Gtk::Application::create(argc, argv, "org.gtkmm.example");
+int main (int argc, char *argv[]) {
+  int c = 1;
+  auto app = Gtk::Application::create(c, argv, "org.gtkmm.example");
 
   VBrowser vbrowser(argc, argv);
 

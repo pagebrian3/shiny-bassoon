@@ -2,7 +2,6 @@
 #include <sstream>
 #include <boost/format.hpp>
 #include <iostream>
-#include "zlib.h"
 
 DbConnector::DbConnector() {
   bool newFile = true;
@@ -112,22 +111,20 @@ void DbConnector::save_video(VidFile* a) {
 void DbConnector::save_icon(int vid) {  
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,img_dat) VALUES (? , ?) ", -1, &stmt, NULL);
-  if (rc != SQLITE_OK)
-    throw std::string(sqlite3_errmsg(db));
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);
   std::string in_path((boost::format("%s%i.jpg") % temp_icon % vid).str());
   std::ifstream input (in_path, std::ios::in|std::ios::binary|std::ios::ate);
   unsigned char * memblock;
   int length;
-  if (input.is_open())
-    {
-      std::streampos size = input.tellg();
-      memblock = (unsigned char *)malloc(size);
-      input.seekg (0, std::ios::beg);
-      input.read (reinterpret_cast<char *>(memblock), size);
-      input.close();
-      length = sizeof(unsigned char)*size;
-    }  
+  if (input.is_open()) {
+    std::streampos size = input.tellg();
+    memblock = (unsigned char *)malloc(size);
+    input.seekg (0, std::ios::beg);
+    input.read (reinterpret_cast<char *>(memblock), size);
+    input.close();
+    length = sizeof(unsigned char)*size;
+  }  
   rc = sqlite3_bind_blob(stmt, 2, memblock,length, SQLITE_STATIC);
   if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 
@@ -143,8 +140,7 @@ void DbConnector::save_icon(int vid) {
 bool DbConnector::trace_exists(int vid){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM trace_blobs WHERE vid = ? limit 1)", -1, &stmt, NULL);
-  if (rc != SQLITE_OK)
-    throw std::string(sqlite3_errmsg(db));
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);    
   if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 
@@ -245,7 +241,7 @@ void DbConnector::fetch_results(std::map<std::pair<int,int>, int> & map) {
 
 void DbConnector::update_results(int  i, int  j, int  k) {
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO results (v1id , v2id,  result) VALUES (?,?, ?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO results (v1id, v2id, result) VALUES (?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK)
     throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, i);
@@ -287,21 +283,18 @@ void DbConnector::fetch_trace(int vid, std::vector<unsigned short> & trace) {
   std::string result;
   result.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
   trace.resize(uncomp_size);
-  //std::cout << vid << " ";
   for(int i = 0; i < uncomp_size; i++)  {
     unsigned short value = result[i];
     if(value > 255) value = 256-(65536-value);
-    //std::cout << value << " ";
     trace[i] = value;
   }
-  //std::cout << std::endl;
   sqlite3_finalize(stmt);
   return;
 }
 
 void DbConnector::save_trace(int  vid, std::string & trace) {
   sqlite3_stmt *stmt;
-  std::cout <<"BL@H: "<<vid<<" "<< trace.size() << std::endl;
+  std::cout <<"BLAH: "<<vid<<" "<< trace.size() << std::endl;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO trace_blobs (vid,uncomp_size,trace_dat) VALUES (?,?,?)", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);

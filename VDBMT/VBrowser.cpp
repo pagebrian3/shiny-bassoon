@@ -6,7 +6,9 @@
 
 std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
 
-VBrowser::VBrowser(int argc, char * argv[]) {   
+VBrowser::VBrowser(int argc, char * argv[]) {
+  bfs::path temp_path = getenv("HOME");
+  temp_path+="/.video_proj/";
   po::options_description config("Configuration");
   config.add_options()
     ("win_width", po::value<int>()->default_value(800), 
@@ -37,6 +39,9 @@ VBrowser::VBrowser(int argc, char * argv[]) {
           "separation of slices in time")
     ("thresh", po::value<float>(&cThresh)->default_value(200.0), 
           "threshold for video similarity")
+    ("app_path", 
+     po::value< std::string >()->default_value(temp_path.string().c_str()), 
+           "database and temp data path")
     ("default_path", 
      po::value< std::string >()->default_value("/home/ungermax/mt_test/"), 
            "starting path");
