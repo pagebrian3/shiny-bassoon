@@ -2,7 +2,6 @@
 #include <boost/format.hpp>
 #include <boost/process.hpp>
 #include <wand/MagickWand.h>
-#include <iostream>
 
 VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_map *vm):Gtk::Image()  {
   if(dbCon->video_exists(fileName)) {

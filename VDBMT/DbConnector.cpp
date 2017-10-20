@@ -1,7 +1,5 @@
 #include <DbConnector.h>
-#include <sstream>
 #include <boost/format.hpp>
-#include <iostream>
 
 DbConnector::DbConnector() {
   bool newFile = true;
@@ -31,8 +29,7 @@ void DbConnector::save_db_file() {
 VidFile * DbConnector::fetch_video(std::string  filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT crop, length, size, okflag, vdatid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
-  if (rc != SQLITE_OK)
-    throw std::string(sqlite3_errmsg(db));
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_text(stmt, 1, filename.c_str(),-1, NULL);    
   if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 
@@ -62,8 +59,7 @@ VidFile * DbConnector::fetch_video(std::string  filename){
 void DbConnector::fetch_icon(int vid){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT img_dat FROM icon_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
-  if (rc != SQLITE_OK)
-    throw std::string(sqlite3_errmsg(db));
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);    
   if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 
@@ -191,8 +187,7 @@ bool DbConnector::video_exists(std::string filename){
 int DbConnector::get_last_vid(){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT MAX(vid) from icon_blobs", -1, &stmt, NULL);
-  if (rc != SQLITE_OK)
-    throw std::string(sqlite3_errmsg(db));
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
     std::string errmsg(sqlite3_errmsg(db));
@@ -242,8 +237,7 @@ void DbConnector::fetch_results(std::map<std::pair<int,int>, int> & map) {
 void DbConnector::update_results(int  i, int  j, int  k) {
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO results (v1id, v2id, result) VALUES (?,?,?) ", -1, &stmt, NULL);
-  if (rc != SQLITE_OK)
-    throw std::string(sqlite3_errmsg(db));
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, i);
   rc = sqlite3_bind_int(stmt, 2, j);
   rc = sqlite3_bind_int(stmt, 3, k);
@@ -265,8 +259,7 @@ void DbConnector::update_results(int  i, int  j, int  k) {
 void DbConnector::fetch_trace(int vid, std::vector<unsigned short> & trace) {
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT uncomp_size,trace_dat FROM trace_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
-  if (rc != SQLITE_OK)
-    throw std::string(sqlite3_errmsg(db));
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);    
   if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 

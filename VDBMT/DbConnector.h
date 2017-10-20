@@ -39,7 +39,9 @@ class DbConnector {
  private:
 
   sqlite3 * db;
+
   char* temp_icon;
+
   int min_vid;
 
 };

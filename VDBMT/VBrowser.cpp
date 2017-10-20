@@ -46,8 +46,8 @@ VBrowser::VBrowser(int argc, char * argv[]) {
      po::value< std::string >()->default_value("/home/ungermax/mt_test/"), 
            "starting path");
   std::ifstream config_file("config.cfg");
-  po::store(po::parse_config_file(config_file, config),vm);
   po::store(po::parse_command_line(argc, argv, config),vm);
+  po::store(po::parse_config_file(config_file, config),vm);
   po::notify(vm);
   TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
   this->set_default_size(vm["win_width"].as<int>(), vm["win_height"].as<int>());
