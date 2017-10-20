@@ -51,7 +51,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   po::notify(vm);
   TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
   this->set_default_size(vm["win_width"].as<int>(), vm["win_height"].as<int>());
-  dbCon = new DbConnector();
+  dbCon = new DbConnector(vm);
   Gtk::VBox * box_outer = new Gtk::VBox(false, 6);
   this->add(*box_outer);
   path = vm["default_path"].as<std::string>();
@@ -221,7 +221,6 @@ void VBrowser::asc_clicked() {
 }
 
 bool VBrowser::compare_vids(int i, int j, std::map<int, std::vector<unsigned short> > & data) {
-  //std::cout << i << " "<<j <<" "<<data[i].size() << " "<<data[j].size()<<std::endl;
   bool match=false;
   int counter=0;
   uint t_s,t_x, t_o, t_d;

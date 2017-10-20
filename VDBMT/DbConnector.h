@@ -1,16 +1,18 @@
 #include <boost/filesystem.hpp>
+#include <boost/program_options.hpp>
 #include <sqlite3.h>
 #include <VidFile.h>
 #include <map>
 #include <iostream>
 
 namespace bfs = boost::filesystem;
+namespace po = boost::program_options;
 
 class DbConnector {
 
  public:
 
-  DbConnector();
+  DbConnector(po::variables_map & vm);
 
   bool video_exists(std::string filename);
 

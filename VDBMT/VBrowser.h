@@ -1,8 +1,6 @@
 #include "VideoIcon.h"
-#include <boost/program_options.hpp>
-#include "cxxpool.h"
 
-namespace po = boost::program_options;
+#include "cxxpool.h"
 
 class VBrowser: public Gtk::Window
 {

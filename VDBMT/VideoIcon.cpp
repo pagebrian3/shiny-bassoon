@@ -14,11 +14,9 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     fVidFile->size = bfs::file_size(fileName);
     boost::process::ipstream is;
     std::string cmd((boost::format("./info.sh %s") % fileName).str());
-    //std::cout <<"COMMAND: " << cmd << std::endl;
     boost::process::system(cmd,  boost::process::std_out > is);
     std::string outString;
     std::getline(is, outString);
-    //std::cout <<"HERE: " <<fileName <<" "<< outString << std::endl;
     std::vector<std::string> split_string;
     boost::split(split_string,outString,boost::is_any_of(","));
     int width=std::stoi(split_string[0]);
@@ -38,7 +36,6 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     fVidFile->crop=crop;
     dbCon->save_video(fVidFile);
     std::string cmd1((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.03d -i %s -frames:v 1 -filter:v \"%sscale=w=%i:h=%i:force_original_aspect_ratio=decrease\" %s%i.jpg") % thumb_t % fVidFile->fixed_filename()% crop  % (*vm)["thumb_width"].as<int>()% (*vm)["thumb_height"].as<int>() % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
-    //std::cout << cmd1 << std::endl;
     std::system(cmd1.c_str());    
     dbCon->save_icon(fVidFile->vid);
   }
@@ -46,9 +43,9 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
   std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
   this->set(icon_file);
   std::system((boost::format("rm %s") %icon_file).str().c_str());
-  std::stringstream ss;
-  ss <<"Filename: "<<fileName<< "\nSize: "<<fVidFile->size/1024<<"kB\nLength: " <<fVidFile->length<<"s";
-  this->set_tooltip_text(ss.str());
+  int size = fVidFile->size/1024;
+  std::string toolTip((boost::format("Filename: %s\nSize: %ikB\nLength: %is") % fileName %  size % fVidFile->length).str());
+  this->set_tooltip_text(toolTip);
 };
 
 VideoIcon::~VideoIcon(){
