@@ -28,9 +28,11 @@ class VBrowser: public Gtk::Window
   Gtk::FlowBox * fFBox;
   std::string sort_by;
   bool sort_desc;
+  Gtk::Box * sort_opt;
+  Gtk::VBox * box_outer;
   Gtk::Button * browse_button;
+  Gtk::Button *asc_button;
   Gtk::Button * fdupe_button;
-  Gtk::Button * asc_button;
   Gtk::ComboBoxText * sort_combo;
   DbConnector * dbCon;
   bfs::path path;

@@ -17,7 +17,7 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     boost::process::system(cmd,  boost::process::std_out > is);
     std::string outString;
     std::getline(is, outString);
-    std::cout <<fileName <<" "<< outString <<std::endl;
+    //std::cout <<fileName <<" "<< outString <<std::endl;
     std::vector<std::string> split_string;
     boost::split(split_string,outString,boost::is_any_of(","));
     int width=std::stoi(split_string[0]);
@@ -25,11 +25,11 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     double length=0.001*(double)std::stoi(split_string[2]);
     int rotate = 0;
     if(split_string[3].length() > 0) int rotate = std::stod(split_string[3]);
-    if(rotate == 90 || rotate ==-90) {
+    /*if(rotate == 90 || rotate ==-90) {  //not sure if this is needed
       int temp = width;
       width=height;
       height=temp;
-    }
+      }*/
     fVidFile->length = length;
     std::string crop(find_border(fileName, length, vm));
     double thumb_t = (*vm)["thumb_time"].as<float>();
@@ -41,7 +41,7 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     std::system(cmd1.c_str());    
     dbCon->save_icon(fVidFile->vid);
   }
-  std::cout << fileName << " "<<fVidFile->vid<<std::endl;
+  //std::cout << fileName << " "<<fVidFile->vid<<std::endl;
   std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
   this->set(icon_file);
   std::system((boost::format("rm %s") %icon_file).str().c_str());
@@ -51,6 +51,7 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
 };
 
 VideoIcon::~VideoIcon(){
+  delete fVidFile;
 };
 
 VidFile * VideoIcon::get_vid_file() {
@@ -58,7 +59,7 @@ VidFile * VideoIcon::get_vid_file() {
 };
 
 std::string VideoIcon::find_border(std::string fileName,float length, po::variables_map * vm) {
-  MagickWandGenesis();
+  
   std::string crop("");
   bfs::path path(fileName);
   bfs::path imgp = getenv("HOME");
@@ -87,7 +88,7 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
   long y;
   height = MagickGetImageHeight(image_wand2);
   width = MagickGetImageWidth(image_wand2);
-  std::cout << "Width,Height" << width << " "<<height << std::endl;
+  //std::cout << "Width,Height" << width << " "<<height << std::endl;
   std::vector<double> rowSums(height);
   std::vector<double> colSums(width);
   double corrFactorCol = 1.0/(double)(border_frames*height);

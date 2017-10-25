@@ -1,13 +1,16 @@
 #include "VBrowser.h"
 #include <boost/process.hpp>
+#include <boost/timer/timer.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
+#include <wand/MagickWand.h>
 #include <set>
 
 std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
 
 VBrowser::VBrowser(int argc, char * argv[]) {
   bfs::path temp_path = getenv("HOME");
+  MagickWandGenesis();
   temp_path+="/.video_proj/";
   po::options_description config("Configuration");
   config.add_options()
@@ -52,7 +55,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
   this->set_default_size(vm["win_width"].as<int>(), vm["win_height"].as<int>());
   dbCon = new DbConnector(vm);
-  Gtk::VBox * box_outer = new Gtk::VBox(false, 6);
+  box_outer = new Gtk::VBox(false, 6);
   this->add(*box_outer);
   path = vm["default_path"].as<std::string>();
   sort_by="size"; //size, name, length
@@ -61,8 +64,8 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   browse_button->signal_clicked().connect(sigc::mem_fun(*this,&VBrowser::browse_clicked));
   fdupe_button = new Gtk::Button("Find Dupes");
   fdupe_button->signal_clicked().connect(sigc::mem_fun(*this,&VBrowser::fdupe_clicked));
-  Gtk::Box * sort_opt = new Gtk::Box();
-  Gtk::Label * sort_label = new Gtk::Label("Sort by:");
+  sort_opt = new Gtk::Box();
+  Gtk::Label sort_label("Sort by:");
   sort_combo = new Gtk::ComboBoxText();
   sort_combo->append("size");
   sort_combo->append("length");
@@ -74,7 +77,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   asc_button = new Gtk::Button();
   asc_button->set_image_from_icon_name(stock_icon,Gtk::ICON_SIZE_BUTTON);
   asc_button->signal_clicked().connect(sigc::mem_fun(*this,&VBrowser::asc_clicked));
-  sort_opt->add(*sort_label);
+  sort_opt->add(sort_label);
   sort_opt->add(*sort_combo);
   sort_opt->add(*asc_button);
   sort_opt->pack_end(*fdupe_button,  false,  false,  0);
@@ -87,7 +90,18 @@ VBrowser::VBrowser(int argc, char * argv[]) {
 }
 
 VBrowser::~VBrowser() {
-}
+  MagickWandTerminus();
+  delete TPool;
+  delete dbCon;
+  delete fScrollWin;
+  delete asc_button;
+  delete sort_combo;
+  delete browse_button;
+  delete box_outer;
+  delete sort_opt;
+  delete fdupe_button;
+  delete fFBox;
+  }
 
 void VBrowser::populate_icons(bool clean) {
   if(clean) fScrollWin->remove();
@@ -166,6 +180,7 @@ void VBrowser::fdupe_clicked(){
     jobs.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
   }
   cxxpool::wait(jobs.begin(),jobs.end());
+  std::cout << "Done Making Traces." << std::endl;
   std::map<std::pair<int,int>,int> result_map;
   std::map<int,std::vector<unsigned short> > data_holder;
   std::vector<std::future< bool > > work;
@@ -177,7 +192,7 @@ void VBrowser::fdupe_clicked(){
     for(int j = i+1; j < vids.size(); j++) {
       //std::cout << vids[i] << " "<<vids[j] << std::endl;
       if (result_map[std::make_pair(vids[i],vids[j])]) {
-	//std::cout <<"ALREADY Computed." <<std::endl;
+	std::cout <<"ALREADY Computed." <<std::endl;
 	continue;
       }
       else {
@@ -191,18 +206,15 @@ void VBrowser::fdupe_clicked(){
 }
 
 bool VBrowser::calculate_trace(VidFile * obj) {
+  //std::cout << obj->vid << " Started" << std::endl;
   float start_time = vm["trace_time"].as<float>();
   if(obj->length <= start_time) start_time=0.0;
   boost::process::ipstream is;
-  if(obj->crop.length() == 0) {
-    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,scale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fixed_filename()  % cTraceFPS).str(),boost::process::std_out > is);
-  }
-  else {
-    boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fixed_filename()  % cTraceFPS % obj->crop).str(),boost::process::std_out > is);
-  }
+  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fixed_filename()  % cTraceFPS % obj->crop).str(),boost::process::std_out > is);
   std::string outString;
   std::getline(is,outString);
   dbCon->save_trace(obj->vid, outString);
+  //std::cout << "Trace "<<obj->vid<< " done"<<std::endl;
   return true; 
 }
 
