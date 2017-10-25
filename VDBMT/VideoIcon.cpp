@@ -17,12 +17,14 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     boost::process::system(cmd,  boost::process::std_out > is);
     std::string outString;
     std::getline(is, outString);
+    std::cout <<fileName <<" "<< outString <<std::endl;
     std::vector<std::string> split_string;
     boost::split(split_string,outString,boost::is_any_of(","));
     int width=std::stoi(split_string[0]);
     int height=std::stoi(split_string[1]);
     double length=0.001*(double)std::stoi(split_string[2]);
-    int rotate = std::stod(split_string[3]);
+    int rotate = 0;
+    if(split_string[3].length() > 0) int rotate = std::stod(split_string[3]);
     if(rotate == 90 || rotate ==-90) {
       int temp = width;
       width=height;
@@ -73,7 +75,7 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
   std::string command((boost::format(cmdTmpl)% start_time % fileName % imgp ).str());
   
   std::system(command.c_str());
-  MagickWand *image_wand1=NewMagickWand();
+  MagickWand *image_wand1;
   MagickWand *image_wand2=NewMagickWand();
   PixelIterator* iterator;
   PixelWand ** pixels;
@@ -85,6 +87,7 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
   long y;
   height = MagickGetImageHeight(image_wand2);
   width = MagickGetImageWidth(image_wand2);
+  std::cout << "Width,Height" << width << " "<<height << std::endl;
   std::vector<double> rowSums(height);
   std::vector<double> colSums(width);
   double corrFactorCol = 1.0/(double)(border_frames*height);
@@ -114,6 +117,7 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
       skipBorder=true;
       break;
     }
+    image_wand1=DestroyMagickWand(image_wand1);
   }
   if(!skipBorder) {
     int x1(0), x2(width-1), y1(0), y2(height-1);
@@ -126,7 +130,6 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
     crop = (boost::format("crop=%i:%i:%i:%i")% x2 % y2 % x1 % y1).str();
   }
   bfs::remove(imgp);
-  image_wand1=DestroyMagickWand(image_wand1);
   image_wand2=DestroyMagickWand(image_wand2);
   return crop;
 }
