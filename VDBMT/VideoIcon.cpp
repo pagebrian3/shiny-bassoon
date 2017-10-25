@@ -117,6 +117,7 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
       skipBorder=true;
       break;
     }
+    iterator=DestroyPixelIterator(iterator);
     image_wand1=DestroyMagickWand(image_wand1);
   }
   if(!skipBorder) {
