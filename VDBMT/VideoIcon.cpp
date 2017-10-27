@@ -14,8 +14,7 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
   }
   else {
     hasIcon=false;
-    Gtk::StockID img("missing-image");
-    this->set(img,Gtk::ICON_SIZE_BUTTON);
+    this->set_from_icon_name("missing-image",Gtk::ICON_SIZE_BUTTON);
     fVidFile = new VidFile();
     fVidFile->fileName=fileName;
     fVidFile->size = bfs::file_size(fileName);
@@ -24,7 +23,6 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     boost::process::system(cmd,  boost::process::std_out > is);
     std::string outString;
     std::getline(is, outString);
-    //std::cout <<fileName <<" "<< outString <<std::endl;
     std::vector<std::string> split_string;
     boost::split(split_string,outString,boost::is_any_of(","));
     int width=std::stoi(split_string[0]);
@@ -40,7 +38,6 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     fVidFile->length = length;
     dbCon->save_video(fVidFile);    
   }
-  std::cout <<"IN VI CTOR: filename: "<< fileName << " "<<fVidFile->vid<<std::endl;
   int size = fVidFile->size/1024;
   std::string toolTip((boost::format("Filename: %s\nSize: %ikB\nLength: %is") % fileName %  size % fVidFile->length).str());
   this->set_tooltip_text(toolTip);
@@ -56,7 +53,6 @@ VidFile * VideoIcon::get_vid_file() {
 
 bool  VideoIcon::create_thumb(DbConnector * dbCon, po::variables_map *vm) {
   if(hasIcon) return true;
-  std::cout << "In create_thumb, filename: " << fVidFile->fileName << std::endl;
   std::string crop(find_border(fVidFile->fileName, fVidFile->length, vm));
   double thumb_t = (*vm)["thumb_time"].as<float>();
   if(fVidFile->length < thumb_t) thumb_t = fVidFile->length/2.0;
@@ -102,7 +98,6 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
   long y;
   height = MagickGetImageHeight(image_wand2);
   width = MagickGetImageWidth(image_wand2);
-  //std::cout << "Width,Height" << width << " "<<height << std::endl;
   std::vector<double> rowSums(height);
   std::vector<double> colSums(width);
   double corrFactorCol = 1.0/(double)(border_frames*height);
