@@ -33,7 +33,8 @@ class VBrowser: public Gtk::Window
   Gtk::Button *asc_button;
   Gtk::Button * fdupe_button;
   Gtk::ComboBoxText * sort_combo;
-  Gtk::InfoBar * info_bar;
+  Gtk::Label * job_label;
+  Gtk::ProgressBar * progress_bar;
   DbConnector * dbCon;
   bfs::path path;
 };
