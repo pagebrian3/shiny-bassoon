@@ -13,8 +13,11 @@ class VideoIcon : public Gtk::Image
   
   VidFile * get_vid_file();
 
+  bool create_thumb(DbConnector * dbCon, po::variables_map *vm);
+
   std::string find_border(std::string fileName, float length, po::variables_map *vm);
-  
+  bool hasIcon;
  protected:
   VidFile* fVidFile;
+  
 }; 

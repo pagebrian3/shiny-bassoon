@@ -85,8 +85,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   box_outer->pack_start(*sort_opt, false, true, 0);
   fScrollWin = new Gtk::ScrolledWindow();
   box_outer->pack_start(*fScrollWin, true, true, 0);
-  this->populate_icons();
-  this->show_all();
+  this->populate_icons();  
 }
 
 VBrowser::~VBrowser() {
@@ -106,9 +105,9 @@ VBrowser::~VBrowser() {
 void VBrowser::populate_icons(bool clean) {
   if(clean) fScrollWin->remove();
   fFBox = new Gtk::FlowBox();
-  fFBox->set_homogeneous(false);
   fFBox->set_orientation(Gtk::ORIENTATION_HORIZONTAL);
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
+  fFBox->set_homogeneous(false);
   std::vector<bfs::directory_entry> video_list;
   std::vector<std::future<VideoIcon * > > icons;
   for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
@@ -119,10 +118,24 @@ void VBrowser::populate_icons(bool clean) {
 	//std::cout << "PATH: "<<pathName<<std::endl;
 	icons.push_back(TPool->push([this](std::string path,DbConnector * con) {return new VideoIcon(path,con,&vm);},pathName,dbCon));
       }
+  }
+  auto iconVec = new std::vector<VideoIcon *>(icons.size());
+  int j = 0;
+  for(auto &a: icons) {
+    VideoIcon * b = a.get();
+    if(!b->hasIcon){
+      (*iconVec)[j]=b;
+      j++;
     }
-  for(auto &a: icons) fFBox->add(*(a.get()));
+    fFBox->add(*b);
+  }
   fFBox->invalidate_sort();
   fScrollWin->add(*fFBox);
+  this->show_all();
+  if(j > 0) {
+  std::vector<std::future<bool> > resVec;
+  for(auto &a: *iconVec) resVec.push_back(TPool->push([this](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a));
+  } 
 }
 
 std::string VBrowser::get_sort() {
@@ -154,7 +167,6 @@ void VBrowser::browse_clicked() {
     path  = dialog.get_filename()+"/";
     this->populate_icons(true);
   }
-  this->show_all();
 }
 
 void VBrowser::on_delete() {

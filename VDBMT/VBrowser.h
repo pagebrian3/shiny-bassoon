@@ -1,5 +1,4 @@
 #include "VideoIcon.h"
-
 #include "cxxpool.h"
 
 class VBrowser: public Gtk::Window
@@ -34,6 +33,7 @@ class VBrowser: public Gtk::Window
   Gtk::Button *asc_button;
   Gtk::Button * fdupe_button;
   Gtk::ComboBoxText * sort_combo;
+  Gtk::InfoBar * info_bar;
   DbConnector * dbCon;
   bfs::path path;
 };

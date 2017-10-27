@@ -86,14 +86,29 @@ void DbConnector::save_video(VidFile* a) {
   min_vid++;
   a->okflag=1;
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,crop,length,size,okflag,vdatid) VALUES (?,?,?,?,?,?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,length,size,okflag,vdatid) VALUES (?,?,?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   sqlite3_bind_text(stmt, 1, a->fileName.c_str(), -1, NULL);
-  sqlite3_bind_text(stmt, 2, a->crop.c_str(), -1, NULL);
-  sqlite3_bind_double(stmt, 3, a->length);
-  sqlite3_bind_int(stmt, 4, a->size);
-  sqlite3_bind_int(stmt, 5, a->okflag);
-  sqlite3_bind_int(stmt, 6, a->vid);
+  sqlite3_bind_double(stmt, 2, a->length);
+  sqlite3_bind_int(stmt, 3, a->size);
+  sqlite3_bind_int(stmt, 4, a->okflag);
+  sqlite3_bind_int(stmt, 5, a->vid);
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+    std::string errmsg(sqlite3_errmsg(db));
+    sqlite3_finalize(stmt);
+    throw errmsg;
+  } 
+  sqlite3_finalize(stmt);
+  return;
+}
+
+void DbConnector::save_crop(VidFile* a) {
+  sqlite3_stmt *stmt;
+  int rc = sqlite3_prepare_v2(db, "UPDATE videos SET crop=? WHERE vdatid=?", -1, &stmt, NULL);
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+  sqlite3_bind_text(stmt, 1, a->crop.c_str(), -1, NULL);
+  sqlite3_bind_int(stmt, 2, a->vid);
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
     std::string errmsg(sqlite3_errmsg(db));

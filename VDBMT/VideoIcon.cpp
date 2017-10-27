@@ -7,8 +7,15 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
   if(dbCon->video_exists(fileName)) {
     fVidFile = dbCon->fetch_video(fileName);
     dbCon->fetch_icon(fVidFile->vid);
+    std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
+    this->set(icon_file);
+    std::system((boost::format("rm %s") %icon_file).str().c_str());
+    hasIcon = true;
   }
   else {
+    hasIcon=false;
+    Gtk::StockID img("missing-image");
+    this->set(img,Gtk::ICON_SIZE_BUTTON);
     fVidFile = new VidFile();
     fVidFile->fileName=fileName;
     fVidFile->size = bfs::file_size(fileName);
@@ -31,20 +38,9 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
       height=temp;
       }*/
     fVidFile->length = length;
-    std::string crop(find_border(fileName, length, vm));
-    double thumb_t = (*vm)["thumb_time"].as<float>();
-    if(length < thumb_t) thumb_t = length/2.0;
-    if(crop.length() != 0) crop.append(",");
-    fVidFile->crop=crop;
-    dbCon->save_video(fVidFile);
-    std::string cmd1((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.03d -i %s -frames:v 1 -filter:v \"%sscale=w=%i:h=%i:force_original_aspect_ratio=decrease\" %s%i.jpg") % thumb_t % fVidFile->fixed_filename()% crop  % (*vm)["thumb_width"].as<int>()% (*vm)["thumb_height"].as<int>() % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
-    std::system(cmd1.c_str());    
-    dbCon->save_icon(fVidFile->vid);
+    dbCon->save_video(fVidFile);    
   }
-  //std::cout << fileName << " "<<fVidFile->vid<<std::endl;
-  std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
-  this->set(icon_file);
-  std::system((boost::format("rm %s") %icon_file).str().c_str());
+  std::cout <<"IN VI CTOR: filename: "<< fileName << " "<<fVidFile->vid<<std::endl;
   int size = fVidFile->size/1024;
   std::string toolTip((boost::format("Filename: %s\nSize: %ikB\nLength: %is") % fileName %  size % fVidFile->length).str());
   this->set_tooltip_text(toolTip);
@@ -56,6 +52,24 @@ VideoIcon::~VideoIcon(){
 
 VidFile * VideoIcon::get_vid_file() {
   return fVidFile;
+};
+
+bool  VideoIcon::create_thumb(DbConnector * dbCon, po::variables_map *vm) {
+  if(hasIcon) return true;
+  std::cout << "In create_thumb, filename: " << fVidFile->fileName << std::endl;
+  std::string crop(find_border(fVidFile->fileName, fVidFile->length, vm));
+  double thumb_t = (*vm)["thumb_time"].as<float>();
+  if(fVidFile->length < thumb_t) thumb_t = fVidFile->length/2.0;
+  if(crop.length() != 0) crop.append(",");
+  fVidFile->crop=crop;
+  dbCon->save_crop(fVidFile);
+  std::string cmd((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.03d -i %s -frames:v 1 -filter:v \"%sscale=w=%i:h=%i:force_original_aspect_ratio=decrease\" %s%i.jpg") % thumb_t % fVidFile->fixed_filename()% crop  % (*vm)["thumb_width"].as<int>()% (*vm)["thumb_height"].as<int>() % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
+  std::system(cmd.c_str());
+  std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
+  this->set(icon_file);
+  dbCon->save_icon(fVidFile->vid);
+  std::system((boost::format("rm %s") %icon_file).str().c_str());
+  return true;
 };
 
 std::string VideoIcon::find_border(std::string fileName,float length, po::variables_map * vm) {
