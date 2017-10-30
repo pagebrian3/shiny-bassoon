@@ -73,7 +73,6 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   sort_combo->set_active(0);
   sort_combo->signal_changed().connect(sigc::mem_fun(*this,&VBrowser::on_sort_changed));
   progress_bar = new Gtk::ProgressBar();
-  job_label = new Gtk::Label();
   Glib::ustring stock_icon = "view-sort-ascending";
   if (sort_desc) stock_icon="view-sort-descending";
   asc_button = new Gtk::Button();
@@ -82,10 +81,9 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   sort_opt->add(sort_label);
   sort_opt->add(*sort_combo);
   sort_opt->add(*asc_button);
-  sort_opt->add(*job_label);
-  sort_opt->add(*progress_bar);
   sort_opt->pack_end(*fdupe_button,  false,  false,  0);
-  sort_opt->pack_end(*browse_button,  false, false, 0 ); 
+  sort_opt->pack_end(*browse_button,  false, false, 0 );
+  sort_opt->pack_end(*progress_bar,true,true,1);
   box_outer->pack_start(*sort_opt, false, true, 0);
   fScrollWin = new Gtk::ScrolledWindow();
   box_outer->pack_start(*fScrollWin, true, true, 0);
@@ -179,6 +177,11 @@ void VBrowser::on_delete() {
 }
 
 void VBrowser::fdupe_clicked(){
+  TPool->push([&](){ return find_dupes();});
+  return;
+}
+
+void VBrowser::find_dupes() {
   std::vector<VidFile *> videos;
   std::vector<int> vids;
   for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
@@ -193,29 +196,30 @@ void VBrowser::fdupe_clicked(){
     }
   }
   std::vector<std::future< bool > > jobs;
-  for(auto & b: videos) {
-    jobs.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
-  }
-  float traceNum = jobs.size();
-  while(true) {
-    float counter = 0;
-    std::vector<std::future_status> res;
-    std::chrono::milliseconds timer(500);
+  for(auto & b: videos) jobs.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
+  float total = jobs.size();
+  float counter = 0.0;
+  float percent = 0.0;
+  progress_bar->show();
+  progress_bar->set_show_text();
+  std::vector<std::future_status> res;
+  std::chrono::milliseconds timer(500);
+  while(counter < total) {
+    counter = 0;    
     res = cxxpool::wait_for(jobs.begin(), jobs.end(),timer,res);
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
-    if(fabs(counter- traceNum) < 0.00000000001) break;
-    job_label->set_text("Creating Traces");
-    progress_bar->set_fraction(counter/traceNum);
-    this->show_all();
+    percent = 100.0*counter/total;
+    progress_bar->set_text((boost::format("Creating Traces: %d%% Complete") %  percent).str());
+    progress_bar->set_fraction(counter/total);
   }
   cxxpool::wait(jobs.begin(),jobs.end());
   std::cout << "Done Making Traces." << std::endl;
-  progress_bar->hide();
   std::map<std::pair<int,int>,int> result_map;
   std::map<int,std::vector<unsigned short> > data_holder;
   std::vector<std::future< bool > > work;
   dbCon->fetch_results(result_map);
-  //loop over files  TODO-make this parallel when we have larger sample
+  total=0.0;
+  //loop over files 
   for(int i = 0; i +1 < vids.size(); i++) {
     dbCon->fetch_trace(vids[i],data_holder[vids[i]]);
     //loop over files after i
@@ -231,7 +235,17 @@ void VBrowser::fdupe_clicked(){
       }
     }
   }
+  total = jobs.size();
+  while(counter < total) {
+    counter = 0.0;
+    res = cxxpool::wait_for(jobs.begin(), jobs.end(),timer,res);
+    for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
+    progress_bar->set_fraction(counter/total);
+    percent = 100.0*counter/total;
+    progress_bar->set_text((boost::format("Comparing Videos: %d%% Complete") %  percent).str());
+  }
   cxxpool::wait(work.begin(),work.end());
+  progress_bar->hide();
   std::cout <<"Done Dupe Hunting!" << std::endl;
 }
 

@@ -12,6 +12,7 @@ class VBrowser: public Gtk::Window
   void on_delete();
   bool calculate_trace(VidFile * obj);
   void fdupe_clicked();
+  void find_dupes();
   void asc_clicked();
   void on_sort_changed();
   bool compare_vids(int i, int j, std::map<int,std::vector<unsigned short> > & data);
@@ -33,7 +34,6 @@ class VBrowser: public Gtk::Window
   Gtk::Button *asc_button;
   Gtk::Button * fdupe_button;
   Gtk::ComboBoxText * sort_combo;
-  Gtk::Label * job_label;
   Gtk::ProgressBar * progress_bar;
   DbConnector * dbCon;
   bfs::path path;
