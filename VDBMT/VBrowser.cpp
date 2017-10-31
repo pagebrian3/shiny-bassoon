@@ -209,14 +209,15 @@ void VBrowser::find_dupes() {
     res = cxxpool::wait_for(jobs.begin(), jobs.end(),timer,res);
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
     percent = 100.0*counter/total;
-    progress_bar->set_text((boost::format("Creating Traces: %d%% Complete") %  percent).str());
+    progress_bar->set_text((boost::format("Creating Traces %i/%i: %d%% Complete") % counter % total %  percent).str());
     progress_bar->set_fraction(counter/total);
+    res.clear();
   }
   cxxpool::wait(jobs.begin(),jobs.end());
   std::cout << "Done Making Traces." << std::endl;
+  jobs.clear();
   std::map<std::pair<int,int>,int> result_map;
   std::map<int,std::vector<unsigned short> > data_holder;
-  std::vector<std::future< bool > > work;
   dbCon->fetch_results(result_map);
   total=0.0;
   //loop over files 
@@ -231,7 +232,7 @@ void VBrowser::find_dupes() {
       }
       else {
 	dbCon->fetch_trace(vids[j],data_holder[vids[j]]);
-	work.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return compare_vids(i,j,data);},vids[i],vids[j],data_holder));
+	jobs.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return compare_vids(i,j,data);},vids[i],vids[j],data_holder));
       }
     }
   }
@@ -242,9 +243,11 @@ void VBrowser::find_dupes() {
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
     progress_bar->set_fraction(counter/total);
     percent = 100.0*counter/total;
+    std::cout << "Blah: "<< counter << " "<<total <<" "<<jobs.size()<<" "<<res.size()<<std::endl;
     progress_bar->set_text((boost::format("Comparing Videos: %d%% Complete") %  percent).str());
+    res.clear();
   }
-  cxxpool::wait(work.begin(),work.end());
+  cxxpool::wait(jobs.begin(),jobs.end());
   progress_bar->hide();
   std::cout <<"Done Dupe Hunting!" << std::endl;
 }
