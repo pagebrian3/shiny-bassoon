@@ -302,7 +302,6 @@ void DbConnector::fetch_trace(int vid, std::vector<unsigned short> & trace) {
 
 void DbConnector::save_trace(int  vid, std::string & trace) {
   sqlite3_stmt *stmt;
-  std::cout <<"BLAH: "<<vid<<" "<< trace.size() << std::endl;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO trace_blobs (vid,uncomp_size,trace_dat) VALUES (?,?,?)", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);

@@ -243,7 +243,7 @@ void VBrowser::find_dupes() {
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
     progress_bar->set_fraction(counter/total);
     percent = 100.0*counter/total;
-    std::cout << "Blah: "<< counter << " "<<total <<" "<<jobs.size()<<" "<<res.size()<<std::endl;
+    //std::cout << "Blah: "<< counter << " "<<total <<" "<<jobs.size()<<" "<<res.size()<<std::endl;
     progress_bar->set_text((boost::format("Comparing Videos: %d%% Complete") %  percent).str());
     res.clear();
   }
