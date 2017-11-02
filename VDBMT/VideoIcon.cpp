@@ -1,7 +1,7 @@
 #include "VideoIcon.h"
+#include <opencv2/opencv.hpp>
 #include <boost/format.hpp>
 #include <boost/process.hpp>
-#include <wand/MagickWand.h>
 
 VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_map *vm):Gtk::Image()  {
   if(dbCon->video_exists(fileName)) {
@@ -51,9 +51,10 @@ VidFile * VideoIcon::get_vid_file() {
   return fVidFile;
 };
 
-bool  VideoIcon::create_thumb(DbConnector * dbCon, po::variables_map *vm) {
+bool VideoIcon::create_thumb(DbConnector * dbCon, po::variables_map *vm) {
   if(hasIcon) return true;
   std::string crop(find_border(fVidFile->fileName, fVidFile->length, vm));
+  std::cout <<fVidFile->fileName<< " CROP: " <<crop<<std::endl;
   double thumb_t = (*vm)["thumb_time"].as<float>();
   if(fVidFile->length < thumb_t) thumb_t = fVidFile->length/2.0;
   if(crop.length() != 0) crop.append(",");
@@ -69,7 +70,6 @@ bool  VideoIcon::create_thumb(DbConnector * dbCon, po::variables_map *vm) {
 };
 
 std::string VideoIcon::find_border(std::string fileName,float length, po::variables_map * vm) {
-  
   std::string crop("");
   bfs::path path(fileName);
   bfs::path imgp = getenv("HOME");
@@ -82,44 +82,42 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
   float border_frames=(*vm)["border_frames"].as<float>();
   float cut_thresh=(*vm)["cut_thresh"].as<float>();
   float frame_spacing = (length-start_time)/border_frames;
-  std::string cmdTmpl("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 %s");
-  std::string command((boost::format(cmdTmpl)% start_time % fileName % imgp ).str());
-  
-  std::system(command.c_str());
-  MagickWand *image_wand1;
-  MagickWand *image_wand2=NewMagickWand();
-  PixelIterator* iterator;
-  PixelWand ** pixels;
-  bool ok = MagickReadImage(image_wand2,imgp.string().c_str());
-  ExceptionType severity;
-  MagickPixelPacket pixel;
+  cv::Mat frame;
+  cv::Mat frame1;
+  cv::VideoCapture vCapt(fileName);
+  vCapt.set(cv::CAP_PROP_POS_MSEC,start_time*1000.0);
+  vCapt >> frame;
   unsigned long width,height;
   register long x;
   long y;
-  height = MagickGetImageHeight(image_wand2);
-  width = MagickGetImageWidth(image_wand2);
+  cv::MatSize frameSize= frame.size;
+  height = frameSize[0];
+  width = frameSize[1];
+  //std::cout << "BLAH " << fileName << " "<<height << " "<<width<<std::endl;
   std::vector<double> rowSums(height);
   std::vector<double> colSums(width);
   double corrFactorCol = 1.0/(double)(border_frames*height);
   double corrFactorRow = 1.0/(double)(border_frames*width);
   bool skipBorder = false;
+  cv::Vec3b intensity,intensity1;
   for(int i = 1; i < border_frames; i++) {
-    image_wand1 = CloneMagickWand(image_wand2);
+    frame1 = frame.clone();
     frame_time+=frame_spacing;
-    std::system((boost::format(cmdTmpl) % frame_time % fileName  % imgp ).str().c_str());
-    MagickReadImage(image_wand2,imgp.string().c_str());
-    MagickCompositeImage(image_wand1,image_wand2,DifferenceCompositeOp, 0,0);
-    iterator = NewPixelIterator(image_wand1);
+    vCapt.set(cv::CAP_PROP_POS_MSEC,frame_time*1000.0);
+    vCapt >> frame;
     for (y=0; y < height; y++) {
-      pixels=PixelGetNextIteratorRow(iterator,&width);
-      if (pixels == (PixelWand **) NULL) break;
-      for (x=0; x < (long) width; x++) {
-	PixelGetMagickColor(pixels[x],&pixel);
-	double value =sqrt(1.0/3.0*(pow(pixel.red,2.0)+pow(pixel.green,2.0)+pow(pixel.blue,2.0)));
+      for (x=0; x < width; x++) {
+	intensity=frame.at<cv::Vec3b>(y,x);
+	intensity1=frame1.at<cv::Vec3b>(y,x);
+	if(x==0 && y==0) std::cout<< "Depth "<<frame.depth()<<" "<< (int)intensity.val[0] <<" "<< (int)intensity.val[1] <<" "<< (int)intensity.val[2] << std::endl;
+		if(x==0 && y==0) std::cout<< "Depth "<<frame.depth()<<" "<< (int)intensity1.val[0] <<" "<< (int)intensity1.val[1] <<" "<< (int)intensity1.val[2] << std::endl;
+	double value =sqrt(1.0/3.0*(pow((short)intensity.val[0]-(short)intensity1.val[0],2.0)+pow((short)intensity.val[1]-(short)intensity1.val[1],2.0)+pow((short)intensity.val[2]-(short)intensity1.val[2],2.0)));
+	//std::cout <<x <<" "<<y<<" "<< value << "     ";
 	rowSums[y]+=corrFactorRow*value;
 	colSums[x]+=corrFactorCol*value;
       }
     }
+    std::cout << std::endl;
     if(rowSums[0] > cut_thresh &&
        rowSums[height-1] > cut_thresh &&
        colSums[0] > cut_thresh &&
@@ -127,8 +125,6 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
       skipBorder=true;
       break;
     }
-    iterator=DestroyPixelIterator(iterator);
-    image_wand1=DestroyMagickWand(image_wand1);
   }
   if(!skipBorder) {
     int x1(0), x2(width-1), y1(0), y2(height-1);
@@ -140,7 +136,5 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
     y2-=y1-1;
     crop = (boost::format("crop=%i:%i:%i:%i")% x2 % y2 % x1 % y1).str();
   }
-  bfs::remove(imgp);
-  image_wand2=DestroyMagickWand(image_wand2);
   return crop;
 }

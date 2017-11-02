@@ -106,6 +106,7 @@ VBrowser::~VBrowser() {
   }
 
 void VBrowser::populate_icons(bool clean) {
+  boost::timer::auto_cpu_timer bt;
   if(clean) fScrollWin->remove();
   fFBox = new Gtk::FlowBox();
   fFBox->set_orientation(Gtk::ORIENTATION_HORIZONTAL);
@@ -135,10 +136,11 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->invalidate_sort();
   fScrollWin->add(*fFBox);
   this->show_all();
-  if(j > 0) {
   std::vector<std::future<bool> > resVec;
+  if(j > 0) {
   for(auto &a: *iconVec) resVec.push_back(TPool->push([this](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a));
-  } 
+  }
+  cxxpool::wait(resVec.begin(),resVec.end());
 }
 
 std::string VBrowser::get_sort() {
