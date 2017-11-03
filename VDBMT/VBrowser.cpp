@@ -123,6 +123,7 @@ void VBrowser::populate_icons(bool clean) {
 	icons.push_back(TPool->push([this](std::string path,DbConnector * con) {return new VideoIcon(path,con,&vm);},pathName,dbCon));
       }
   }
+  cxxpool::wait(icons.begin(),icons.end());
   auto iconVec = new std::vector<VideoIcon *>(icons.size());
   int j = 0;
   for(auto &a: icons) {
@@ -138,7 +139,8 @@ void VBrowser::populate_icons(bool clean) {
   this->show_all();
   std::vector<std::future<bool> > resVec;
   if(j > 0) {
-  for(auto &a: *iconVec) resVec.push_back(TPool->push([this](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a));
+    std::cout << "HERE1:" << std::endl;
+  for(auto &a: *iconVec) resVec.push_back(TPool->push([&](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a));
   }
   cxxpool::wait(resVec.begin(),resVec.end());
 }
