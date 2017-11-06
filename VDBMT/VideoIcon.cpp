@@ -25,14 +25,11 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     std::getline(is, outString);
     std::vector<std::string> split_string;
     boost::split(split_string,outString,boost::is_any_of(","));
-    int width=std::stoi(split_string[0]);
-    int height=std::stoi(split_string[1]);
-    double length=0.001*(double)std::stoi(split_string[2]);
-    int rotate = 0;
-    if(split_string[3].length() > 0) int rotate = std::stod(split_string[3]);
+    double length=0.001*(double)std::stoi(split_string[0]);
+    int rotate = std::stod(split_string[1]);
     fVidFile->length = length;
     fVidFile->rotate = rotate;
-    dbCon->save_video(fVidFile);    
+    dbCon->save_video(fVidFile);
   }
   int size = fVidFile->size/1024;
   std::string toolTip((boost::format("Filename: %s\nSize: %ikB\nLength: %is") % fileName %  size % fVidFile->length).str());
@@ -62,8 +59,7 @@ bool VideoIcon::create_thumb(DbConnector * dbCon, po::variables_map *vm) {
   int x1,x2,y1,y2;
   vCapt.set(cv::CAP_PROP_POS_MSEC,thumb_t*1000.0);
   vCapt >> frame;
-  int width, height;
- 
+  int width, height; 
   if(crop.length() != 0) {
     std::vector<std::string> split_string;
     boost::split(split_string,crop,boost::is_any_of(":"));
@@ -71,11 +67,11 @@ bool VideoIcon::create_thumb(DbConnector * dbCon, po::variables_map *vm) {
     int y2=std::stoi(split_string[1]);
     int x1=std::stoi(split_string[2]);
     int y1=std::stoi(split_string[3]);
-    cv::Mat tempFrame = frame(cv::Range(x1,x2),cv::Range(y1,y2));
+    cv::Mat tempFrame = frame(cv::Range(y1,y2),cv::Range(x1,x2));
     frame = tempFrame.clone();
   }
-  if(fVidFile->rotate == -90) cv::rotate(frame,frame,cv::ROTATE_90_CLOCKWISE);
-  else if(fVidFile->rotate == 90) cv::rotate(frame,frame,cv::ROTATE_90_COUNTERCLOCKWISE);
+  if(fVidFile->rotate == 90) cv::rotate(frame,frame,cv::ROTATE_90_CLOCKWISE);
+  else if(fVidFile->rotate == -90) cv::rotate(frame,frame,cv::ROTATE_90_COUNTERCLOCKWISE);
   else if(fVidFile->rotate == 180) cv::rotate(frame,frame,cv::ROTATE_180);
   cv::MatSize frameSize= frame.size;
   height = frameSize[0];
@@ -84,14 +80,12 @@ bool VideoIcon::create_thumb(DbConnector * dbCon, po::variables_map *vm) {
   float factor = 1.0;
   float tWidth = (*vm)["thumb_width"].as<int>();
   float tHeight = (*vm)["thumb_height"].as<int>();
-  std::cout << "HERE2" <<width<<" "<<height<< std::endl;
   if(width >0 && height > 0) {
     if(width/tWidth >= height/tHeight) factor = tWidth/width;
     else factor = tHeight/height;
   } 
   cv::resize(frame,shrunkFrame,cv::Size(0,0),factor,factor,cv::INTER_AREA);
   std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
-  std::cout <<"Here " <<icon_file << std::endl;
   cv::imwrite(icon_file,shrunkFrame); 
   this->set(icon_file);
   dbCon->save_icon(fVidFile->vid);
@@ -119,7 +113,6 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
   cv::MatSize frameSize= frame.size;
   height = frameSize[0];
   width = frameSize[1];
-  //std::cout << "BLAH " << fileName << " "<<height << " "<<width<<std::endl;
   std::vector<double> rowSums(height);
   std::vector<double> colSums(width);
   double corrFactorCol = 1.0/(double)(border_frames*height);

@@ -1,2 +1,2 @@
 #!/bin/bash
-mediainfo --Inform="Video;%Width%,%Height%,%Duration%,%Rotation%" "$1"
+mediainfo --Inform="Video;%Duration%,%Rotation%" "$1"
