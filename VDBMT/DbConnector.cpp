@@ -309,7 +309,7 @@ void DbConnector::save_trace(int  vid, std::string & trace) {
   rc = sqlite3_bind_int(stmt, 1, vid);
   unsigned long size = trace.length();
   sqlite3_bind_int(stmt, 2, size);
-  sqlite3_bind_text(stmt,3, trace.c_str(),size, NULL); 
+  sqlite3_bind_blob(stmt,3, trace.c_str(),size, NULL); 
   if (rc != SQLITE_OK) {                
     std::string errmsg(sqlite3_errmsg(db)); 
     sqlite3_finalize(stmt);            

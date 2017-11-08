@@ -3,14 +3,13 @@
 #include <boost/timer/timer.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
-#include <wand/MagickWand.h>
+#include <opencv2/opencv.hpp>
 #include <set>
 
 std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
 
 VBrowser::VBrowser(int argc, char * argv[]) {
   bfs::path temp_path = getenv("HOME");
-  MagickWandGenesis();
   temp_path+="/.video_proj/";
   po::options_description config("Configuration");
   config.add_options()
@@ -92,7 +91,6 @@ VBrowser::VBrowser(int argc, char * argv[]) {
 }
 
 VBrowser::~VBrowser() {
-  MagickWandTerminus();
   delete TPool;
   delete dbCon;
   delete fScrollWin;
@@ -106,7 +104,6 @@ VBrowser::~VBrowser() {
   }
 
 void VBrowser::populate_icons(bool clean) {
-  boost::timer::auto_cpu_timer bt;
   if(clean) fScrollWin->remove();
   fFBox = new Gtk::FlowBox();
   fFBox->set_orientation(Gtk::ORIENTATION_HORIZONTAL);
@@ -124,12 +121,12 @@ void VBrowser::populate_icons(bool clean) {
       }
   }
   cxxpool::wait(icons.begin(),icons.end());
-  auto iconVec = new std::vector<VideoIcon *>(icons.size());
+  std::vector<VideoIcon *> iconVec(icons.size());
   int j = 0;
   for(auto &a: icons) {
     VideoIcon * b = a.get();
     if(!b->hasIcon){
-      (*iconVec)[j]=b;
+      iconVec[j]=b;
       j++;
     }
     fFBox->add(*b);
@@ -137,12 +134,15 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->invalidate_sort();
   fScrollWin->add(*fFBox);
   this->show_all();
-  std::vector<std::future<bool> > resVec;
+  std::vector<std::future<bool> > * resVec = new std::vector<std::future<bool> >(iconVec.size());;
   if(j > 0) {
-    std::cout << "HERE1:" << std::endl;
-  for(auto &a: *iconVec) resVec.push_back(TPool->push([&](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a));
+    int i = 0;
+    for(auto &a: iconVec) {     
+      (*resVec)[i]=TPool->push([this](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a);
+      i++;
+    }
   }
-  cxxpool::wait(resVec.begin(),resVec.end());
+  cxxpool::wait(resVec->begin(),resVec->end());
 }
 
 std::string VBrowser::get_sort() {
@@ -186,6 +186,7 @@ void VBrowser::fdupe_clicked(){
 }
 
 void VBrowser::find_dupes() {
+  boost::timer::auto_cpu_timer bt;
   std::vector<VidFile *> videos;
   std::vector<int> vids;
   for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
@@ -265,7 +266,6 @@ bool VBrowser::calculate_trace(VidFile * obj) {
   std::string outString;
   std::getline(is,outString);
   dbCon->save_trace(obj->vid, outString);
-  //std::cout << "Trace "<<obj->vid<< " done"<<std::endl;
   return true; 
 }
 
