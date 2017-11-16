@@ -3,7 +3,7 @@
 #include <boost/format.hpp>
 #include <boost/process.hpp>
 
-VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_map *vm):Gtk::Image()  {
+VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon,int vid, po::variables_map *vm):Gtk::Image()  {
   if(dbCon->video_exists(fileName)) {
     fVidFile = dbCon->fetch_video(fileName);
     dbCon->fetch_icon(fVidFile->vid);
@@ -18,6 +18,7 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon, po::variables_ma
     fVidFile = new VidFile();
     fVidFile->fileName=fileName;
     fVidFile->size = bfs::file_size(fileName);
+    fVidFile->vid = vid;
     boost::process::ipstream is;
     std::string cmd((boost::format("./info.sh %s") % fileName).str());
     boost::process::system(cmd,  boost::process::std_out > is);

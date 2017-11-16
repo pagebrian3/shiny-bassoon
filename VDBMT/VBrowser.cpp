@@ -105,6 +105,7 @@ VBrowser::~VBrowser() {
 
 void VBrowser::populate_icons(bool clean) {
   if(clean) fScrollWin->remove();
+  int min_vid = dbCon->get_last_vid();
   fFBox = new Gtk::FlowBox();
   fFBox->set_orientation(Gtk::ORIENTATION_HORIZONTAL);
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
@@ -117,7 +118,8 @@ void VBrowser::populate_icons(bool clean) {
       if(extensions.count(extension)) {
 	std::string pathName(x.path().native());
 	//std::cout << "PATH: "<<pathName<<std::endl;
-	icons.push_back(TPool->push([this](std::string path,DbConnector * con) {return new VideoIcon(path,con,&vm);},pathName,dbCon));
+	if(!dbCon->video_exists(pathName)) min_vid++;
+	icons.push_back(TPool->push([this](std::string path,DbConnector * con, int vid) {return new VideoIcon(path,con,vid,&vm);},pathName,dbCon,min_vid));
       }
   }
   cxxpool::wait(icons.begin(),icons.end());
@@ -189,6 +191,13 @@ void VBrowser::find_dupes() {
   boost::timer::auto_cpu_timer bt;
   std::vector<VidFile *> videos;
   std::vector<int> vids;
+  float total = 0.0;
+  float counter = 0.0;
+  float percent = 0.0;
+  progress_bar->show();
+  progress_bar->set_show_text();
+  std::vector<std::future_status> res;
+  std::chrono::milliseconds timer(500);
   for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
     auto extension = x.path().extension().generic_string();
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
@@ -197,18 +206,13 @@ void VBrowser::find_dupes() {
       VidFile * vid_obj = dbCon->fetch_video(full_path.c_str());
       int video_id = vid_obj->vid;
       vids.push_back(video_id);
+      std::cout << x.path() <<" "<< video_id<<std::endl;
       if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
     }
   }
   std::vector<std::future< bool > > jobs;
   for(auto & b: videos) jobs.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
-  float total = jobs.size();
-  float counter = 0.0;
-  float percent = 0.0;
-  progress_bar->show();
-  progress_bar->set_show_text();
-  std::vector<std::future_status> res;
-  std::chrono::milliseconds timer(500);
+  total = jobs.size();
   while(counter < total) {
     counter = 0;    
     res = cxxpool::wait_for(jobs.begin(), jobs.end(),timer,res);

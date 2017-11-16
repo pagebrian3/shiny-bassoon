@@ -46,6 +46,4 @@ class DbConnector {
 
   char* temp_icon;
 
-  int min_vid;
-
 };

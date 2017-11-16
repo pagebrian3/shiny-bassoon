@@ -13,13 +13,11 @@ DbConnector::DbConnector(po::variables_map & vm) {
   if (bfs::exists(db_path)) newFile=false;
   sqlite3_open(db_path.c_str(),&db);
   if (newFile) {
-    min_vid=1;
     int rc = sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table videos(path text,crop text, length double, size integer, okflag integer, rotate integer, vdatid integer)", NULL,NULL, NULL);
   }
-  else min_vid=this->get_last_vid();
 }
 
 void DbConnector::save_db_file() {
@@ -83,8 +81,6 @@ void DbConnector::fetch_icon(int vid){
 }
 
 void DbConnector::save_video(VidFile* a) {
-  a->vid=min_vid;
-  min_vid++;
   a->okflag=1;
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,length,size,okflag,rotate, vdatid) VALUES (?,?,?,?,?,?) ", -1, &stmt, NULL);

@@ -8,7 +8,7 @@ class VideoIcon : public Gtk::Image
 {
   public:
 
-  VideoIcon(std::string fileName, DbConnector * DbCon, po::variables_map *vm);
+  VideoIcon(std::string fileName, DbConnector * DbCon, int vid, po::variables_map *vm);
 
   virtual ~VideoIcon();
 
