@@ -195,8 +195,6 @@ void VBrowser::find_dupes() {
   float total = 0.0;
   float counter = 0.0;
   float percent = 0.0;
-  progress_bar->show();
-  progress_bar->set_show_text();
   std::vector<std::future_status> res;
   std::chrono::milliseconds timer(500);
   for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
@@ -214,6 +212,8 @@ void VBrowser::find_dupes() {
   std::vector<std::future< bool > > jobs;
   for(auto & b: videos) jobs.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
   total = jobs.size();
+  progress_bar->show();
+  progress_bar->set_show_text();
   while(counter < total) {
     counter = 0;    
     res = cxxpool::wait_for(jobs.begin(), jobs.end(),timer,res);
@@ -224,6 +224,8 @@ void VBrowser::find_dupes() {
     res.clear();
   }
   cxxpool::wait(jobs.begin(),jobs.end());
+  progress_bar->set_text("Traces Complete");
+  progress_bar->set_fraction(1);
   std::cout << "Done Making Traces." << std::endl;
   jobs.clear();
   std::map<std::pair<int,int>,int> result_map;
@@ -247,7 +249,8 @@ void VBrowser::find_dupes() {
     }
   }
   total = jobs.size();
-  while(counter < total) {
+  progress_bar->set_text("Comparing Videos: 0% Complete");
+    while(counter < total) {
     counter = 0.0;
     res = cxxpool::wait_for(jobs.begin(), jobs.end(),timer,res);
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
@@ -258,6 +261,7 @@ void VBrowser::find_dupes() {
     res.clear();
   }
   cxxpool::wait(jobs.begin(),jobs.end());
+  progress_bar->set_text("Done Dupe Hunting.");
   progress_bar->hide();
   std::cout <<"Done Dupe Hunting!" << std::endl;
 }

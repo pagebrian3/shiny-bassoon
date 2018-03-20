@@ -105,7 +105,6 @@ std::string VideoIcon::find_border(std::string fileName,float length, po::variab
   cv::Mat frame;
   cv::Mat frame1;
   cv::VideoCapture vCapt(fileName);
-  if(vCapt.isOpened()) std::cout << fileName << " Opened" << std::endl;
   vCapt.set(cv::CAP_PROP_POS_MSEC,start_time*1000.0);
   vCapt >> frame;
   unsigned long width,height;

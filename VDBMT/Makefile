@@ -1,5 +1,5 @@
  CC = g++
-CFLAGS  = -I. -std=gnu++14 -march=native -O0 #-O2
+CFLAGS  = -I. -std=gnu++14 -march=native -O3
 LDFLAGS = `pkg-config --cflags --libs gtkmm-3.0` -L/usr/lib/ -lboost_program_options -lboost_filesystem -lboost_system -lsqlite3 -lopencv_core -lopencv_video -lopencv_videoio -lopencv_imgcodecs -lopencv_imgproc -lboost_timer
 GTKFLAGS = `pkg-config --cflags gtkmm-3.0`
 OPENCVFLAGS = `pkg-config --cflags opencv`
