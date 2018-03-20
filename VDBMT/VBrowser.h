@@ -1,4 +1,5 @@
 #include "VideoIcon.h"
+#include "VideoUtils.h"
 #include "cxxpool.h"
 
 class VBrowser: public Gtk::Window
@@ -10,18 +11,15 @@ class VBrowser: public Gtk::Window
   int sort_videos(Gtk::FlowBoxChild *vFile1, Gtk::FlowBoxChild *vFile2);
   void browse_clicked();
   void on_delete();
-  bool calculate_trace(VidFile * obj);
   void fdupe_clicked();
-  void find_dupes();
   void asc_clicked();
   void on_sort_changed();
-  bool compare_vids(int i, int j, std::map<int,std::vector<unsigned short> > & data);
   std::string get_sort();
   void set_sort(std::string sort);
   
  private:
+  video_utils * vu;
   po::variables_map vm;
-  float cTraceFPS, cCompTime, cSliceSpacing, cThresh;
   cxxpool::thread_pool * TPool;
   cxxpool::thread_pool * thumbPool;
   Glib::RefPtr<Gtk::Builder> refBuilder;

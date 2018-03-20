@@ -9,8 +9,8 @@ default: vbrowser
 debug: CFLAGS += -g
 debug: vbrowser
 
-vbrowser:  VideoIcon.o DbConnector.o VBrowser.o main.o 
-	$(CC) $(CFLAGS) $(LDFLAGS) -o vbrowser VideoIcon.o DbConnector.o VBrowser.o main.o
+vbrowser:  VideoUtils.o VideoIcon.o DbConnector.o VBrowser.o main.o 
+	$(CC) $(CFLAGS) $(LDFLAGS) -o vbrowser VideoUtils.o VideoIcon.o DbConnector.o VBrowser.o main.o
 
 main.o:  main.cc VBrowser.h VBrowser.cpp
 	$(CC) $(CFLAGS) $(GTKFLAGS) -c main.cc
@@ -23,6 +23,9 @@ VBrowser.o:  VBrowser.cpp VBrowser.h  VidFile.h
 
 DbConnector.o:  DbConnector.cpp DbConnector.h VidFile.h 
 	$(CC) $(CFLAGS) -c DbConnector.cpp
+
+VideoUtils.o:  VideoUtils.cpp VideoUtils.h VidFile.h
+	$(CC) $(CFLAGS) -c VideoUtils.cpp
 
 clean: 
 	$(RM) vbrowser *.o *~

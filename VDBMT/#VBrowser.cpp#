@@ -2,7 +2,10 @@
 #include "VideoUtils.h"
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
+//#include <opencv2/opencv.hpp>
 #include <set>
+
+
 
 VBrowser::VBrowser(int argc, char * argv[]) {
   bfs::path temp_path = getenv("HOME");
@@ -25,7 +28,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
           "trace starting time")
     ("thumb_time", po::value<float>()->default_value(12.0), 
           "thumbnail time")
-    ("trace_fps", po::value<float>()->default_value(30.0), 
+    ("trace_fps", po::value<float>(&cTraceFPS)->default_value(30.0), 
           "trace fps")
     ("border_frames", po::value<float>()->default_value(20.0), 
            "frames used to calculate border")
@@ -51,12 +54,11 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   thumbPool = new cxxpool::thread_pool(1);
   this->set_default_size(vm["win_width"].as<int>(), vm["win_height"].as<int>());
   dbCon = new DbConnector(vm["app_path"].as<std::string>());
-  path = vm["default_path"].as<std::string>();
-  vu = new video_utils(dbCon,&vm,path);
-  sort_by="size"; //size, name, length
-  sort_desc=true;  //true, false
   box_outer = new Gtk::VBox(false, 6);
   this->add(*box_outer);
+  path = vm["default_path"].as<std::string>();
+  sort_by="size"; //size, name, length
+  sort_desc=true;  //true, false
   browse_button = new Gtk::Button("...");
   browse_button->signal_clicked().connect(sigc::mem_fun(*this,&VBrowser::browse_clicked));
   fdupe_button = new Gtk::Button("Find Dupes");
@@ -114,7 +116,7 @@ void VBrowser::populate_icons(bool clean) {
   for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
       auto extension = x.path().extension().generic_string();
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-      if(vu->get_extensions().count(extension)) {
+      if(extensions.count(extension)) {
 	std::string pathName(x.path().native());
 	//std::cout << "PATH: "<<pathName<<std::endl;
 	if(!dbCon->video_exists(pathName)) min_vid++;
@@ -181,7 +183,7 @@ void VBrowser::on_delete() {
 }
 
 void VBrowser::fdupe_clicked(){
-  TPool->push([&](){ return vu->find_dupes();});
+  TPool->push([&](){ return video_utils::find_dupes(dbCon,vm,path);});
   return;
 }
 

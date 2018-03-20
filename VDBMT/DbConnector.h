@@ -1,3 +1,6 @@
+#ifndef DBCONNECTOR_H
+#define DBCONNECTOR_H
+
 #include <boost/filesystem.hpp>
 #include <sqlite3.h>
 #include <VidFile.h>
@@ -45,3 +48,5 @@ class DbConnector {
   char* temp_icon;
 
 };
+
+#endif // DBCONNECTOR_H
