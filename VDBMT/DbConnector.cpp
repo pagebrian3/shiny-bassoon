@@ -1,9 +1,9 @@
 #include <DbConnector.h>
 #include <boost/format.hpp>
 
-DbConnector::DbConnector(po::variables_map & vm) {
+DbConnector::DbConnector(std::string dbPath) {
   bool newFile = true;
-  bfs::path path = vm["app_path"].as<std::string>();
+  bfs::path path = dbPath;
   bfs::path db_path = path;
   bfs::path icon_path = path;
   if(!bfs::exists(path)) bfs::create_directory(path);

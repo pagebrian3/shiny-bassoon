@@ -54,7 +54,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
   thumbPool = new cxxpool::thread_pool(1);
   this->set_default_size(vm["win_width"].as<int>(), vm["win_height"].as<int>());
-  dbCon = new DbConnector(vm);
+  dbCon = new DbConnector(vm["app_path"].as<std::string>());
   box_outer = new Gtk::VBox(false, 6);
   this->add(*box_outer);
   path = vm["default_path"].as<std::string>();
