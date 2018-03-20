@@ -1,12 +1,11 @@
 #include <DbConnector.h>
 #include <boost/format.hpp>
 
-DbConnector::DbConnector(std::string dbPath) {
+DbConnector::DbConnector(bfs::path appPath) {
   bool newFile = true;
-  bfs::path path = dbPath;
-  bfs::path db_path = path;
-  bfs::path icon_path = path;
-  if(!bfs::exists(path)) bfs::create_directory(path);
+  bfs::path db_path = appPath;
+  bfs::path icon_path = appPath;
+  if(!bfs::exists(appPath)) bfs::create_directory(appPath);
   db_path+="vdb.sql";
   temp_icon = new char[icon_path.size()];
   strcpy(temp_icon, icon_path.c_str());

@@ -10,7 +10,7 @@ class DbConnector {
 
  public:
 
-  DbConnector(std::string path);
+  DbConnector(bfs::path path);
 
   bool video_exists(std::string filename);
 
