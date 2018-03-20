@@ -47,7 +47,6 @@ VidFile * VideoIcon::get_vid_file() {
 
 bool VideoIcon::create_thumb(DbConnector * dbCon, po::variables_map *vm) {
   if(hasIcon){
-    std::cout << "Has Icon" <<std::endl;
     return true;
   }
   std::string crop(find_border(fVidFile->fileName, fVidFile->length, vm));

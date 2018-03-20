@@ -136,15 +136,16 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->invalidate_sort();
   fScrollWin->add(*fFBox);
   this->show_all();
-  std::vector<std::future<bool> > * resVec = new std::vector<std::future<bool> >(iconVec.size());;
+  std::vector<std::future<bool> > * resVec = new std::vector<std::future<bool> >(iconVec.size());
   if(j > 0) {
     int i = 0;
     for(auto &a: iconVec) {     
       (*resVec)[i]=TPool->push([this](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a);
       i++;
     }
+    cxxpool::wait(resVec->begin(),resVec->end());
   }
-  cxxpool::wait(resVec->begin(),resVec->end());
+  
 }
 
 std::string VBrowser::get_sort() {
