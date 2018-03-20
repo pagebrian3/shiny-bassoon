@@ -23,6 +23,7 @@ class VBrowser: public Gtk::Window
   po::variables_map vm;
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh;
   cxxpool::thread_pool * TPool;
+  cxxpool::thread_pool * thumbPool;
   Glib::RefPtr<Gtk::Builder> refBuilder;
   Gtk::ScrolledWindow * fScrollWin;
   Gtk::FlowBox * fFBox;

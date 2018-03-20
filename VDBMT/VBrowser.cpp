@@ -52,6 +52,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   po::store(po::parse_config_file(config_file, config),vm);
   po::notify(vm);
   TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
+  thumbPool = new cxxpool::thread_pool(1);
   this->set_default_size(vm["win_width"].as<int>(), vm["win_height"].as<int>());
   dbCon = new DbConnector(vm);
   box_outer = new Gtk::VBox(false, 6);
@@ -92,6 +93,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
 
 VBrowser::~VBrowser() {
   delete TPool;
+  delete thumbPool;
   delete dbCon;
   delete fScrollWin;
   delete asc_button;
@@ -123,12 +125,12 @@ void VBrowser::populate_icons(bool clean) {
       }
   }
   cxxpool::wait(icons.begin(),icons.end());
-  std::vector<VideoIcon *> iconVec(icons.size());
+  std::vector<VideoIcon*> * iconVec =  new std::vector<VideoIcon *> (icons.size());
   int j = 0;
   for(auto &a: icons) {
     VideoIcon * b = a.get();
-    if(!b->hasIcon){
-      iconVec[j]=b;
+    if(!b->hasIcon) {
+      (*iconVec)[j]=b;
       j++;
     }
     fFBox->add(*b);
@@ -136,16 +138,14 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->invalidate_sort();
   fScrollWin->add(*fFBox);
   this->show_all();
-  std::vector<std::future<bool> > * resVec = new std::vector<std::future<bool> >(iconVec.size());
+  std::vector<std::future<bool> > * resVec = new std::vector<std::future<bool> >(j);
   if(j > 0) {
     int i = 0;
-    for(auto &a: iconVec) {     
-      (*resVec)[i]=TPool->push([this](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a);
+    for(auto &a: (*iconVec)) {     
+      (*resVec)[i]=thumbPool->push([this](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a);
       i++;
     }
-    cxxpool::wait(resVec->begin(),resVec->end());
   }
-  
 }
 
 std::string VBrowser::get_sort() {
