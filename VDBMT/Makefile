@@ -22,7 +22,7 @@ VBrowser.o:  VBrowser.cpp VBrowser.h  VidFile.h
 	$(CC) $(CFLAGS) $(GTKFLAGS) -c VBrowser.cpp
 
 DbConnector.o:  DbConnector.cpp DbConnector.h VidFile.h 
-	$(CC) $(CFLAGS) $(GTKFLAGS) -c DbConnector.cpp
+	$(CC) $(CFLAGS) -c DbConnector.cpp
 
 clean: 
 	$(RM) vbrowser *.o *~
