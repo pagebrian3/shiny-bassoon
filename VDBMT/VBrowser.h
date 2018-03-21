@@ -1,6 +1,5 @@
 #include "VideoIcon.h"
 #include "VideoUtils.h"
-#include "cxxpool.h"
 
 class VBrowser: public Gtk::Window
 {

@@ -1,5 +1,4 @@
 #include "VBrowser.h"
-#include "VideoUtils.h"
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <set>
@@ -126,6 +125,7 @@ void VBrowser::populate_icons(bool clean) {
   int j = 0;
   for(auto &a: icons) {
     VideoIcon * b = a.get();
+    vu->update_icon().connect(sigc::mem_fun(*b, &VideoIcon::set_icon));
     if(!b->hasIcon) {
       (*iconVec)[j]=b;
       j++;
@@ -139,7 +139,7 @@ void VBrowser::populate_icons(bool clean) {
   if(j > 0) {
     int i = 0;
     for(auto &a: (*iconVec)) {     
-      (*resVec)[i]=thumbPool->push([this](DbConnector * con, VideoIcon * a) {return a->create_thumb(con,&vm);},dbCon, a);
+      (*resVec)[i]=thumbPool->push([this](VidFile *b) {return vu->create_thumb(b);}, a->get_vid_file());
       i++;
     }
   }
@@ -172,6 +172,7 @@ void VBrowser::browse_clicked() {
   auto response = dialog.run();
   if (response == Gtk::RESPONSE_OK){
     path  = dialog.get_filename()+"/";
+    vu->change_path(path);
     this->populate_icons(true);
   }
 }
