@@ -2,6 +2,7 @@
 
 int main (int argc, char *argv[]) {
   int c = 1;
+  Glib::thread_init();
   auto app = Gtk::Application::create(c, argv, "org.gtkmm.example");
 
   VBrowser vbrowser(argc, argv);

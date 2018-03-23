@@ -25,8 +25,10 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon,int vid, po::vari
     std::getline(is, outString);
     std::vector<std::string> split_string;
     boost::split(split_string,outString,boost::is_any_of(","));
-    double length=0.001*(double)std::stoi(split_string[0]);
-    int rotate = std::stod(split_string[1]);
+    double length=0.0;
+    if(split_string[0].length() > 0) length=0.001*(double)std::stoi(split_string[0]);
+    int rotate = 0;
+    if(split_string[1].length() > 0) rotate = std::stod(split_string[1]);
     fVidFile->length = length;
     fVidFile->rotate = rotate;
     dbCon->save_video(fVidFile);

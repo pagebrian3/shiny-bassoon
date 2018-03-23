@@ -1,5 +1,5 @@
-#ifndef VIDEOICON_H
-#define VIDEOICON_H
+
+
 #include "DbConnector.h"
 #include <boost/program_options.hpp>
 #include <gtkmm-3.0/gtkmm.h>
@@ -24,6 +24,4 @@ class VideoIcon : public Gtk::Image
 
   VidFile* fVidFile;
   
-};
-
-#endif  //  VIDEOICON_H
+}; 

@@ -25,6 +25,8 @@ class DbConnector {
 
   void save_icon(int vid);
 
+  std::string create_icon_path(int vid);
+
   void save_crop(VidFile *a);
 
   void fetch_results(std::map<std::pair<int,int>, int> & map);

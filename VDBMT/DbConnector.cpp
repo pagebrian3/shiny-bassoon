@@ -70,7 +70,7 @@ void DbConnector::fetch_icon(int vid){
     sqlite3_finalize(stmt);
     throw errmsg;
   }
-  std::string out_path((boost::format("%s%i.jpg") % temp_icon % vid).str());
+  std::string out_path = create_icon_path(vid);
   std::ofstream output(out_path, std::ios::out|std::ios::binary|std::ios::ate);
   int size = sqlite3_column_bytes(stmt,0);
   output.write((char*)sqlite3_column_blob(stmt,0),size);
@@ -121,7 +121,7 @@ void DbConnector::save_icon(int vid) {
   int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,img_dat) VALUES (? , ?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);
-  std::string in_path((boost::format("%s%i.jpg") % temp_icon % vid).str());
+  std::string in_path = create_icon_path(vid);
   std::ifstream input (in_path, std::ios::in|std::ios::binary|std::ios::ate);
   unsigned char * memblock;
   int length;
@@ -318,5 +318,9 @@ void DbConnector::save_trace(int  vid, std::string & trace) {
   }  
   sqlite3_finalize(stmt);
   return;
+}
+
+std::string DbConnector::create_icon_path(int vid) {
+  return (boost::format("%s%i.jpg") % temp_icon % vid).str();
 }
 

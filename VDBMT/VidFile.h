@@ -1,3 +1,6 @@
+#ifndef VIDFILE_H
+#define VIDFILE_H
+
 #include <string>
 
 class VidFile {
@@ -20,3 +23,4 @@ class VidFile {
   int rotate;
 };
 
+#endif // VIDFILE_H

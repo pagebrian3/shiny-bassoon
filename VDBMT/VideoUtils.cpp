@@ -1,104 +1,21 @@
 #include "VideoUtils.h"
-
-#include <boost/timer/timer.hpp>
+#include "VBrowser.h"
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 #include <opencv2/opencv.hpp>
 
-std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
-
-video_utils::video_utils(DbConnector * dbConn, po::variables_map * vm1, bfs::path path) {
-  dbCon = dbConn;
-  cPath = path;
-  vm=vm1;
+video_utils::video_utils(DbConnector * dbCon1, po::variables_map * vm1) {
+  vm = vm1;
+  dbCon = dbCon1;
   cStartTime = (*vm)["trace_time"].as<float>();
-  cThreads = (*vm)["threads"].as<int>();
   cTraceFPS = (*vm)["trace_fps"].as<float>();
   cCompTime = (*vm)["comp_time"].as<float>();
   cSliceSpacing = (*vm)["slice_spacing"].as<float>();
   cThresh = (*vm)["thresh"].as<float>();
   cFudge = (*vm)["fudge"].as<int>();
-  cPool = new cxxpool::thread_pool(cThreads);
 }
 
-void video_utils::find_dupes() {
-  boost::timer::auto_cpu_timer bt;
-  std::vector<VidFile *> videos;
-  std::vector<int> vids;
-  float total = 0.0;
-  float counter = 0.0;
-  float percent = 0.0;
-  std::vector<std::future_status> res;
-  std::chrono::milliseconds timer(500);
-  for (bfs::directory_entry & x : bfs::directory_iterator(cPath)) {
-    auto extension = x.path().extension().generic_string();
-    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    if(extensions.count(extension)) {
-      bfs::path full_path = bfs::absolute(x.path());
-      VidFile * vid_obj = dbCon->fetch_video(full_path.c_str());
-      int video_id = vid_obj->vid;
-      vids.push_back(video_id);
-      std::cout << x.path() <<" "<< video_id<<std::endl;
-      if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
-    }
-  }
-  std::vector<std::future< bool > > jobs;
-  for(auto & b: videos) jobs.push_back(cPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
-  total = jobs.size();
-  //progress_bar->show();
-  //progress_bar->set_show_text();
-  while(counter < total) {
-    counter = 0;    
-    res = cxxpool::wait_for(jobs.begin(), jobs.end(),timer,res);
-    for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
-    percent = 100.0*counter/total;
-    //progress_bar->set_text((boost::format("Creating Traces %i/%i: %d%% Complete") % counter % total %  percent).str());
-    //progress_bar->set_fraction(counter/total);
-    res.clear();
-  }
-  cxxpool::wait(jobs.begin(),jobs.end());
-  //progress_bar->set_text("Traces Complete");
-  //progress_bar->set_fraction(1);
-  std::cout << "Done Making Traces." << std::endl;
-  jobs.clear();
-  std::map<std::pair<int,int>,int> result_map;
-  std::map<int,std::vector<unsigned short> > data_holder;
-  dbCon->fetch_results(result_map);
-  total=0.0;
-  //loop over files 
-  for(int i = 0; i +1 < vids.size(); i++) {
-    dbCon->fetch_trace(vids[i],data_holder[vids[i]]);
-    //loop over files after i
-    for(int j = i+1; j < vids.size(); j++) {
-      //std::cout << vids[i] << " "<<vids[j] << std::endl;
-      if (result_map[std::make_pair(vids[i],vids[j])]) {
-	std::cout <<"ALREADY Computed." <<std::endl;
-	continue;
-      }
-      else {
-	dbCon->fetch_trace(vids[j],data_holder[vids[j]]);
-	jobs.push_back(cPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return compare_vids(i,j,data);},vids[i],vids[j],data_holder));
-      }
-    }
-  }
-  total = jobs.size();
-  //progress_bar->set_text("Comparing Videos: 0% Complete");
-  while(counter < total) {
-    counter = 0.0;
-    res = cxxpool::wait_for(jobs.begin(), jobs.end(),timer,res);
-    for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
-    //progress_bar->set_fraction(counter/total);
-    percent = 100.0*counter/total;
-    //std::cout << "Blah: "<< counter << " "<<total <<" "<<jobs.size()<<" "<<res.size()<<std::endl;
-    //progress_bar->set_text((boost::format("Comparing Videos: %d%% Complete") %  percent).str());
-    res.clear();
-  }
-  cxxpool::wait(jobs.begin(),jobs.end());
-  //progress_bar->set_text("Done Dupe Hunting.");
-  //progress_bar->hide();
-  std::cout <<"Done Dupe Hunting!" << std::endl;
-  return;
-}
+video_utils::video_utils(){}
 
 bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<unsigned short> > & data) {
   bool match=false;
@@ -147,15 +64,8 @@ bool video_utils::calculate_trace(VidFile * obj) {
   return true; 
 }
 
-std::set<std::string> video_utils::get_extensions() {
-  return extensions;
-}
-
-void video_utils::change_path(bfs::path path) {
-  cPath = path;
-}
-
-bool video_utils::create_thumb(VidFile * vidFile) {
+bool video_utils::create_thumb(VideoIcon * icon) {
+  VidFile * vidFile = icon->get_vid_file();
   std::string crop(find_border(vidFile->fileName, vidFile->length));
   vidFile->crop=crop;
   dbCon->save_crop(vidFile);
@@ -194,9 +104,6 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   cv::resize(frame,shrunkFrame,cv::Size(0,0),factor,factor,cv::INTER_AREA);
   std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % vidFile->vid).str());
   cv::imwrite(icon_file,shrunkFrame); 
-  fSignal.emit(vidFile->vid,icon_file);
-  dbCon->save_icon(vidFile->vid);
-  std::system((boost::format("rm %s") %icon_file).str().c_str());
   return true;
 };
 
@@ -261,9 +168,6 @@ std::string video_utils::find_border(std::string fileName,float length) {
   return crop;
 }
 
-video_utils::icon_signal video_utils::update_icon() {
-  return fSignal;
-}
 
 
 
