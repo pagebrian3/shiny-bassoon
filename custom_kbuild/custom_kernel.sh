@@ -1,5 +1,6 @@
 #!/bin/bash
 
+rm -rf linux-zen/PKGBUILD
 rm -rf linux-zen/src
 rm -rf linux-zen/pkg
 asp update
