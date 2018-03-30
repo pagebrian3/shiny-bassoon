@@ -26,7 +26,6 @@ class VBrowser: public Gtk::Window
   void asc_clicked();
   void on_sort_changed();
   void update_icon();
-  bool icon_timeout();
   bool progress_timeout();
   std::string get_sort();
   void set_sort(std::string sort);
@@ -44,6 +43,7 @@ class VBrowser: public Gtk::Window
   Gtk::FlowBox * fFBox;
   std::string sort_by;
   bool sort_desc;
+  int progressFlag; //0=none 1=icons 2=traces 3=dupes
   Gtk::Box * sort_opt;
   Gtk::VBox * box_outer;
   Gtk::Button * browse_button;
@@ -54,8 +54,8 @@ class VBrowser: public Gtk::Window
   std::vector<std::future<bool> > resVec;
   std::vector<int> icon_list;
   std::vector<VideoIcon*> * iconVec;
-  sigc::slot<bool> i_timer_slot, p_timer_slot;
-  sigc::connection i_timer, p_timer;
+  sigc::slot<bool>  p_timer_slot;
+  sigc::connection p_timer;
   DbConnector * dbCon;
   bfs::path path;
   video_utils * vu;

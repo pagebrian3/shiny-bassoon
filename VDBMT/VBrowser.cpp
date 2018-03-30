@@ -83,10 +83,12 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   box_outer->pack_start(*sort_opt, false, true, 0);
   fScrollWin = new Gtk::ScrolledWindow();
   box_outer->pack_start(*fScrollWin, true, true, 0);
-  this->populate_icons();
+  p_timer_slot = sigc::mem_fun(*this,&VBrowser::progress_timeout);
+  this->populate_icons();  
 }
 
 VBrowser::~VBrowser() {
+  std::system("reset");
   delete TPool;
   delete dbCon;
   delete fScrollWin;
@@ -132,52 +134,70 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->invalidate_sort();
   fScrollWin->add(*fFBox);
   this->show_all();
+  p_timer = Glib::signal_timeout().connect(p_timer_slot,100);
+  progressFlag = 1;
   if(j > 0) for(auto &a: (*iconVec))
       resVec.push_back(TPool->push([this](VideoIcon *b) {return vu->create_thumb(b);}, a));
-  i_timer_slot = sigc::mem_fun(*this,&VBrowser::icon_timeout);
-  i_timer = Glib::signal_timeout().connect(i_timer_slot,100);
-}
-
-bool VBrowser::icon_timeout() {
-  int saved_icons = 0;
-  std::chrono::milliseconds timer(1);
-  res.clear();
-  res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer,res);
-  int i=0;
-  int counter = 0;
-  for(auto &b: res) {
-    if(b == std::future_status::ready && icon_list[i] > 0){
-      int vid = icon_list[i];
-      std::string icon_file = dbCon->create_icon_path(vid);
-      dbCon->save_icon(vid);
-      (*iconVec)[i]->set(icon_file);
-      (*iconVec)[i]->show();
-      std::system((boost::format("rm %s") %icon_file).str().c_str());
-      icon_list[i]=0;
-    }
-    else if(b == std::future_status::ready && icon_list[i]==0) counter++;
-    i++;	
-  }
-  if(counter == res.size()) return false;
-  else return true;
 }
 
 bool VBrowser::progress_timeout() {
-  double counter;
-  double percent;
+  std::cout << "Called" << std::endl;
+  if(progressFlag==0) return true;
+  float counter=0.0;
+  float total=0.0;
+  float percent=0.0;
+  int saved_icons = 0;
   std::chrono::milliseconds timer(1);
-  res.clear();
-  res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer,res);
-  double total = resVec.size();
-  counter = 0.0;
-  for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
-  percent = 100.0*counter/total;
-  update_progress(counter/total,(boost::format("Comparing Videos: %d%% Complete") %  percent).str());
-  if(res.size()-counter < 0.1)  {
-    update_progress(1.0,"Done Dupe Hunting");
-    return false;
+  if(progressFlag==1) {
+    res.clear();
+    res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
+    int i=0;
+    int counter = 0;
+    for(auto &b: res) {
+      if(b == std::future_status::ready && icon_list[i] > 0){
+	int vid = icon_list[i];
+	std::string icon_file = dbCon->create_icon_path(vid);
+	dbCon->save_icon(vid);
+	(*iconVec)[i]->set(icon_file);
+	(*iconVec)[i]->show();
+	std::system((boost::format("rm %s") %icon_file).str().c_str());
+	icon_list[i]=0;
+      }
+      else if(b == std::future_status::ready && icon_list[i]==0) counter++;
+      i++;	
+    }
+    if(counter == res.size()) return false;
+    else return true;
   }
-  else return true;
+  else if(progressFlag==2) {
+    total = resVec.size();
+    while(counter < total) {
+      counter = 0;    
+      res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
+      for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
+      percent = 100.0*counter/total;
+      update_progress(counter/total,(boost::format("Creating Traces %i/%i: %d%% Complete") % counter % total %  percent).str());
+      res.clear();
+    }
+  }
+  else if(progressFlag==3) {
+    double counter;
+    double percent;
+    res.clear();
+    res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
+    double total = resVec.size();
+    counter = 0.0;
+    for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
+    percent = 100.0*counter/total;  
+    if(res.size()-counter < 0.1)  {
+      update_progress(1.0,"Done Dupe Hunting");
+      return false;
+    }
+    else {
+      update_progress(counter/total,(boost::format("Comparing Videos: %d%% Complete") %  percent).str());
+      return true;
+    }
+  }
 }
 
 std::string VBrowser::get_sort() {
@@ -217,7 +237,7 @@ void VBrowser::on_delete() {
 }
 
 void VBrowser::fdupe_clicked(){
-   std::vector<VidFile *> videos;
+  std::vector<VidFile *> videos;
   std::vector<int> vids;
   float total = 0.0;
   float counter = 0.0;
@@ -236,39 +256,33 @@ void VBrowser::fdupe_clicked(){
     }
   }
   resVec.clear();
+  progressFlag=2;
+  p_timer = Glib::signal_timeout().connect(p_timer_slot,100);
   for(auto & b: videos) resVec.push_back(TPool->push([&](VidFile * b ){ return vu->calculate_trace(b);},b));
-  total = resVec.size();
-  while(counter < total) {
-    counter = 0;    
-    res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer,res);
-    for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
-    percent = 100.0*counter/total;
-    update_progress(counter/total,(boost::format("Creating Traces %i/%i: %d%% Complete") % counter % total %  percent).str());
-    res.clear();
-  }
   cxxpool::wait(resVec.begin(),resVec.end());
+  std::cout << "Traces Complete" << std::endl;
   update_progress(1.0,"Traces Complete");
   resVec.clear();
   std::map<std::pair<int,int>,int> result_map;
   std::map<int,std::vector<unsigned short> > data_holder;
   dbCon->fetch_results(result_map);
   total=0.0;
-  //loop over files 
+  //loop over files
+  progressFlag=3;
+  p_timer = Glib::signal_timeout().connect(p_timer_slot,100);
   for(int i = 0; i +1 < vids.size(); i++) {
     dbCon->fetch_trace(vids[i],data_holder[vids[i]]);
     //loop over files after i
     for(int j = i+1; j < vids.size(); j++) {
-      if (result_map[std::make_pair(vids[i],vids[j])]) {
-	continue;
-      }
+      std::cout << i << " " << j << std::endl;
+      if (result_map[std::make_pair(vids[i],vids[j])]) continue;
       else {
 	dbCon->fetch_trace(vids[j],data_holder[vids[j]]);
 	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return vu->compare_vids(i,j,data);},vids[i],vids[j],data_holder));
       }
     }
   }
-  p_timer_slot = sigc::mem_fun(*this,&VBrowser::progress_timeout);
-  p_timer = Glib::signal_timeout().connect(p_timer_slot,100);
+  std::cout << "Left Dupe Hunter" << std::endl;
   return;
 }
 
