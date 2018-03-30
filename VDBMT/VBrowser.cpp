@@ -50,7 +50,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   this->set_default_size(vm["win_width"].as<int>(),vm["win_height"].as<int>());
   dbCon = new DbConnector(vm["app_path"].as<std::string>());
   path = vm["default_path"].as<std::string>();
-  vu = new video_utils(dbCon,&vm);
+  vu = new video_utils(dbCon,&vm, temp_path);
   sort_by="size"; //size, name, length
   sort_desc=true;  //true, false
   box_outer = new Gtk::VBox(false, 6);
