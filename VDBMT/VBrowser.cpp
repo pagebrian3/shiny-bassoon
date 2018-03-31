@@ -141,7 +141,6 @@ void VBrowser::populate_icons(bool clean) {
 }
 
 bool VBrowser::progress_timeout() {
-  std::cout << "Called" << std::endl;
   if(progressFlag==0) return true;
   float counter=0.0;
   float total=0.0;
@@ -152,7 +151,6 @@ bool VBrowser::progress_timeout() {
     res.clear();
     res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
     int i=0;
-    int counter = 0;
     for(auto &b: res) {
       if(b == std::future_status::ready && icon_list[i] > 0){
 	int vid = icon_list[i];
@@ -163,10 +161,16 @@ bool VBrowser::progress_timeout() {
 	std::system((boost::format("rm %s") %icon_file).str().c_str());
 	icon_list[i]=0;
       }
-      else if(b == std::future_status::ready && icon_list[i]==0) counter++;
+      else if(b == std::future_status::ready && icon_list[i]==0) counter+=1.0;
       i++;	
     }
-    if(counter == res.size()) return false;
+    total=icon_list.size();
+    percent = 100.0*counter/total;
+    update_progress(counter/total,(boost::format("Creating Traces %i/%i: %d%% Complete") % counter % total %  percent).str());
+    if(counter == res.size()) {
+      update_progress(1.0,"Icons Complete");
+      return false;
+    }
     else return true;
   }
   else if(progressFlag==2) {
@@ -274,7 +278,6 @@ void VBrowser::fdupe_clicked(){
     dbCon->fetch_trace(vids[i],data_holder[vids[i]]);
     //loop over files after i
     for(int j = i+1; j < vids.size(); j++) {
-      std::cout << i << " " << j << std::endl;
       if (result_map[std::make_pair(vids[i],vids[j])]) continue;
       else {
 	dbCon->fetch_trace(vids[j],data_holder[vids[j]]);
