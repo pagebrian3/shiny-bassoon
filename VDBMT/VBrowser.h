@@ -25,12 +25,10 @@ class VBrowser: public Gtk::Window
   void fdupe_clicked();
   void asc_clicked();
   void on_sort_changed();
-  void update_icon();
+  void compare_traces();
   bool progress_timeout();
   std::string get_sort();
   void set_sort(std::string sort);
-  po::variables_map * get_vm();
-  DbConnector * get_dbcon();
   std::set<std::string> get_extensions();
   void update_progress(double fraction, std::string label);
   
@@ -52,7 +50,7 @@ class VBrowser: public Gtk::Window
   Gtk::ComboBoxText * sort_combo;
   std::vector<std::future_status> res;
   std::vector<std::future<bool> > resVec;
-  std::vector<int> icon_list;
+  std::vector<int> vid_list;
   std::vector<VideoIcon*> * iconVec;
   sigc::slot<bool>  p_timer_slot;
   sigc::connection p_timer;

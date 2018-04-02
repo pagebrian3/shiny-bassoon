@@ -8,40 +8,23 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   temp_path+="/.video_proj/";
   po::options_description config("Configuration");
   config.add_options()
-    ("win_width", po::value<int>()->default_value(800), 
-          "window width")
-    ("win_height", po::value<int>()->default_value(600), 
-          "window height")
-    ("thumb_width", po::value<int>()->default_value(320), 
-          "thumbnail max width")
-    ("thumb_height", po::value<int>()->default_value(180), 
-          "thumbnail max height")
-    ("fudge", po::value<int>()->default_value(10), 
-          "difference threshold")
-    ("threads", po::value<int>()->default_value(2), 
-           "Number of threads to use.")
-    ("trace_time", po::value<float>()->default_value(10.0), 
-          "trace starting time")
-    ("thumb_time", po::value<float>()->default_value(12.0), 
-          "thumbnail time")
-    ("trace_fps", po::value<float>()->default_value(30.0), 
-          "trace fps")
-    ("border_frames", po::value<float>()->default_value(20.0), 
-           "frames used to calculate border")
-    ("cut_thresh", po::value<float>()->default_value(1000.0), 
-          "threshold used for border detection")
-    ("comp_time", po::value<float>()->default_value(10.0), 
-           "length of slices to compare")
-    ("slice_spacing", po::value<float>()->default_value(60.0), 
-          "separation of slices in time")
-    ("thresh", po::value<float>()->default_value(200.0), 
-          "threshold for video similarity")
-    ("app_path", 
-     po::value< std::string >()->default_value(temp_path.string().c_str()), 
-           "database and temp data path")
-    ("default_path", 
-     po::value< std::string >()->default_value("/home/ungermax/mt_test/"), 
-           "starting path");
+    ("win_width", po::value<int>()->default_value(800), "window width")
+    ("win_height", po::value<int>()->default_value(600), "window height")
+    ("thumb_width", po::value<int>()->default_value(320), "thumbnail max width")
+    ("thumb_height", po::value<int>()->default_value(180), "thumbnail max height")
+    ("fudge", po::value<int>()->default_value(10),"difference threshold")
+    ("threads", po::value<int>()->default_value(2),"Number of threads to use.")
+    ("trace_time", po::value<float>()->default_value(10.0), "trace starting time")
+    ("thumb_time", po::value<float>()->default_value(12.0),"thumbnail time")
+    ("trace_fps", po::value<float>()->default_value(30.0), "trace fps")
+    ("border_frames", po::value<float>()->default_value(20.0),"frames used to calculate border")
+    ("cut_thresh", po::value<float>()->default_value(1000.0),"threshold used for border detection")
+    ("comp_time", po::value<float>()->default_value(10.0),"length of slices to compare")
+    ("slice_spacing", po::value<float>()->default_value(60.0),"separation of slices in time")
+    ("thresh", po::value<float>()->default_value(200.0),"threshold for video similarity")
+    ("app_path",po::value< std::string >()->default_value(temp_path.string().c_str()), "database and temp data path")
+    ("default_path", po::value< std::string >()->default_value("/home/ungermax/mt_test/"), "starting path")
+    ("progress_time",po::value<int>()->default_value(100), "progressbar update interval");
   std::ifstream config_file("config.cfg");
   po::store(po::parse_command_line(argc, argv, config),vm);
   po::store(po::parse_config_file(config_file, config),vm);
@@ -126,7 +109,7 @@ void VBrowser::populate_icons(bool clean) {
     VideoIcon * b = a.get();
     if(!b->hasIcon) {
       (*iconVec)[j]=b;
-      icon_list.push_back(b->get_vid_file()->vid);
+      vid_list.push_back(b->get_vid_file()->vid);
       j++;
     }
     fFBox->add(*b);
@@ -134,7 +117,7 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->invalidate_sort();
   fScrollWin->add(*fFBox);
   this->show_all();
-  p_timer = Glib::signal_timeout().connect(p_timer_slot,100);
+  p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
   progressFlag = 1;
   if(j > 0) for(auto &a: (*iconVec))
       resVec.push_back(TPool->push([this](VideoIcon *b) {return vu->create_thumb(b);}, a));
@@ -147,53 +130,50 @@ bool VBrowser::progress_timeout() {
   float percent=0.0;
   int saved_icons = 0;
   std::chrono::milliseconds timer(1);
+  res.clear();
+  res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
+  total = resVec.size();
   if(progressFlag==1) {
-    res.clear();
-    res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
     int i=0;
     for(auto &b: res) {
-      if(b == std::future_status::ready && icon_list[i] > 0){
-	int vid = icon_list[i];
+      if(b == std::future_status::ready && vid_list[i] > 0){
+	int vid = vid_list[i];
 	std::string icon_file = dbCon->create_icon_path(vid);
 	dbCon->save_icon(vid);
 	(*iconVec)[i]->set(icon_file);
 	(*iconVec)[i]->show();
 	std::system((boost::format("rm %s") %icon_file).str().c_str());
-	icon_list[i]=0;
+	vid_list[i]=0;
       }
-      else if(b == std::future_status::ready && icon_list[i]==0) counter+=1.0;
+      else if(b == std::future_status::ready && vid_list[i]==0) counter+=1.0;
       i++;	
     }
-    total=icon_list.size();
+    total=vid_list.size();
     percent = 100.0*counter/total;
-    update_progress(counter/total,(boost::format("Creating Traces %i/%i: %d%% Complete") % counter % total %  percent).str());
+    update_progress(counter/total,(boost::format("Creating Icons %i/%i: %d%% Complete") % counter % total %  percent).str());
     if(counter == res.size()) {
       update_progress(1.0,"Icons Complete");
       return false;
     }
     else return true;
   }
-  else if(progressFlag==2) {
-    total = resVec.size();
-    while(counter < total) {
-      counter = 0;    
-      res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
-      for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
-      percent = 100.0*counter/total;
+  else if(progressFlag==2) { 
+    for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
+    percent = 100.0*counter/total;
+    if(percent < 100) {
       update_progress(counter/total,(boost::format("Creating Traces %i/%i: %d%% Complete") % counter % total %  percent).str());
-      res.clear();
+      return true;
+    }
+    else {
+    update_progress(1.0,"Traces Complete");
+    compare_traces();
+    return false;
     }
   }
-  else if(progressFlag==3) {
-    double counter;
-    double percent;
-    res.clear();
-    res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
-    double total = resVec.size();
-    counter = 0.0;
+  else if(progressFlag==3) {  
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
     percent = 100.0*counter/total;  
-    if(res.size()-counter < 0.1)  {
+    if(percent < 100)  {
       update_progress(1.0,"Done Dupe Hunting");
       return false;
     }
@@ -242,11 +222,10 @@ void VBrowser::on_delete() {
 
 void VBrowser::fdupe_clicked(){
   std::vector<VidFile *> videos;
-  std::vector<int> vids;
+  vid_list.clear();
   float total = 0.0;
   float counter = 0.0;
   float percent = 0.0;
-  std::chrono::milliseconds timer(500);
   for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
     auto extension = x.path().extension().generic_string();
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
@@ -254,38 +233,37 @@ void VBrowser::fdupe_clicked(){
       bfs::path full_path = bfs::absolute(x.path());
       VidFile * vid_obj = dbCon->fetch_video(full_path.c_str());
       int video_id = vid_obj->vid;
-      vids.push_back(video_id);
+      vid_list.push_back(video_id);
       std::cout << x.path() <<" "<< video_id<<std::endl;
       if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
     }
   }
   resVec.clear();
   progressFlag=2;
-  p_timer = Glib::signal_timeout().connect(p_timer_slot,100);
+  p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
   for(auto & b: videos) resVec.push_back(TPool->push([&](VidFile * b ){ return vu->calculate_trace(b);},b));
-  cxxpool::wait(resVec.begin(),resVec.end());
-  std::cout << "Traces Complete" << std::endl;
-  update_progress(1.0,"Traces Complete");
+  return;
+}
+
+void VBrowser::compare_traces() {
   resVec.clear();
   std::map<std::pair<int,int>,int> result_map;
   std::map<int,std::vector<unsigned short> > data_holder;
   dbCon->fetch_results(result_map);
-  total=0.0;
   //loop over files
   progressFlag=3;
-  p_timer = Glib::signal_timeout().connect(p_timer_slot,100);
-  for(int i = 0; i +1 < vids.size(); i++) {
-    dbCon->fetch_trace(vids[i],data_holder[vids[i]]);
+  p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
+  for(int i = 0; i +1 < vid_list.size(); i++) {
+    dbCon->fetch_trace(vid_list[i],data_holder[vid_list[i]]);
     //loop over files after i
-    for(int j = i+1; j < vids.size(); j++) {
-      if (result_map[std::make_pair(vids[i],vids[j])]) continue;
+    for(int j = i+1; j < vid_list.size(); j++) {
+      if (result_map[std::make_pair(vid_list[i],vid_list[j])]) continue;
       else {
-	dbCon->fetch_trace(vids[j],data_holder[vids[j]]);
-	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return vu->compare_vids(i,j,data);},vids[i],vids[j],data_holder));
+	dbCon->fetch_trace(vid_list[j],data_holder[vid_list[j]]);
+	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return vu->compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));
       }
     }
   }
-  std::cout << "Left Dupe Hunter" << std::endl;
   return;
 }
 
@@ -303,14 +281,6 @@ void VBrowser::asc_clicked() {
   asc_button->set_image_from_icon_name(iname,Gtk::ICON_SIZE_BUTTON);
   fFBox->invalidate_sort();
   return;
-}
-
-po::variables_map * VBrowser::get_vm() {
-  return &vm;
-}
-
-DbConnector * VBrowser::get_dbcon() {
-  return dbCon;
 }
 
 std::set<std::string> VBrowser::get_extensions() {
