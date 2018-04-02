@@ -185,16 +185,15 @@ bool video_utils::compare_images(int vid1, int vid2) {
     float width = width1;
     if(width1 > width2) width = width2;
     float height = img2->size().height();
-    Magick::Pixels v1(*img1);
-    Magick::Pixels v2(*img2);
-    double difference;
-    const Magick::Quantum * pixels1 = v1.getConst(0,0,width,height);
-    const Magick::Quantum * pixels2 = v2.getConst(0,0,width,height);
+    Magick::Image diff(*img1);
+    diff.composite(*img2,0,0,Magick::DifferenceCompositeOp);
+    Magick::Pixels v1(diff);
+    float difference = 0.0;
+    const Magick::Quantum * pixels = v1.getConst(0,0,width,height);
     for(int i = 0; i < height; i++) for( int j = 0; j < width; j++) for(int k = 0; k < 3; k++){
-	  if(i == 0 && j ==0 ) std::cout <<*pixels1 << std::endl;
-	  difference+=pow(*pixels1-*pixels2,2.0);
-	  pixels1++;
-	  pixels2++;
+	  if(i == 0 && j ==0 ) std::cout <<*pixels << std::endl;
+	  difference+=pow(*pixels,2.0);
+	  pixels++;
 	}
     difference/=(width*height);
     difference = sqrt(difference);
