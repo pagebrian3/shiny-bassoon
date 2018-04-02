@@ -3,8 +3,10 @@
 
 #include <map>
 #include <vector>
-#include "VideoIcon.h"
+#include "VidFile.h"
+#include "DbConnector.h"
 #include <boost/program_options.hpp>
+#include "Magick++.h"
 
 namespace po = boost::program_options;
 
@@ -20,17 +22,22 @@ class video_utils
 
   bool calculate_trace(VidFile * obj);
 
-  bool create_thumb(VideoIcon * icon);
+  bool create_thumb(VidFile * vFile);
 
-  void load_image(std::string fileName, float start_time, std::vector<short> * imgDat);
+  void create_image(std::string fileName, float start_time, std::vector<short> * imgDat);
+
+  bool compare_images(int vid1, int vid2);
 
   std::string find_border(std::string fileName,float length);
+
+  Magick::Image * get_image(int vid);
 
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime;
   po::variables_map * vm;
   bfs::path tempPath;
   DbConnector * dbCon;
+  std::map<int,Magick::Image *> img_cache;
 };
 
 #endif // VIDEOUTILS_H

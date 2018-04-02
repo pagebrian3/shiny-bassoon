@@ -21,7 +21,7 @@ class DbConnector {
 
   void save_video(VidFile *a);
 
-  void fetch_icon(int vid);
+  std::string fetch_icon(int vid);
 
   void save_icon(int vid);
 

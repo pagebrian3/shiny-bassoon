@@ -1,10 +1,10 @@
 #ifndef VBROWSER_H
 #define VBROWSER_H
 
-#include "VideoUtils.h"
-#include <gtkmm-3.0/gtkmm.h>
-#include "DbConnector.h"
 #include "cxxpool.h"
+#include "VideoUtils.h"
+#include "VideoIcon.h"
+#include <gtkmm-3.0/gtkmm.h>
 #include <boost/program_options.hpp>
 #include <boost/signals2/signal.hpp>
 #include <set>
@@ -26,6 +26,7 @@ class VBrowser: public Gtk::Window
   void asc_clicked();
   void on_sort_changed();
   void compare_traces();
+  void compare_icons();
   bool progress_timeout();
   std::string get_sort();
   void set_sort(std::string sort);

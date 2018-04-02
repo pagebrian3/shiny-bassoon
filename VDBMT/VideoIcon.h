@@ -1,16 +1,13 @@
 #ifndef VIDEOICON_H
 #define VIDEOICON_H
 #include "DbConnector.h"
-#include <boost/program_options.hpp>
 #include <gtkmm-3.0/gtkmm.h>
-
-namespace po = boost::program_options;
 
 class VideoIcon : public Gtk::Image
 {
   public:
 
-  VideoIcon(std::string fileName, DbConnector * DbCon, int vid, po::variables_map *vm);
+  VideoIcon(std::string fileName, DbConnector * DbCon, int vid);
 
   virtual ~VideoIcon();
 

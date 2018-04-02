@@ -54,7 +54,7 @@ VidFile * DbConnector::fetch_video(std::string  filename){
   return result;
 }
 
-void DbConnector::fetch_icon(int vid){
+std::string DbConnector::fetch_icon(int vid){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT img_dat FROM icon_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
@@ -76,7 +76,7 @@ void DbConnector::fetch_icon(int vid){
   output.write((char*)sqlite3_column_blob(stmt,0),size);
   sqlite3_finalize(stmt);
   output.close();
-  return;
+  return out_path;
 }
 
 void DbConnector::save_video(VidFile* a) {

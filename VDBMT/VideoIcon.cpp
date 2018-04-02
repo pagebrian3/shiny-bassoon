@@ -2,11 +2,10 @@
 #include <boost/format.hpp>
 #include <boost/process.hpp>
 
-VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon,int vid, po::variables_map *vm):Gtk::Image()  {
+VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon,int vid):Gtk::Image()  {
   if(dbCon->video_exists(fileName)) {
     fVidFile = dbCon->fetch_video(fileName);
-    dbCon->fetch_icon(fVidFile->vid);
-    std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % fVidFile->vid).str());
+    std::string icon_file(dbCon->fetch_icon(fVidFile->vid));
     this->set(icon_file);
     std::system((boost::format("rm %s") %icon_file).str().c_str());
     hasIcon = true;

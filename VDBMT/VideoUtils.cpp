@@ -1,5 +1,4 @@
 #include "VideoUtils.h"
-#include "VBrowser.h"
 #include <fstream>
 #include <boost/process.hpp>
 #include <boost/format.hpp>
@@ -8,6 +7,7 @@ video_utils::video_utils(DbConnector * dbCon1, po::variables_map * vm1, bfs::pat
   vm = vm1;
   dbCon = dbCon1;
   tempPath = temp;
+  Magick::InitializeMagick("");
   cStartTime = (*vm)["trace_time"].as<float>();
   cTraceFPS = (*vm)["trace_fps"].as<float>();
   cCompTime = (*vm)["comp_time"].as<float>();
@@ -64,8 +64,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   return true; 
 }
 
-bool video_utils::create_thumb(VideoIcon * icon) {
-  VidFile * vidFile = icon->get_vid_file();
+bool video_utils::create_thumb(VidFile * vidFile) {
   std::string crop(find_border(vidFile->fixed_filename(), vidFile->length));
   vidFile->crop=crop;
   dbCon->save_crop(vidFile);
@@ -98,7 +97,7 @@ std::string video_utils::find_border(std::string fileName,float length) {
   int height=std::stoi(split_string[1]);
   std::vector<short> * imgDat0 = new std::vector<short>(width*height*3);
   std::vector<short> * imgDat1 = new std::vector<short>(width*height*3);
-  load_image(fileName, frame_time, imgDat0);
+  create_image(fileName, frame_time, imgDat0);
   std::vector<double> rowSums(height);
   std::vector<double> colSums(width);
   double corrFactorCol = 1.0/(double)(border_frames*height);
@@ -107,7 +106,7 @@ std::string video_utils::find_border(std::string fileName,float length) {
   std::vector<short> * ptrHolder;
   for(int i = 1; i < border_frames; i++) {
     frame_time+=frame_spacing;
-    load_image(fileName,frame_time,imgDat1);
+    create_image(fileName,frame_time,imgDat1);
     for (int y=0; y < height; y++) {
       for (int x=0; x < width; x++) {
 	int rpos=3*(y*width+x);
@@ -142,7 +141,7 @@ std::string video_utils::find_border(std::string fileName,float length) {
   return crop;
 }
 
-void video_utils::load_image(std::string fileName, float start_time, std::vector<short> * imgDat) {
+void video_utils::create_image(std::string fileName, float start_time, std::vector<short> * imgDat) {
   bfs::path temp = tempPath;
   temp+=bfs::unique_path();
   temp+=".bin";  
@@ -162,7 +161,47 @@ void video_utils::load_image(std::string fileName, float start_time, std::vector
   return;
 }
   
+Magick::Image *video_utils::get_image(int vid) {
+  Magick::Image * img;
+  if(img_cache[vid]) {
+    img = img_cache[vid];
+  }
+  else {
+    std::string image_file(dbCon->fetch_icon(vid));
+    img = new Magick::Image(image_file);
+    std::system((boost::format("rm %s") % image_file).str().c_str());
+    if(img_cache.size() < (*vm)["cache_size"].as<int>()) img_cache[vid] = img;  
+  }
+  return img;
+}
 
+bool video_utils::compare_images(int vid1, int vid2) {
+  Magick::Image * img1 = get_image(vid1);
+  Magick::Image * img2 = get_image(vid2);
+  float width1 = img1->size().width();
+  float width2 = img2->size().width();
+  if(fabs(width1 - width2) > 20) return false;
+  else {
+    float width = width1;
+    if(width1 > width2) width = width2;
+    float height = img2->size().height();
+    Magick::Pixels v1(*img1);
+    Magick::Pixels v2(*img2);
+    double difference;
+    const Magick::Quantum * pixels1 = v1.getConst(0,0,width,height);
+    const Magick::Quantum * pixels2 = v2.getConst(0,0,width,height);
+    for(int i = 0; i < height; i++) for( int j = 0; j < width; j++) for(int k = 0; k < 3; k++){
+	  if(i == 0 && j ==0 ) std::cout <<*pixels1 << std::endl;
+	  difference+=pow(*pixels1-*pixels2,2.0);
+	  pixels1++;
+	  pixels2++;
+	}
+    difference/=(width*height);
+    difference = sqrt(difference);
+    std::cout <<"Channels: " <<img1->channels() <<" "<< vid1 <<" "<< vid2 << " " << difference << std::endl;
+  return true;
+  }
+}
 
 
 

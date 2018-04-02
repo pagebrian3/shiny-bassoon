@@ -1,5 +1,4 @@
 #include "VBrowser.h"
-#include "VideoIcon.h"
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -24,7 +23,8 @@ VBrowser::VBrowser(int argc, char * argv[]) {
     ("thresh", po::value<float>()->default_value(200.0),"threshold for video similarity")
     ("app_path",po::value< std::string >()->default_value(temp_path.string().c_str()), "database and temp data path")
     ("default_path", po::value< std::string >()->default_value("/home/ungermax/mt_test/"), "starting path")
-    ("progress_time",po::value<int>()->default_value(100), "progressbar update interval");
+    ("progress_time",po::value<int>()->default_value(100), "progressbar update interval")
+    ("cache_size",po::value<int>()->default_value(10), "max icon cache size");
   std::ifstream config_file("config.cfg");
   po::store(po::parse_command_line(argc, argv, config),vm);
   po::store(po::parse_config_file(config_file, config),vm);
@@ -99,7 +99,7 @@ void VBrowser::populate_icons(bool clean) {
       if(get_extensions().count(extension)) {
 	std::string pathName(x.path().native());
 	if(!dbCon->video_exists(pathName)) min_vid++;
-	icons.push_back(TPool->push([this](std::string path,DbConnector * con, int vid) {return new VideoIcon(path,con,vid,&vm);},pathName,dbCon,min_vid));
+	icons.push_back(TPool->push([this](std::string path,DbConnector * con, int vid) {return new VideoIcon(path,con,vid);},pathName,dbCon,min_vid));
       }
   }
   cxxpool::wait(icons.begin(),icons.end());
@@ -119,8 +119,7 @@ void VBrowser::populate_icons(bool clean) {
   this->show_all();
   p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
   progressFlag = 1;
-  if(j > 0) for(auto &a: (*iconVec))
-      resVec.push_back(TPool->push([this](VideoIcon *b) {return vu->create_thumb(b);}, a));
+  if(j > 0) for(auto &a: (*iconVec)) resVec.push_back(TPool->push([this](VidFile *b) {return vu->create_thumb(b);}, a->get_vid_file()));
 }
 
 bool VBrowser::progress_timeout() {
@@ -241,6 +240,7 @@ void VBrowser::fdupe_clicked(){
   resVec.clear();
   progressFlag=2;
   p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
+  compare_icons();
   for(auto & b: videos) resVec.push_back(TPool->push([&](VidFile * b ){ return vu->calculate_trace(b);},b));
   return;
 }
@@ -257,10 +257,31 @@ void VBrowser::compare_traces() {
     dbCon->fetch_trace(vid_list[i],data_holder[vid_list[i]]);
     //loop over files after i
     for(int j = i+1; j < vid_list.size(); j++) {
-      if (result_map[std::make_pair(vid_list[i],vid_list[j])]) continue;
+      if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 > 1) continue;
       else {
 	dbCon->fetch_trace(vid_list[j],data_holder[vid_list[j]]);
 	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return vu->compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));
+      }
+    }
+  }
+  return;
+}
+
+void VBrowser::compare_icons() {
+  std::map<std::pair<int,int>,int> result_map;
+  std::map<int,std::vector<unsigned short> > data_holder;
+  dbCon->fetch_results(result_map);
+  //loop over files
+  progressFlag=3;
+  p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
+  for(int i = 0; i +1 < vid_list.size(); i++) {
+    //loop over files after i
+    for(int j = i+1; j < vid_list.size(); j++) {
+      if (result_map[std::make_pair(vid_list[i],vid_list[j])]%2 > 1) continue;
+      else {
+	if(vu->compare_images(vid_list[i],vid_list[j])) result_map[std::make_pair(vid_list[i],vid_list[j])]+=1;
+	  
+	/*resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return vu->compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));*/
       }
     }
   }
