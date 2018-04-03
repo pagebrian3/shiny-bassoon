@@ -26,7 +26,6 @@ class VBrowser: public Gtk::Window
   void asc_clicked();
   void on_sort_changed();
   void compare_traces();
-  void compare_icons();
   bool progress_timeout();
   std::string get_sort();
   void set_sort(std::string sort);

@@ -248,7 +248,7 @@ void DbConnector::fetch_results(std::map<std::pair<int,int>, int> & map) {
 
 void DbConnector::update_results(int  i, int  j, int  k) {
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO results (v1id, v2id, result) VALUES (?,?,?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO results (v1id, v2id, result) VALUES (?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, i);
   rc = sqlite3_bind_int(stmt, 2, j);

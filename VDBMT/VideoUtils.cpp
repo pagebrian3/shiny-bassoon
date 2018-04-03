@@ -36,9 +36,9 @@ bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<unsigned 
 	if(counter != 0) break;
 	//pixel/color loop
 	for (t_d = 0; t_d < 12; t_d++) {
-	  int value = pow((int)(data[i][t_s+t_o+t_d])-(int)(data[j][t_x+t_o+t_d]),2)-pow(cFudge,2);
+	  float value = fabs((int)data[i][t_s+t_o+t_d]-(int)(data[j][t_x+t_o+t_d]))-cFudge;
 	  if(value < 0) value = 0;
-	  accum[t_d]+=value;
+	  accum[t_d]+=pow(value,2.0);
 	}
       }
       counter = 0;
@@ -47,9 +47,12 @@ bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<unsigned 
       if(match) std::cout << "ACCUM " <<i<<" " <<j <<" " <<t_o <<" slice " <<t_s <<" 2nd offset " <<t_x <<" " <<*max_element(accum.begin(),accum.end())  <<std::endl;
     }
   }
-  int result = 1;
-  if (match) result = 2;
-  dbCon->update_results(i,j,result);
+  std::pair<int,int> key(i,j);
+  if(match) {
+    result_map[key]+=2;
+  }
+  else if(result_map[key]==0) result_map[key]=4;
+  dbCon->update_results(i,j,result_map[key]);
   return true;
 }
 
@@ -72,7 +75,6 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   int height_t = (*vm)["thumb_height"].as<int>();
   int width_t = (*vm)["thumb_width"].as<int>();
   if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
-  int x1,x2,y1,y2;
   int width, height;
   std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % vidFile->vid).str());
   boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fixed_filename() % crop % width_t % height_t % icon_file).str());
@@ -107,16 +109,15 @@ std::string video_utils::find_border(std::string fileName,float length) {
   for(int i = 1; i < border_frames; i++) {
     frame_time+=frame_spacing;
     create_image(fileName,frame_time,imgDat1);
-    for (int y=0; y < height; y++) {
+    for (int y=0; y < height; y++)
       for (int x=0; x < width; x++) {
 	int rpos=3*(y*width+x);
 	int gpos=rpos+1;
 	int bpos=gpos+1;
 	double value =sqrt(1.0/3.0*(pow((*imgDat1)[rpos]-(*imgDat0)[rpos],2.0)+pow((*imgDat1)[gpos]-(*imgDat0)[gpos],2.0)+pow((*imgDat1)[bpos]-(*imgDat0)[bpos],2.0)));
 	rowSums[y]+=corrFactorRow*value;
-	colSums[x]+=corrFactorCol*value;
+	colSums[x]+=corrFactorCol*value;      
       }
-    }
     if(rowSums[0] > cut_thresh &&
        rowSums[height-1] > cut_thresh &&
        colSums[0] > cut_thresh &&
@@ -190,17 +191,31 @@ bool video_utils::compare_images(int vid1, int vid2) {
     Magick::Pixels v1(diff);
     float difference = 0.0;
     const Magick::Quantum * pixels = v1.getConst(0,0,width,height);
-    for(int i = 0; i < height; i++) for( int j = 0; j < width; j++) for(int k = 0; k < 3; k++){
-	  if(i == 0 && j ==0 ) std::cout <<*pixels << std::endl;
-	  difference+=pow(*pixels,2.0);
-	  pixels++;
-	}
-    difference/=(width*height);
+    for(int i = 0; i < 3*width*height; i++){
+      difference+=pow(*pixels,2.0);
+      pixels++;
+    }
+    difference/=(3*width*height);
     difference = sqrt(difference);
-    std::cout <<"Channels: " <<img1->channels() <<" "<< vid1 <<" "<< vid2 << " " << difference << std::endl;
-  return true;
+    if(difference < (*vm)["image_thresh"].as<int>()) return true;
+    if(!img_cache[vid2]) delete img2;
+    else return false;
   }
 }
+
+void video_utils::compare_icons(std::vector<int> & vid_list) {
+  for(int i = 0; i +1 < vid_list.size(); i++) { 
+    for(int j = i+1; j < vid_list.size(); j++) {
+      std::pair<int,int> key(vid_list[i],vid_list[j]);
+      if (result_map[key]%2 > 1 || result_map[key] ==4) continue;
+      else if(compare_images(vid_list[i],vid_list[j])) result_map[key]+=1;      
+    }
+    delete img_cache[vid_list[i]];
+    img_cache.erase(vid_list[i]);
+  }
+  return;
+}
+
 
 
 

@@ -28,9 +28,13 @@ class video_utils
 
   bool compare_images(int vid1, int vid2);
 
+  void compare_icons(std::vector<int> & vid_list);
+
   std::string find_border(std::string fileName,float length);
 
   Magick::Image * get_image(int vid);
+
+  std::map<std::pair<int,int>,int> result_map;
 
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime;

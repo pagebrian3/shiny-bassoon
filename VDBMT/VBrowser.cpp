@@ -24,7 +24,8 @@ VBrowser::VBrowser(int argc, char * argv[]) {
     ("app_path",po::value< std::string >()->default_value(temp_path.string().c_str()), "database and temp data path")
     ("default_path", po::value< std::string >()->default_value("/home/ungermax/mt_test/"), "starting path")
     ("progress_time",po::value<int>()->default_value(100), "progressbar update interval")
-    ("cache_size",po::value<int>()->default_value(10), "max icon cache size");
+    ("cache_size",po::value<int>()->default_value(10), "max icon cache size")
+    ("image_thresh",po::value<int>()->default_value(4), "image difference threshold");
   std::ifstream config_file("config.cfg");
   po::store(po::parse_command_line(argc, argv, config),vm);
   po::store(po::parse_config_file(config_file, config),vm);
@@ -94,13 +95,13 @@ void VBrowser::populate_icons(bool clean) {
   std::vector<bfs::directory_entry> video_list;
   std::vector<std::future<VideoIcon * > > icons;
   for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
-      auto extension = x.path().extension().generic_string();
-      std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-      if(get_extensions().count(extension)) {
-	std::string pathName(x.path().native());
-	if(!dbCon->video_exists(pathName)) min_vid++;
-	icons.push_back(TPool->push([this](std::string path,DbConnector * con, int vid) {return new VideoIcon(path,con,vid);},pathName,dbCon,min_vid));
-      }
+    auto extension = x.path().extension().generic_string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+    if(get_extensions().count(extension)) {
+      std::string pathName(x.path().native());
+      if(!dbCon->video_exists(pathName)) min_vid++;
+      icons.push_back(TPool->push([this](std::string path,DbConnector * con, int vid) {return new VideoIcon(path,con,vid);},pathName,dbCon,min_vid));
+    }
   }
   cxxpool::wait(icons.begin(),icons.end());
   iconVec =  new std::vector<VideoIcon *> (icons.size());
@@ -177,6 +178,7 @@ bool VBrowser::progress_timeout() {
       return false;
     }
     else {
+      
       update_progress(counter/total,(boost::format("Comparing Videos: %d%% Complete") %  percent).str());
       return true;
     }
@@ -237,19 +239,17 @@ void VBrowser::fdupe_clicked(){
       if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
     }
   }
+  vu->compare_icons(vid_list);
   resVec.clear();
   progressFlag=2;
   p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
-  compare_icons();
   for(auto & b: videos) resVec.push_back(TPool->push([&](VidFile * b ){ return vu->calculate_trace(b);},b));
   return;
 }
 
 void VBrowser::compare_traces() {
   resVec.clear();
-  std::map<std::pair<int,int>,int> result_map;
   std::map<int,std::vector<unsigned short> > data_holder;
-  dbCon->fetch_results(result_map);
   //loop over files
   progressFlag=3;
   p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
@@ -257,31 +257,10 @@ void VBrowser::compare_traces() {
     dbCon->fetch_trace(vid_list[i],data_holder[vid_list[i]]);
     //loop over files after i
     for(int j = i+1; j < vid_list.size(); j++) {
-      if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 > 1) continue;
+      if (vu->result_map[std::make_pair(vid_list[i],vid_list[j])]/2 > 1) continue;
       else {
 	dbCon->fetch_trace(vid_list[j],data_holder[vid_list[j]]);
 	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return vu->compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));
-      }
-    }
-  }
-  return;
-}
-
-void VBrowser::compare_icons() {
-  std::map<std::pair<int,int>,int> result_map;
-  std::map<int,std::vector<unsigned short> > data_holder;
-  dbCon->fetch_results(result_map);
-  //loop over files
-  progressFlag=3;
-  p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
-  for(int i = 0; i +1 < vid_list.size(); i++) {
-    //loop over files after i
-    for(int j = i+1; j < vid_list.size(); j++) {
-      if (result_map[std::make_pair(vid_list[i],vid_list[j])]%2 > 1) continue;
-      else {
-	if(vu->compare_images(vid_list[i],vid_list[j])) result_map[std::make_pair(vid_list[i],vid_list[j])]+=1;
-	  
-	/*resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return vu->compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));*/
       }
     }
   }
@@ -314,6 +293,7 @@ void VBrowser::update_progress(double fraction, std::string label) {
   progress_bar->set_fraction(fraction);
   return;
 }
+
 
 
   
