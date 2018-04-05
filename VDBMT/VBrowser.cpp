@@ -177,8 +177,7 @@ bool VBrowser::progress_timeout() {
       update_progress(1.0,"Done Dupe Hunting");
       return false;
     }
-    else {
-      
+    else {     
       update_progress(counter/total,(boost::format("Comparing Videos: %d%% Complete") %  percent).str());
       return true;
     }
