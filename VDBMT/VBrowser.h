@@ -6,7 +6,6 @@
 #include "VideoIcon.h"
 #include <gtkmm-3.0/gtkmm.h>
 #include <boost/program_options.hpp>
-#include <boost/signals2/signal.hpp>
 #include <set>
 
 class video_utils;

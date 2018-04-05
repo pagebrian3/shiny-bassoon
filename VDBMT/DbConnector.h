@@ -1,13 +1,10 @@
 #ifndef DBCONNECTOR_H
 #define DBCONNECTOR_H
 
-#include <boost/filesystem.hpp>
 #include <sqlite3.h>
 #include <VidFile.h>
 #include <map>
 #include <iostream>
-
-namespace bfs = boost::filesystem;
 
 class DbConnector {
 
@@ -15,9 +12,9 @@ class DbConnector {
 
   DbConnector(bfs::path path);
 
-  bool video_exists(std::string filename);
+  bool video_exists(bfs::path filename);
 
-  VidFile* fetch_video(std::string filename);
+  VidFile* fetch_video(bfs::path filename);
 
   void save_video(VidFile *a);
 

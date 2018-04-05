@@ -2,7 +2,7 @@
 #include <boost/format.hpp>
 #include <boost/process.hpp>
 
-VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon,int vid):Gtk::Image()  {
+VideoIcon::VideoIcon(bfs::path fileName, DbConnector * dbCon,int vid):Gtk::Image()  {
   if(dbCon->video_exists(fileName)) {
     fVidFile = dbCon->fetch_video(fileName);
     std::string icon_file(dbCon->fetch_icon(fVidFile->vid));
@@ -18,16 +18,17 @@ VideoIcon::VideoIcon(std::string fileName, DbConnector * dbCon,int vid):Gtk::Ima
     fVidFile->size = bfs::file_size(fileName);
     fVidFile->vid = vid;
     boost::process::ipstream is;
-    std::string cmd((boost::format("./info.sh %s") % fileName).str());
-    boost::process::system(cmd,  boost::process::std_out > is);
     std::string outString;
+    boost::process::system((boost::format("ffprobe -v error -show_entries stream_tags=rotate -of default=noprint_wrappers=1:nokey=1 %s") % fileName).str(), boost::process::std_out > is);  
     std::getline(is, outString);
-    std::vector<std::string> split_string;
-    boost::split(split_string,outString,boost::is_any_of(","));
-    double length=0.0;
-    if(split_string[0].length() > 0) length=0.001*(double)std::stoi(split_string[0]);
     int rotate = 0;
-    if(split_string[1].length() > 0) rotate = std::stod(split_string[1]);
+    if(outString.length() > 0) rotate = std::stod(outString);
+    boost::process::ipstream is2;
+    std::string outString2;
+    boost::process::system((boost::format("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 %s") % fileName).str(), boost::process::std_out > is2);  
+    std::getline(is2, outString2);
+    double length=0.0;
+    if(outString2.length() > 0) length=std::stod(outString2);
     fVidFile->length = length;
     fVidFile->rotate = rotate;
     dbCon->save_video(fVidFile);

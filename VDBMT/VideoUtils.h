@@ -24,20 +24,21 @@ class video_utils
 
   bool create_thumb(VidFile * vFile);
 
-  void create_image(std::string fileName, float start_time, std::vector<short> * imgDat);
+  void create_image(bfs::path fileName, float start_time, std::vector<short> * imgDat);
 
   bool compare_images(int vid1, int vid2);
 
   void compare_icons(std::vector<int> & vid_list);
 
-  std::string find_border(std::string fileName,float length);
+  std::string find_border(bfs::path fileName,float length);
 
   Magick::Image * get_image(int vid);
 
   std::map<std::pair<int,int>,int> result_map;
 
  private:
-  float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime;
+  float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cBFrames, cCutThresh, cStartT;
+  int cHeight, cWidth, cImgThresh, cCache;
   po::variables_map * vm;
   bfs::path tempPath;
   DbConnector * dbCon;

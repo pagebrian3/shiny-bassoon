@@ -200,7 +200,7 @@ int VBrowser::sort_videos(Gtk::FlowBoxChild *videoFile1, Gtk::FlowBoxChild *vide
   if(sort_desc) value *= -1;
   if(!std::strcmp(this->get_sort().c_str(),"size")) return value*(v1->size - v2->size);
   else if(!std::strcmp(this->get_sort().c_str(),"length")) return value*(v1->length - v2->length);
-  else return value*boost::algorithm::to_lower_copy(v1->fileName).compare(boost::algorithm::to_lower_copy(v2->fileName));   
+  else return value*boost::algorithm::to_lower_copy(v1->fileName.native()).compare(boost::algorithm::to_lower_copy(v2->fileName.native()));   
 }
 
 void VBrowser::browse_clicked() {

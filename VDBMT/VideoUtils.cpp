@@ -8,12 +8,19 @@ video_utils::video_utils(DbConnector * dbCon1, po::variables_map * vm1, bfs::pat
   dbCon = dbCon1;
   tempPath = temp;
   Magick::InitializeMagick("");
-  cStartTime = (*vm)["trace_time"].as<float>();
-  cTraceFPS = (*vm)["trace_fps"].as<float>();
-  cCompTime = (*vm)["comp_time"].as<float>();
+  cTraceFPS =     (*vm)["trace_fps"].as<float>();
+  cStartT =       (*vm)["trace_time"].as<float>();
+  cCompTime =     (*vm)["comp_time"].as<float>();
   cSliceSpacing = (*vm)["slice_spacing"].as<float>();
-  cThresh = (*vm)["thresh"].as<float>();
-  cFudge = (*vm)["fudge"].as<int>();
+  cThresh =       (*vm)["thresh"].as<float>();
+  cFudge =        (*vm)["fudge"].as<int>();
+  cThumbT =       (*vm)["thumb_time"].as<float>();
+  cHeight =       (*vm)["thumb_height"].as<int>();
+  cWidth =        (*vm)["thumb_width"].as<int>();
+  cCache =        (*vm)["cache_size"].as<int>();
+  cBFrames =      (*vm)["border_frames"].as<float>();
+  cCutThresh =    (*vm)["cut_thresh"].as<float>();
+  cImgThresh =    (*vm)["image_thresh"].as<int>();
 }
 
 video_utils::video_utils(){}
@@ -57,10 +64,10 @@ bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<unsigned 
 }
 
 bool video_utils::calculate_trace(VidFile * obj) {
-  float start_time = cStartTime;
+  float start_time = cStartT;
   if(obj->length <= start_time) start_time=0.0;
   boost::process::ipstream is;
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fixed_filename()  % cTraceFPS % obj->crop).str(),boost::process::std_out > is);
+  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fileName  % cTraceFPS % obj->crop).str(),boost::process::std_out > is);
   std::string outString;
   std::getline(is,outString);
   dbCon->save_trace(obj->vid, outString);
@@ -68,27 +75,21 @@ bool video_utils::calculate_trace(VidFile * obj) {
 }
 
 bool video_utils::create_thumb(VidFile * vidFile) {
-  std::string crop(find_border(vidFile->fixed_filename(), vidFile->length));
+  std::string crop(find_border(vidFile->fileName, vidFile->length));
   vidFile->crop=crop;
   dbCon->save_crop(vidFile);
-  double thumb_t = (*vm)["thumb_time"].as<float>();
-  int height_t = (*vm)["thumb_height"].as<int>();
-  int width_t = (*vm)["thumb_width"].as<int>();
-  if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
+  if(vidFile->length < cThumbT) cThumbT = vidFile->length/2.0;
   int width, height;
-  std::string icon_file((boost::format("%s%i.jpg") % (*vm)["app_path"].as<std::string>() % vidFile->vid).str());
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fixed_filename() % crop % width_t % height_t % icon_file).str());
+  std::string icon_file(dbCon->create_icon_path(vidFile->vid));
+  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % cThumbT % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
   return true;
 };
 
-std::string video_utils::find_border(std::string fileName,float length) {
+std::string video_utils::find_border(bfs::path fileName,float length) {
   std::string crop("");
-  float start_time = (*vm)["trace_time"].as<float>();
-  if(length <= start_time) start_time=0.0;
-  float frame_time = start_time;
-  float border_frames=(*vm)["border_frames"].as<float>();
-  float cut_thresh=(*vm)["cut_thresh"].as<float>();
-  float frame_spacing = (length-start_time)/border_frames;
+  float frame_time = cStartT;
+  if(length <= frame_time) frame_time=0.0; 
+  float frame_spacing = (length-frame_time)/cBFrames;
   boost::process::ipstream is;
   boost::process::system((boost::format("ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 %s") % fileName).str(),boost::process::std_out > is);
   std::string output;
@@ -102,11 +103,11 @@ std::string video_utils::find_border(std::string fileName,float length) {
   create_image(fileName, frame_time, imgDat0);
   std::vector<double> rowSums(height);
   std::vector<double> colSums(width);
-  double corrFactorCol = 1.0/(double)(border_frames*height);
-  double corrFactorRow = 1.0/(double)(border_frames*width);
+  double corrFactorCol = 1.0/(double)(cBFrames*height);
+  double corrFactorRow = 1.0/(double)(cBFrames*width);
   bool skipBorder = false;
   std::vector<short> * ptrHolder;
-  for(int i = 1; i < border_frames; i++) {
+  for(int i = 1; i < cBFrames; i++) {
     frame_time+=frame_spacing;
     create_image(fileName,frame_time,imgDat1);
     for (int y=0; y < height; y++)
@@ -118,10 +119,10 @@ std::string video_utils::find_border(std::string fileName,float length) {
 	rowSums[y]+=corrFactorRow*value;
 	colSums[x]+=corrFactorCol*value;      
       }
-    if(rowSums[0] > cut_thresh &&
-       rowSums[height-1] > cut_thresh &&
-       colSums[0] > cut_thresh &&
-       colSums[width-1] > cut_thresh) {
+    if(rowSums[0] > cCutThresh &&
+       rowSums[height-1] > cCutThresh &&
+       colSums[0] > cCutThresh &&
+       colSums[width-1] > cCutThresh) {
       skipBorder=true;
       break;
     }
@@ -131,10 +132,10 @@ std::string video_utils::find_border(std::string fileName,float length) {
   }
   if(!skipBorder) {
     int x1(0), x2(width-1), y1(0), y2(height-1);
-    while(colSums[x1] < cut_thresh) x1++;
-    while(colSums[x2] < cut_thresh) x2--;
-    while(rowSums[y1] < cut_thresh) y1++;
-    while(rowSums[y2] < cut_thresh) y2--;
+    while(colSums[x1] < cCutThresh) x1++;
+    while(colSums[x2] < cCutThresh) x2--;
+    while(rowSums[y1] < cCutThresh) y1++;
+    while(rowSums[y2] < cCutThresh) y2--;
     x2-=x1-1;  
     y2-=y1-1;
     crop = (boost::format("crop=%i:%i:%i:%i,")% x2 % y2 % x1 % y1).str();
@@ -142,7 +143,7 @@ std::string video_utils::find_border(std::string fileName,float length) {
   return crop;
 }
 
-void video_utils::create_image(std::string fileName, float start_time, std::vector<short> * imgDat) {
+void video_utils::create_image(bfs::path fileName, float start_time, std::vector<short> * imgDat) {
   bfs::path temp = tempPath;
   temp+=bfs::unique_path();
   temp+=".bin";  
@@ -171,7 +172,7 @@ Magick::Image *video_utils::get_image(int vid) {
     std::string image_file(dbCon->fetch_icon(vid));
     img = new Magick::Image(image_file);
     std::system((boost::format("rm %s") % image_file).str().c_str());
-    if(img_cache.size() < (*vm)["cache_size"].as<int>()) img_cache[vid] = img;  
+    if(img_cache.size() < cCache) img_cache[vid] = img;  
   }
   return img;
 }
@@ -197,7 +198,7 @@ bool video_utils::compare_images(int vid1, int vid2) {
     }
     difference/=(3*width*height);
     difference = sqrt(difference);
-    if(difference < (*vm)["image_thresh"].as<int>()) return true;
+    if(difference < cImgThresh) return true;
     if(!img_cache[vid2]) delete img2;
     else return false;
   }
