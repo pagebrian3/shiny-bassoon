@@ -123,6 +123,7 @@ void VBrowser::populate_icons(bool clean) {
   int j = 0;
   for(auto &a: icons) {
     VideoIcon * b = a.get();
+    b->set_from_icon_name("missing-image",Gtk::ICON_SIZE_BUTTON);
     (*iconVec)[j]=b;
     vid_list.push_back(b->get_vid_file()->vid);
     j++;
@@ -178,7 +179,7 @@ bool VBrowser::progress_timeout() {
       update_progress(counter/total,(boost::format("Creating Traces %i/%i: %d%% Complete") % counter % total %  percent).str());
       return true;
     }
-    else {
+    else {   //once traces are done, compare.
     update_progress(1.0,"Traces Complete");
     compare_traces();
     return false;

@@ -3,7 +3,6 @@
 #include <boost/process.hpp>
 
 VideoIcon::VideoIcon(bfs::path fileName, DbConnector * dbCon,int vid):Gtk::Image()  {
-  this->set_from_icon_name("missing-image",Gtk::ICON_SIZE_BUTTON);
   if(dbCon->icon_exists(vid)) hasIcon = true;
   else hasIcon=false;
   if(dbCon->video_exists(fileName)) {

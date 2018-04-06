@@ -82,18 +82,18 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   std::string crop(find_border(vidFile->fileName, vidFile->length));
   vidFile->crop=crop;
   dbCon->save_crop(vidFile);
-  if(vidFile->length < cThumbT) cThumbT = vidFile->length/2.0;
+  float thumb_t = cThumbT;
+  if(vidFile->length < cThumbT) thumb_t = vidFile->length/2.0;
   int width, height;
   std::string icon_file(dbCon->create_icon_path(vidFile->vid));
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % cThumbT % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
+  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
   return true;
 };
 
 std::string video_utils::find_border(bfs::path fileName,float length) {
   std::string crop("");
-  float frame_time = cStartT;
-  if(length <= frame_time) frame_time=0.0; 
-  float frame_spacing = (length-frame_time)/cBFrames;
+  float frame_time = 0.5*length/(cBFrames+1.0);
+  float frame_spacing = length/(cBFrames+1.0);
   boost::process::ipstream is;
   boost::process::system((boost::format("ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 %s") % fileName).str(),boost::process::std_out > is);
   std::string output;
@@ -111,7 +111,7 @@ std::string video_utils::find_border(bfs::path fileName,float length) {
   double corrFactorRow = 1.0/(double)(cBFrames*width);
   bool skipBorder = false;
   std::vector<short> * ptrHolder;
-  for(int i = 1; i < cBFrames; i++) {
+  for(int i = 0; i < cBFrames; i++) {
     frame_time+=frame_spacing;
     create_image(fileName,frame_time,imgDat1);
     for (int y=0; y < height; y++)
