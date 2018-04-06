@@ -75,6 +75,10 @@ bool video_utils::calculate_trace(VidFile * obj) {
 }
 
 bool video_utils::create_thumb(VidFile * vidFile) {
+  if(dbCon->icon_exists(vidFile->vid)) {
+    dbCon->fetch_icon(vidFile->vid);
+    return true;
+  }
   std::string crop(find_border(vidFile->fileName, vidFile->length));
   vidFile->crop=crop;
   dbCon->save_crop(vidFile);

@@ -199,6 +199,31 @@ bool DbConnector::video_exists(bfs::path filename){
   return result;
 }
 
+bool DbConnector::icon_exists(int vid){
+  sqlite3_stmt *stmt;
+  int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM icon_blobs WHERE vid = ? limit 1)", -1, &stmt, NULL);
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+  rc = sqlite3_bind_int(stmt, 1, vid);    
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
+  }
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+    std::string errmsg(sqlite3_errmsg(db));
+    sqlite3_finalize(stmt);
+    throw errmsg;
+  }
+  if (rc == SQLITE_DONE) {
+    sqlite3_finalize(stmt);
+    throw std::string("video not found");
+  }
+  bool result = sqlite3_column_int(stmt, 0);
+  sqlite3_finalize(stmt);
+  return result;
+}
+
 int DbConnector::get_last_vid(){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT MAX(vid) from icon_blobs", -1, &stmt, NULL);

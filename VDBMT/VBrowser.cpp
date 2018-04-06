@@ -33,7 +33,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
   this->set_default_size(vm["win_width"].as<int>(),vm["win_height"].as<int>());
   dbCon = new DbConnector(vm["app_path"].as<std::string>());
-  path = vm["default_path"].as<std::string>();
+  paths.push_back(bfs::path(vm["default_path"].as<std::string>()));
   vu = new video_utils(dbCon,&vm, temp_path);
   sort_by="size"; //size, name, length
   sort_desc=true;  //true, false
@@ -83,10 +83,16 @@ VBrowser::~VBrowser() {
   delete sort_opt;
   delete fdupe_button;
   delete fFBox;
-  }
+}
   
 void VBrowser::populate_icons(bool clean) {
-  if(clean) fScrollWin->remove();
+  if(clean) {
+    vid_list.clear();
+    fScrollWin->remove();
+    delete fFBox;
+    resVec.clear();
+    delete iconVec;
+  }
   int min_vid = dbCon->get_last_vid();
   fFBox = new Gtk::FlowBox();
   fFBox->set_orientation(Gtk::ORIENTATION_HORIZONTAL);
@@ -94,13 +100,22 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->set_homogeneous(false);
   std::vector<bfs::directory_entry> video_list;
   std::vector<std::future<VideoIcon * > > icons;
-  for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
-    auto extension = x.path().extension().generic_string();
-    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    if(get_extensions().count(extension)) {
-      std::string pathName(x.path().native());
-      if(!dbCon->video_exists(pathName)) min_vid++;
-      icons.push_back(TPool->push([this](std::string path,DbConnector * con, int vid) {return new VideoIcon(path,con,vid);},pathName,dbCon,min_vid));
+  for(auto & path: paths) {
+    for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
+      auto extension = x.path().extension().generic_string();
+      std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+      if(get_extensions().count(extension)) {
+	std::string pathName(x.path().native());
+	int vid = 0;
+	if(!dbCon->video_exists(pathName)) {
+	  min_vid++;
+	  vid = min_vid;
+	}
+	else {
+	  vid = dbCon->fetch_video(pathName)->vid;
+	}	
+	icons.push_back(TPool->push([this](std::string path,DbConnector * con, int vid) {return new VideoIcon(path,con,vid);},pathName,dbCon,vid));
+      }
     }
   }
   cxxpool::wait(icons.begin(),icons.end());
@@ -108,11 +123,9 @@ void VBrowser::populate_icons(bool clean) {
   int j = 0;
   for(auto &a: icons) {
     VideoIcon * b = a.get();
-    if(!b->hasIcon) {
-      (*iconVec)[j]=b;
-      vid_list.push_back(b->get_vid_file()->vid);
-      j++;
-    }
+    (*iconVec)[j]=b;
+    vid_list.push_back(b->get_vid_file()->vid);
+    j++;
     fFBox->add(*b);
   }
   fFBox->invalidate_sort();
@@ -124,6 +137,7 @@ void VBrowser::populate_icons(bool clean) {
 }
 
 bool VBrowser::progress_timeout() {
+  //std::cout << "Here: " << progressFlag << std::endl;
   if(progressFlag==0) return true;
   float counter=0.0;
   float total=0.0;
@@ -203,14 +217,19 @@ int VBrowser::sort_videos(Gtk::FlowBoxChild *videoFile1, Gtk::FlowBoxChild *vide
 }
 
 void VBrowser::browse_clicked() {
-  Gtk::FileChooserDialog dialog("Please choose a folder", Gtk::FILE_CHOOSER_ACTION_SELECT_FOLDER);
+  Gtk::FileChooserDialog dialog("Please choose a folder or folders", Gtk::FILE_CHOOSER_ACTION_SELECT_FOLDER);
+  dialog.set_select_multiple();
   dialog.set_default_size(800, 400);
   dialog.set_transient_for(*this);
   dialog.add_button("_Cancel", Gtk::RESPONSE_CANCEL);
   dialog.add_button("Select", Gtk::RESPONSE_OK);
   auto response = dialog.run();
   if (response == Gtk::RESPONSE_OK){
-    path  = dialog.get_filename()+"/";
+    paths.clear();
+    std::vector<std::string> folders  = dialog.get_filenames();
+    for(auto & a: folders) {
+      paths.push_back(bfs::path(a));
+    }
     this->populate_icons(true);
   }
 }
@@ -226,16 +245,17 @@ void VBrowser::fdupe_clicked(){
   float total = 0.0;
   float counter = 0.0;
   float percent = 0.0;
-  for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
-    auto extension = x.path().extension().generic_string();
-    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    if(get_extensions().count(extension)) {
-      bfs::path full_path = bfs::absolute(x.path());
-      VidFile * vid_obj = dbCon->fetch_video(full_path.c_str());
-      int video_id = vid_obj->vid;
-      vid_list.push_back(video_id);
-      std::cout << x.path() <<" "<< video_id<<std::endl;
-      if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
+  for(auto & path: paths) {
+    for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
+      auto extension = x.path().extension().generic_string();
+      std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+      if(get_extensions().count(extension)) {
+	bfs::path full_path = bfs::absolute(x.path());
+	VidFile * vid_obj = dbCon->fetch_video(full_path.c_str());
+	int video_id = vid_obj->vid;
+	vid_list.push_back(video_id);
+	if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
+      }
     }
   }
   vu->compare_icons(vid_list);

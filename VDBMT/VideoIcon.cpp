@@ -3,16 +3,13 @@
 #include <boost/process.hpp>
 
 VideoIcon::VideoIcon(bfs::path fileName, DbConnector * dbCon,int vid):Gtk::Image()  {
+  this->set_from_icon_name("missing-image",Gtk::ICON_SIZE_BUTTON);
+  if(dbCon->icon_exists(vid)) hasIcon = true;
+  else hasIcon=false;
   if(dbCon->video_exists(fileName)) {
     fVidFile = dbCon->fetch_video(fileName);
-    std::string icon_file(dbCon->fetch_icon(fVidFile->vid));
-    this->set(icon_file);
-    std::system((boost::format("rm %s") %icon_file).str().c_str());
-    hasIcon = true;
   }
   else {
-    hasIcon=false;
-    this->set_from_icon_name("missing-image",Gtk::ICON_SIZE_BUTTON);
     fVidFile = new VidFile();
     fVidFile->fileName=fileName;
     fVidFile->size = bfs::file_size(fileName);

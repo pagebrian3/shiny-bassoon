@@ -54,7 +54,7 @@ class VBrowser: public Gtk::Window
   sigc::slot<bool>  p_timer_slot;
   sigc::connection p_timer;
   DbConnector * dbCon;
-  bfs::path path;
+  std::vector<bfs::path> paths;
   video_utils * vu;
 };
 
