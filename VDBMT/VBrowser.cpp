@@ -106,14 +106,12 @@ void VBrowser::populate_icons(bool clean) {
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(get_extensions().count(extension)) {
 	std::string pathName(x.path().native());
-	int vid = 0;
-	if(!dbCon->video_exists(pathName)) {
-	  min_vid++;
+        int vid=1;
+	if(!dbCon->video_exists(pathName))  {
 	  vid = min_vid;
+	  min_vid++;
 	}
-	else {
-	  vid = dbCon->fetch_video(pathName)->vid;
-	}	
+	else vid = dbCon->fetch_video(pathName)->vid;
 	icons.push_back(TPool->push([this](std::string path,DbConnector * con, int vid) {return new VideoIcon(path,con,vid);},pathName,dbCon,vid));
       }
     }
@@ -138,7 +136,6 @@ void VBrowser::populate_icons(bool clean) {
 }
 
 bool VBrowser::progress_timeout() {
-  //std::cout << "Here: " << progressFlag << std::endl;
   if(progressFlag==0) return true;
   float counter=0.0;
   float total=0.0;
