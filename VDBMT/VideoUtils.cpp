@@ -6,6 +6,7 @@
 video_utils::video_utils(DbConnector * dbCon1, po::variables_map * vm1, bfs::path temp) {
   vm = vm1;
   dbCon = dbCon1;
+  dbCon->fetch_results(result_map);
   tempPath = temp;
   Magick::InitializeMagick("");
   cTraceFPS =     (*vm)["trace_fps"].as<float>();
@@ -214,7 +215,7 @@ void video_utils::compare_icons(std::vector<int> & vid_list) {
   for(int i = 0; i +1 < vid_list.size(); i++) { 
     for(int j = i+1; j < vid_list.size(); j++) {
       std::pair<int,int> key(vid_list[i],vid_list[j]);
-      if (result_map[key]%2 > 1 || result_map[key] ==4) continue;
+      if (result_map[key]%2  == 1 || result_map[key] ==4) continue;
       else if(compare_images(vid_list[i],vid_list[j])) result_map[key]+=1;      
     }
     delete img_cache[vid_list[i]];

@@ -182,7 +182,7 @@ bool VBrowser::progress_timeout() {
     return false;
     }
   }
-  else if(progressFlag==3) {  
+  else if(progressFlag==3 && res.size() > 0) {  
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
     percent = 100.0*counter/total;  
     if(percent < 100)  {
@@ -274,7 +274,7 @@ void VBrowser::compare_traces() {
     dbCon->fetch_trace(vid_list[i],data_holder[vid_list[i]]);
     //loop over files after i
     for(int j = i+1; j < vid_list.size(); j++) {
-      if (vu->result_map[std::make_pair(vid_list[i],vid_list[j])]/2 > 1) continue;
+      if (vu->result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;
       else {
 	dbCon->fetch_trace(vid_list[j],data_holder[vid_list[j]]);
 	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return vu->compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));
