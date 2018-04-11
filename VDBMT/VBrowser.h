@@ -30,8 +30,7 @@ class VBrowser: public Gtk::Window
   void set_sort(std::string sort);
   std::set<std::string> get_extensions();
   void update_progress(double fraction, std::string label);
-  
-  
+    
  private:
   Gtk::ProgressBar * progress_bar;
   po::variables_map vm;

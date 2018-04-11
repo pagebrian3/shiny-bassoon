@@ -67,7 +67,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   float start_time = cStartT;
   if(obj->length <= start_time) start_time=0.0;
   boost::process::ipstream is;
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fileName  % cTraceFPS % obj->crop).str(),boost::process::std_out > is);
+  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fileName  % cTraceFPS % obj->crop).str(),boost::process::std_out > is);
   std::string outString;
   std::getline(is,outString);
   dbCon->save_trace(obj->vid, outString);
@@ -144,6 +144,8 @@ std::string video_utils::find_border(bfs::path fileName,float length) {
     y2-=y1-1;
     crop = (boost::format("crop=%i:%i:%i:%i,")% x2 % y2 % x1 % y1).str();
   }
+  delete imgDat0;
+  delete imgDat1;
   return crop;
 }
 
@@ -156,7 +158,7 @@ void video_utils::create_image(bfs::path fileName, float start_time, std::vector
   dataFile.seekg (0, dataFile.end);
   int length = dataFile.tellg();
   dataFile.seekg (0, dataFile.beg);
-  char * buffer = new char[length];
+  char buffer[length];
   dataFile.read(buffer,length);
   for(int i = 0; i < length; i++)  {
     unsigned short value = buffer[i];
