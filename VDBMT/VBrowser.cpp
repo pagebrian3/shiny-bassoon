@@ -92,6 +92,7 @@ void VBrowser::populate_icons(bool clean) {
     delete fFBox;
     resVec.clear();
     delete iconVec;
+    video_files.clear();
   }
   int min_vid = dbCon->get_last_vid();
   fFBox = new Gtk::FlowBox();
@@ -105,6 +106,7 @@ void VBrowser::populate_icons(bool clean) {
       auto extension = x.path().extension().generic_string();
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(get_extensions().count(extension)) {
+	video_files.push_back(x.path());
 	std::string pathName(x.path().native());
         int vid=1;
 	if(!dbCon->video_exists(pathName))  {
@@ -140,7 +142,6 @@ bool VBrowser::progress_timeout() {
   float counter=0.0;
   float total=0.0;
   float percent=0.0;
-  int saved_icons = 0;
   std::chrono::milliseconds timer(1);
   res.clear();
   res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
@@ -240,21 +241,11 @@ void VBrowser::on_delete() {
 void VBrowser::fdupe_clicked(){
   std::vector<VidFile *> videos;
   vid_list.clear();
-  float total = 0.0;
-  float counter = 0.0;
-  float percent = 0.0;
-  for(auto & path: paths) {
-    for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
-      auto extension = x.path().extension().generic_string();
-      std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-      if(get_extensions().count(extension)) {
-	bfs::path full_path = bfs::absolute(x.path());
-	VidFile * vid_obj = dbCon->fetch_video(full_path.c_str());
-	int video_id = vid_obj->vid;
-	vid_list.push_back(video_id);
-	if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
-      }
-    }
+  for(auto & vFile: video_files) {
+    VidFile * vid_obj = dbCon->fetch_video(vFile);
+    int video_id = vid_obj->vid;
+    vid_list.push_back(video_id);
+    if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
   }
   vu->compare_icons(vid_list);
   resVec.clear();

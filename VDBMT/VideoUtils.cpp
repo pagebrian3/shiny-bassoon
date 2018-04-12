@@ -56,9 +56,7 @@ bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<unsigned 
     }
   }
   std::pair<int,int> key(i,j);
-  if(match) {
-    result_map[key]+=2;
-  }
+  if(match) result_map[key]+=2;
   else if(result_map[key]==0) result_map[key]=4;
   dbCon->update_results(i,j,result_map[key]);
   return true;
