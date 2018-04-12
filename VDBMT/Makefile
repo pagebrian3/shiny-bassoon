@@ -14,16 +14,16 @@ vbrowser:  VideoUtils.o VideoIcon.o DbConnector.o VBrowser.o main.o
 main.o:  main.cc VBrowser.h VBrowser.cpp
 	$(CC) $(CFLAGS) $(GTKFLAGS) $(MAGICKFLAGS) -c main.cc
 
-VideoIcon.o:  VideoIcon.cpp VideoIcon.h VidFile.h
+VideoIcon.o:  VideoIcon.cpp VideoIcon.h
 	$(CC) $(CFLAGS) $(GTKFLAGS)  -c VideoIcon.cpp
 
-VBrowser.o:  VBrowser.cpp VBrowser.h  VidFile.h
+VBrowser.o:  VBrowser.cpp VBrowser.h
 	$(CC) $(CFLAGS) $(GTKFLAGS) $(MAGICKFLAGS) -c VBrowser.cpp
 
-DbConnector.o:  DbConnector.cpp DbConnector.h VidFile.h 
+DbConnector.o:  DbConnector.cpp DbConnector.h 
 	$(CC) $(CFLAGS) -c DbConnector.cpp
 
-VideoUtils.o:  VideoUtils.cpp VideoUtils.h VidFile.h
+VideoUtils.o:  VideoUtils.cpp VideoUtils.h
 	$(CC) $(CFLAGS) $(MAGICKFLAGS) -c VideoUtils.cpp
 
 clean: 
