@@ -195,6 +195,7 @@ bool VBrowser::progress_timeout() {
       return true;
     }
   }
+  return true;
 }
 
 std::string VBrowser::get_sort() {

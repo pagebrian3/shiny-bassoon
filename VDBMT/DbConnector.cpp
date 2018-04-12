@@ -12,7 +12,7 @@ DbConnector::DbConnector(bfs::path appPath) {
   if (bfs::exists(db_path)) newFile=false;
   sqlite3_open(db_path.c_str(),&db);
   if (newFile) {
-    int rc = sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
+    sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table videos(path text,crop text, length double, size integer, okflag integer, rotate integer, vdatid integer)", NULL,NULL, NULL);

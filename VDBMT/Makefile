@@ -5,7 +5,7 @@ GTKFLAGS = `pkg-config --cflags gtkmm-3.0`
 MAGICKFLAGS = `pkg-config --cflags Magick++`
 default: vbrowser
 
-debug: CFLAGS =  -I. -std=gnu++14 -g
+debug: CFLAGS =  -I. -std=gnu++14 -g -Wall
 debug: vbrowser
 
 vbrowser:  VideoUtils.o VideoIcon.o DbConnector.o VBrowser.o main.o 

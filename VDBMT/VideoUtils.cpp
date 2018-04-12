@@ -83,7 +83,6 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   dbCon->save_crop(vidFile);
   float thumb_t = cThumbT;
   if(vidFile->length < cThumbT) thumb_t = vidFile->length/2.0;
-  int width, height;
   std::string icon_file(dbCon->create_icon_path(vidFile->vid));
   boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
   return true;
