@@ -43,14 +43,14 @@ class VBrowser: public Gtk::Window
   Gtk::Box * sort_opt;
   Gtk::VBox * box_outer;
   Gtk::Button * browse_button;
-  Gtk::Button *asc_button;
+  Gtk::Button * asc_button;
   Gtk::Button * fdupe_button;
   Gtk::ComboBoxText * sort_combo;
   std::vector<std::future_status> res;
   std::vector<std::future<bool> > resVec;
   std::vector<int> vid_list;
   std::vector<VideoIcon*> * iconVec;
-  sigc::slot<bool>  p_timer_slot;
+  sigc::slot<bool> p_timer_slot;
   sigc::connection p_timer;
   DbConnector * dbCon;
   std::vector<bfs::path> paths;
