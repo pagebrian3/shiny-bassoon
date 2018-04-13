@@ -99,9 +99,8 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->set_orientation(Gtk::ORIENTATION_HORIZONTAL);
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
   fFBox->set_homogeneous(false);
-  std::vector<bfs::directory_entry> video_list;
   std::vector<std::future<VidFile * > > vFiles;
-  std::map<int,VidFile *> vfMap;
+  std::vector<VidFile *> vidFiles;
   VidFile * vidTemp;
   for(auto & path: paths) {
     for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
@@ -110,15 +109,13 @@ void VBrowser::populate_icons(bool clean) {
       if(get_extensions().count(extension)) {
 	video_files.push_back(x.path());
 	std::string pathName(x.path().native());
-        int vid=1;
 	if(!dbCon->video_exists(pathName))  {
-	  vid = min_vid;
 	  min_vid++;
-	  vFiles.push_back(TPool->push([this](bfs::path path, int vid) {return new VidFile(path,vid);},pathName,vid));
+	  vFiles.push_back(TPool->push([this](bfs::path path, int vid) {return new VidFile(path,vid);},pathName,min_vid));
 	}
 	else {
 	  vidTemp = dbCon->fetch_video(pathName);
-	  vfMap[vidTemp->vid]=vidTemp;
+	  vidFiles.push_back(vidTemp);
 	}
       }
     }
@@ -127,15 +124,14 @@ void VBrowser::populate_icons(bool clean) {
   for(auto &a: vFiles) {
     vidTemp = a.get();
     dbCon->save_video(vidTemp);
-    vfMap[vidTemp->vid]=vidTemp;
+    vidFiles.push_back(vidTemp);
   }   
-  iconVec =  new std::vector<VideoIcon *> (vfMap.size());
+  iconVec =  new std::vector<VideoIcon *> (vidFiles.size());
   int j = 0;
-  for(auto &a: vfMap) {
-    VideoIcon * b = new VideoIcon(a.second);
-    b->set_from_icon_name("missing-image",Gtk::ICON_SIZE_BUTTON);  //Might be able to put in VidIcon class
+  for(auto &a: vidFiles) {
+    VideoIcon * b = new VideoIcon(a);
     (*iconVec)[j]=b;
-    vid_list.push_back(a.first);
+    vid_list.push_back(a->vid);
     j++;
     fFBox->add(*b);
   }
@@ -171,7 +167,6 @@ bool VBrowser::progress_timeout() {
       else if(b == std::future_status::ready && vid_list[i]==0) counter+=1.0;
       i++;	
     }
-    total=vid_list.size();
     percent = 100.0*counter/total;
     update_progress(counter/total,(boost::format("Creating Icons %i/%i: %d%% Complete") % counter % total %  percent).str());
     if(counter == res.size()) {
@@ -189,8 +184,9 @@ bool VBrowser::progress_timeout() {
     }
     else {   //once traces are done, compare.
     update_progress(1.0,"Traces Complete");
+    std::cout << "Traces complete." << std::endl;
     compare_traces();
-    return false;
+    return true;
     }
   }
   else if(progressFlag==3 && res.size() > 0) {  
@@ -252,8 +248,8 @@ void VBrowser::on_delete() {
 void VBrowser::fdupe_clicked(){
   std::vector<VidFile *> videos;
   vid_list.clear();
-  for(auto & vFile: video_files) {
-    VidFile * vid_obj = dbCon->fetch_video(vFile);
+  for(auto & vIcon: *iconVec) {
+    VidFile * vid_obj = vIcon->get_vid_file();
     int video_id = vid_obj->vid;
     vid_list.push_back(video_id);
     if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
@@ -270,8 +266,6 @@ void VBrowser::compare_traces() {
   resVec.clear();
   std::map<int,std::vector<unsigned short> > data_holder;
   //loop over files
-  progressFlag=3;
-  p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
   for(int i = 0; i +1 < vid_list.size(); i++) {
     dbCon->fetch_trace(vid_list[i],data_holder[vid_list[i]]);
     //loop over files after i
@@ -283,6 +277,7 @@ void VBrowser::compare_traces() {
       }
     }
   }
+  progressFlag=3;
   return;
 }
 

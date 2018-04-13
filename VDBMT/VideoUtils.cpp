@@ -202,7 +202,10 @@ bool video_utils::compare_images(int vid1, int vid2) {
       pixels++;
     }
     difference = sqrt(coeff*difference);
-    if(difference < cImgThresh) return true;
+    if(difference < cImgThresh) {
+      std::cout << "IMG MATCH " << vid1 << " " << vid2 << std::endl;
+      return true;
+    }
     if(!img_cache[vid2]) delete img2;
     else return false;
   }

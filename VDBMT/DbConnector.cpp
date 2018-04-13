@@ -240,7 +240,6 @@ int DbConnector::get_last_vid(){
   }
   int result = sqlite3_column_int(stmt, 0);
   sqlite3_finalize(stmt);
-  if(result == 0) result++;
   return result;
 }
   
