@@ -7,15 +7,13 @@ class VideoIcon : public Gtk::Image
 {
   public:
 
-  VideoIcon(bfs::path fileName, DbConnector * DbCon, int vid);
+  VideoIcon(VidFile * vidFile);
 
   virtual ~VideoIcon();
 
   VidFile * get_vid_file();
 
   void set_icon(int i, std::string file);
-
-  bool hasIcon;
 
  protected:
 

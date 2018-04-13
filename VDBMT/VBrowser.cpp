@@ -100,7 +100,9 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
   fFBox->set_homogeneous(false);
   std::vector<bfs::directory_entry> video_list;
-  std::vector<std::future<VideoIcon * > > icons;
+  std::vector<std::future<VidFile * > > vFiles;
+  std::map<int,VidFile *> vfMap;
+  VidFile * vidTemp;
   for(auto & path: paths) {
     for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
       auto extension = x.path().extension().generic_string();
@@ -112,20 +114,28 @@ void VBrowser::populate_icons(bool clean) {
 	if(!dbCon->video_exists(pathName))  {
 	  vid = min_vid;
 	  min_vid++;
+	  vFiles.push_back(TPool->push([this](bfs::path path, int vid) {return new VidFile(path,vid);},pathName,vid));
 	}
-	else vid = dbCon->fetch_video(pathName)->vid;
-	icons.push_back(TPool->push([this](std::string path,DbConnector * con, int vid) {return new VideoIcon(path,con,vid);},pathName,dbCon,vid));
+	else {
+	  vidTemp = dbCon->fetch_video(pathName);
+	  vfMap[vidTemp->vid]=vidTemp;
+	}
       }
     }
   }
-  cxxpool::wait(icons.begin(),icons.end());
-  iconVec =  new std::vector<VideoIcon *> (icons.size());
+  cxxpool::wait(vFiles.begin(),vFiles.end());
+  for(auto &a: vFiles) {
+    vidTemp = a.get();
+    dbCon->save_video(vidTemp);
+    vfMap[vidTemp->vid]=vidTemp;
+  }   
+  iconVec =  new std::vector<VideoIcon *> (vfMap.size());
   int j = 0;
-  for(auto &a: icons) {
-    VideoIcon * b = a.get();
-    b->set_from_icon_name("missing-image",Gtk::ICON_SIZE_BUTTON);
+  for(auto &a: vfMap) {
+    VideoIcon * b = new VideoIcon(a.second);
+    b->set_from_icon_name("missing-image",Gtk::ICON_SIZE_BUTTON);  //Might be able to put in VidIcon class
     (*iconVec)[j]=b;
-    vid_list.push_back(b->get_vid_file()->vid);
+    vid_list.push_back(a.first);
     j++;
     fFBox->add(*b);
   }

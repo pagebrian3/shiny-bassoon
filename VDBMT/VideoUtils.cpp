@@ -195,13 +195,13 @@ bool video_utils::compare_images(int vid1, int vid2) {
     diff.composite(*img2,0,0,Magick::DifferenceCompositeOp);
     Magick::Pixels v1(diff);
     float difference = 0.0;
+    float coeff = 1.0/(3.0*width*height);
     const Magick::Quantum * pixels = v1.getConst(0,0,width,height);
     for(int i = 0; i < 3*width*height; i++){
       difference+=pow(*pixels,2.0);
       pixels++;
     }
-    difference/=(3*width*height);
-    difference = sqrt(difference);
+    difference = sqrt(coeff*difference);
     if(difference < cImgThresh) return true;
     if(!img_cache[vid2]) delete img2;
     else return false;
