@@ -3,7 +3,7 @@
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 
-video_utils::video_utils(DbConnector * dbCon1, po::variables_map * vm1, bfs::path temp) {
+video_utils::video_utils(DbConnector * dbCon1, po::variables_map * vm1, bfs::path & temp) {
   vm = vm1;
   dbCon = dbCon1;
   dbCon->fetch_results(result_map);
@@ -88,7 +88,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   return true;
 };
 
-std::string video_utils::find_border(bfs::path fileName,float length) {
+std::string video_utils::find_border(bfs::path & fileName,float length) {
   std::string crop("");
   float frame_time = 0.5*length/(cBFrames+1.0);
   float frame_spacing = length/(cBFrames+1.0);
@@ -147,7 +147,7 @@ std::string video_utils::find_border(bfs::path fileName,float length) {
   return crop;
 }
 
-void video_utils::create_image(bfs::path fileName, float start_time, std::vector<uint8_t> * imgDat) {
+void video_utils::create_image(bfs::path & fileName, float start_time, std::vector<uint8_t> * imgDat) {
   bfs::path temp = tempPath;
   temp+=bfs::unique_path();
   temp+=".bin";  

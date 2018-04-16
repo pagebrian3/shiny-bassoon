@@ -12,11 +12,11 @@ class DbConnector {
 
   DbConnector(bfs::path path);
 
-  bool video_exists(bfs::path filename);
+  bool video_exists(bfs::path & filename);
 
   bool icon_exists(int vid);
 
-  VidFile* fetch_video(bfs::path filename);
+  VidFile* fetch_video(bfs::path & filename);
 
   void save_video(VidFile *a);
 

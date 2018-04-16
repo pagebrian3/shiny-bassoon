@@ -108,7 +108,7 @@ void VBrowser::populate_icons(bool clean) {
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(get_extensions().count(extension)) {
 	video_files.push_back(x.path());
-	std::string pathName(x.path().native());
+	bfs::path pathName = x.path();
 	if(!dbCon->video_exists(pathName))  {
 	  min_vid++;
 	  vFiles.push_back(TPool->push([this](bfs::path path, int vid) {return new VidFile(path,vid);},pathName,min_vid));

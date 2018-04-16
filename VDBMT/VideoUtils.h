@@ -14,7 +14,7 @@ class video_utils
 {
  public:
 
-  video_utils(DbConnector * dbCon, po::variables_map * vm, bfs::path tempPath);
+  video_utils(DbConnector * dbCon, po::variables_map * vm, bfs::path & tempPath);
 
   video_utils();
 
@@ -24,13 +24,13 @@ class video_utils
 
   bool create_thumb(VidFile * vFile);
 
-  void create_image(bfs::path fileName, float start_time, std::vector<uint8_t> * imgDat);
+  void create_image(bfs::path & fileName, float start_time, std::vector<uint8_t> * imgDat);
 
   bool compare_images(int vid1, int vid2);
 
   void compare_icons(std::vector<int> & vid_list);
 
-  std::string find_border(bfs::path fileName,float length);
+  std::string find_border(bfs::path & fileName,float length);
 
   Magick::Image * get_image(int vid);
 

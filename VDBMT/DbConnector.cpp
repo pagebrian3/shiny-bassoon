@@ -23,7 +23,7 @@ void DbConnector::save_db_file() {
   sqlite3_close(db);
 }
 
-VidFile * DbConnector::fetch_video(bfs::path filename){
+VidFile * DbConnector::fetch_video(bfs::path & filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT crop, length, size, okflag, rotate, vdatid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
@@ -174,7 +174,7 @@ bool DbConnector::trace_exists(int vid){
   return result;
 }
 
-bool DbConnector::video_exists(bfs::path filename){
+bool DbConnector::video_exists(bfs::path & filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM videos WHERE path = ? limit 1)", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
