@@ -158,11 +158,7 @@ void video_utils::create_image(bfs::path fileName, float start_time, std::vector
   dataFile.seekg (0, dataFile.beg);
   char buffer[length];
   dataFile.read(buffer,length);
-  for(int i = 0; i < length; i++)  {
-    uint8_t value = buffer[i];
-    if(value > 255) value = 256-(65536-value);
-    (*imgDat)[i] = value;
-  }
+  for(int i = 0; i < length; i++)    (*imgDat)[i] = buffer[i];
   bfs::remove(temp);
   return;
 }

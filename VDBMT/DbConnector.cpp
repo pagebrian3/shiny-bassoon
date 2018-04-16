@@ -314,11 +314,7 @@ void DbConnector::fetch_trace(int vid, std::vector<uint8_t> & trace) {
   std::string result;
   result.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
   trace.resize(uncomp_size);
-  for(int i = 0; i < uncomp_size; i++)  {
-    uint8_t value = result[i];
-    if(value > 255) value = 256-(65536-value);
-    trace[i] = value;
-  }
+  for(int i = 0; i < uncomp_size; i++) trace[i] = result[i];
   sqlite3_finalize(stmt);
   return;
 }
