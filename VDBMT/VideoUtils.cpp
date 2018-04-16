@@ -40,7 +40,7 @@ bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<unsigned 
       //offset loop
       for(t_o = 0; t_o < 12*cCompTime*cTraceFPS; t_o+=12){
 	counter = 0;
-	for(auto & a : accum) if (a > cThresh*cCompTime*cTraceFPS) counter+=1;
+	for(auto & a : accum) if (a > cThresh*cCompTime*cTraceFPS) counter++;
 	if(counter != 0) break;
 	//pixel/color loop
 	for (t_d = 0; t_d < 12; t_d++) {

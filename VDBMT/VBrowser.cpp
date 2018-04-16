@@ -193,12 +193,12 @@ bool VBrowser::progress_timeout() {
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
     percent = 100.0*counter/total;  
     if(percent < 100)  {
-      update_progress(1.0,"Done Dupe Hunting");
-      return false;
-    }
-    else {     
       update_progress(counter/total,(boost::format("Comparing Videos: %d%% Complete") %  percent).str());
       return true;
+    }
+    else {
+      update_progress(1.0,"Done Dupe Hunting");
+      return false;    
     }
   }
   return true;
@@ -277,6 +277,7 @@ void VBrowser::compare_traces() {
       }
     }
   }
+  std::cout << "Blah1" << std::endl;
   progressFlag=3;
   return;
 }
