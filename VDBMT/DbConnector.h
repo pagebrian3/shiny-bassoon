@@ -36,7 +36,7 @@ class DbConnector {
 
   void save_trace(int vid, std::string & trace);
 
-  void fetch_trace(int vid, std::vector<unsigned short> & trace);
+  void fetch_trace(int vid, std::vector<uint8_t> & trace);
 
   int get_last_vid();
 

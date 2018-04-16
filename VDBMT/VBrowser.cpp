@@ -264,7 +264,7 @@ void VBrowser::fdupe_clicked(){
 
 void VBrowser::compare_traces() {
   resVec.clear();
-  std::map<int,std::vector<unsigned short> > data_holder;
+  std::map<int,std::vector<uint8_t> > data_holder;
   //loop over files
   for(int i = 0; i +1 < vid_list.size(); i++) {
     dbCon->fetch_trace(vid_list[i],data_holder[vid_list[i]]);
@@ -273,7 +273,7 @@ void VBrowser::compare_traces() {
       if (vu->result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;
       else {
 	dbCon->fetch_trace(vid_list[j],data_holder[vid_list[j]]);
-	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<unsigned short>> & data){ return vu->compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));
+	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<uint8_t>> & data){ return vu->compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));
       }
     }
   }

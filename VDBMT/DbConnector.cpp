@@ -294,7 +294,7 @@ void DbConnector::update_results(int  i, int  j, int  k) {
   return;
 }
   
-void DbConnector::fetch_trace(int vid, std::vector<unsigned short> & trace) {
+void DbConnector::fetch_trace(int vid, std::vector<uint8_t> & trace) {
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT uncomp_size,trace_dat FROM trace_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
@@ -315,7 +315,7 @@ void DbConnector::fetch_trace(int vid, std::vector<unsigned short> & trace) {
   result.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
   trace.resize(uncomp_size);
   for(int i = 0; i < uncomp_size; i++)  {
-    unsigned short value = result[i];
+    uint8_t value = result[i];
     if(value > 255) value = 256-(65536-value);
     trace[i] = value;
   }

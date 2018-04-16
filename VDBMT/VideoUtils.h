@@ -18,13 +18,13 @@ class video_utils
 
   video_utils();
 
-  bool compare_vids(int i, int j, std::map<int,std::vector<unsigned short> > & data);
+  bool compare_vids(int i, int j, std::map<int,std::vector<uint8_t> > & data);
 
   bool calculate_trace(VidFile * obj);
 
   bool create_thumb(VidFile * vFile);
 
-  void create_image(bfs::path fileName, float start_time, std::vector<short> * imgDat);
+  void create_image(bfs::path fileName, float start_time, std::vector<uint8_t> * imgDat);
 
   bool compare_images(int vid1, int vid2);
 

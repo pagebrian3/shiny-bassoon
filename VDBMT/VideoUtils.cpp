@@ -26,7 +26,7 @@ video_utils::video_utils(DbConnector * dbCon1, po::variables_map * vm1, bfs::pat
 
 video_utils::video_utils(){}
 
-bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<unsigned short> > & data) {
+bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<uint8_t> > & data) {
   bool match=false;
   int counter=0;
   uint t_s,t_x, t_o, t_d;
@@ -100,15 +100,15 @@ std::string video_utils::find_border(bfs::path fileName,float length) {
   boost::split(split_string,output,boost::is_any_of(","));
   int width=std::stoi(split_string[0]);
   int height=std::stoi(split_string[1]);
-  std::vector<short> * imgDat0 = new std::vector<short>(width*height*3);
-  std::vector<short> * imgDat1 = new std::vector<short>(width*height*3);
+  std::vector<uint8_t> * imgDat0 = new std::vector<uint8_t>(width*height*3);
+  std::vector<uint8_t> * imgDat1 = new std::vector<uint8_t>(width*height*3);
   create_image(fileName, frame_time, imgDat0);
   std::vector<double> rowSums(height);
   std::vector<double> colSums(width);
   double corrFactorCol = 1.0/(double)(cBFrames*height);
   double corrFactorRow = 1.0/(double)(cBFrames*width);
   bool skipBorder = false;
-  std::vector<short> * ptrHolder;
+  std::vector<uint8_t> * ptrHolder;
   for(int i = 0; i < cBFrames; i++) {
     frame_time+=frame_spacing;
     create_image(fileName,frame_time,imgDat1);
@@ -147,7 +147,7 @@ std::string video_utils::find_border(bfs::path fileName,float length) {
   return crop;
 }
 
-void video_utils::create_image(bfs::path fileName, float start_time, std::vector<short> * imgDat) {
+void video_utils::create_image(bfs::path fileName, float start_time, std::vector<uint8_t> * imgDat) {
   bfs::path temp = tempPath;
   temp+=bfs::unique_path();
   temp+=".bin";  
@@ -159,7 +159,7 @@ void video_utils::create_image(bfs::path fileName, float start_time, std::vector
   char buffer[length];
   dataFile.read(buffer,length);
   for(int i = 0; i < length; i++)  {
-    unsigned short value = buffer[i];
+    uint8_t value = buffer[i];
     if(value > 255) value = 256-(65536-value);
     (*imgDat)[i] = value;
   }
