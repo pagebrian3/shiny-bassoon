@@ -1,8 +1,8 @@
 #ifndef VIDEOUTILS_H
 #define VIDEOUTILS_H
 
-#include <map>
-#include <vector>
+//#include <map>
+//#include <vector>
 #include "VidFile.h"
 #include "DbConnector.h"
 #include <boost/program_options.hpp>

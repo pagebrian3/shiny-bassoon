@@ -277,7 +277,6 @@ void VBrowser::compare_traces() {
       }
     }
   }
-  std::cout << "Blah1" << std::endl;
   progressFlag=3;
   return;
 }

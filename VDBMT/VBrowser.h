@@ -8,8 +8,6 @@
 #include <boost/program_options.hpp>
 #include <set>
 
-class video_utils;
-
 namespace po = boost::program_options;
 
 class VBrowser: public Gtk::Window
