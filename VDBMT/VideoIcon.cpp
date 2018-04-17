@@ -18,6 +18,3 @@ VidFile * VideoIcon::get_vid_file() {
   return fVidFile;
 };
 
-void VideoIcon::set_icon(int i, std::string fileName) {
-  if(fVidFile->vid == i) set(fileName);
-}

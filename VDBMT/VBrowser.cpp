@@ -141,6 +141,7 @@ void VBrowser::populate_icons(bool clean) {
   p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
   progressFlag = 1;
   if(j > 0) for(auto &a: (*iconVec)) resVec.push_back(TPool->push([this](VidFile *b) {return vu->create_thumb(b);}, a->get_vid_file()));
+  return;
 }
 
 bool VBrowser::progress_timeout() {
@@ -210,6 +211,7 @@ std::string VBrowser::get_sort() {
 
 void VBrowser::set_sort(std::string sort) {
   sort_by = sort;
+  return;
 }
 
 int VBrowser::sort_videos(Gtk::FlowBoxChild *videoFile1, Gtk::FlowBoxChild *videoFile2) {
@@ -238,6 +240,7 @@ void VBrowser::browse_clicked() {
     }
     this->populate_icons(true);
   }
+  return;
 }
 
 void VBrowser::on_delete() {

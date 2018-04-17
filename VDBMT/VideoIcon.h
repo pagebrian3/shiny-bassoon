@@ -13,8 +13,6 @@ class VideoIcon : public Gtk::Image
 
   VidFile * get_vid_file();
 
-  void set_icon(int i, std::string file);
-
  protected:
 
   VidFile* fVidFile;

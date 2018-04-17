@@ -11,7 +11,7 @@ debug: vbrowser
 vbrowser:  VidFile.o VideoUtils.o VideoIcon.o DbConnector.o VBrowser.o main.o 
 	$(CC) $(CFLAGS) $(LDFLAGS) -o vbrowser VidFile.o VideoUtils.o VideoIcon.o DbConnector.o VBrowser.o main.o
 
-main.o:  main.cc VBrowser.h VBrowser.cpp
+main.o:  main.cc
 	$(CC) $(CFLAGS) $(GTKFLAGS) $(MAGICKFLAGS) -c main.cc
 
 VideoIcon.o:  VideoIcon.cpp VideoIcon.h
