@@ -134,7 +134,7 @@ bool VBrowser::progress_timeout() {
   }
   else if(progressFlag==3 && total > 0) {  
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
-    percent = 100.0*counter/total;  
+    percent = 100.0*counter/total;
     if(percent < 100)  {
       update_progress(counter/total,(boost::format("Comparing Videos: %d%% Complete") %  percent).str());
       return true;
