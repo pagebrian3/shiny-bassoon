@@ -1,6 +1,6 @@
 #ifndef VIDEOICON_H
 #define VIDEOICON_H
-#include "DbConnector.h"
+#include "VidFile.h"
 #include <gtkmm-3.0/gtkmm.h>
 
 class VideoIcon : public Gtk::Image

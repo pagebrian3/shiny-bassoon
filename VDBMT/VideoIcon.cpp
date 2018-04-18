@@ -1,6 +1,5 @@
 #include "VideoIcon.h"
 #include <boost/format.hpp>
-#include <boost/process.hpp>
 
 VideoIcon::VideoIcon(VidFile * vidFile):Gtk::Image()  {
   fVidFile = vidFile;

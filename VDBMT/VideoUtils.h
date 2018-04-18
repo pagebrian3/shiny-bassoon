@@ -13,7 +13,7 @@ class video_utils
 {
  public:
 
-  video_utils(po::variables_map * vm);
+  video_utils(po::variables_map & vm);
 
   video_utils();
 
@@ -56,7 +56,6 @@ class video_utils
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cBFrames, cCutThresh, cStartT;
   int cHeight, cWidth, cImgThresh, cCache;
-  po::variables_map * vm;
   bfs::path tempPath;
   std::vector<bfs::path> paths;
   DbConnector * dbCon;

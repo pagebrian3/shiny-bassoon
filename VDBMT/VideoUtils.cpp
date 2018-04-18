@@ -3,28 +3,27 @@
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 
-video_utils::video_utils(po::variables_map * vm1) {
-  vm = vm1;
+video_utils::video_utils(po::variables_map & vm) {
   tempPath = getenv("HOME");
   tempPath+="/.video_proj/"; 
   dbCon = new DbConnector(tempPath);
   dbCon->fetch_results(result_map);
   Magick::InitializeMagick("");
-  paths.push_back(bfs::path((*vm)["default_path"].as<std::string>()));
-  TPool = new cxxpool::thread_pool((*vm)["threads"].as<int>());
-  cTraceFPS =     (*vm)["trace_fps"].as<float>();
-  cStartT =       (*vm)["trace_time"].as<float>();
-  cCompTime =     (*vm)["comp_time"].as<float>();
-  cSliceSpacing = (*vm)["slice_spacing"].as<float>();
-  cThresh =       (*vm)["thresh"].as<float>();
-  cFudge =        (*vm)["fudge"].as<int>();
-  cThumbT =       (*vm)["thumb_time"].as<float>();
-  cHeight =       (*vm)["thumb_height"].as<int>();
-  cWidth =        (*vm)["thumb_width"].as<int>();
-  cCache =        (*vm)["cache_size"].as<int>();
-  cBFrames =      (*vm)["border_frames"].as<float>();
-  cCutThresh =    (*vm)["cut_thresh"].as<float>();
-  cImgThresh =    (*vm)["image_thresh"].as<int>();
+  paths.push_back(bfs::path(vm["default_path"].as<std::string>()));
+  TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
+  cTraceFPS =     vm["trace_fps"].as<float>();
+  cStartT =       vm["trace_time"].as<float>();
+  cCompTime =     vm["comp_time"].as<float>();
+  cSliceSpacing = vm["slice_spacing"].as<float>();
+  cThresh =       vm["thresh"].as<float>();
+  cFudge =        vm["fudge"].as<int>();
+  cThumbT =       vm["thumb_time"].as<float>();
+  cHeight =       vm["thumb_height"].as<int>();
+  cWidth =        vm["thumb_width"].as<int>();
+  cCache =        vm["cache_size"].as<int>();
+  cBFrames =      vm["border_frames"].as<float>();
+  cCutThresh =    vm["cut_thresh"].as<float>();
+  cImgThresh =    vm["image_thresh"].as<int>();
 }
 
 video_utils::video_utils(){}

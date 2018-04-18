@@ -15,7 +15,7 @@ main.o:  main.cc
 	$(CC) $(CFLAGS) $(GTKFLAGS) $(MAGICKFLAGS) -c main.cc
 
 VideoIcon.o:  VideoIcon.cpp VideoIcon.h
-	$(CC) $(CFLAGS) $(GTKFLAGS)  -c VideoIcon.cpp
+	$(CC) $(CFLAGS) $(GTKFLAGS) -c VideoIcon.cpp
 
 VBrowser.o:  VBrowser.cpp VBrowser.h
 	$(CC) $(CFLAGS) $(GTKFLAGS) $(MAGICKFLAGS) -c VBrowser.cpp
