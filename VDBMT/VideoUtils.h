@@ -1,8 +1,7 @@
 #ifndef VIDEOUTILS_H
 #define VIDEOUTILS_H
 
-//#include <map>
-//#include <vector>
+#include "cxxpool.h"
 #include "VidFile.h"
 #include "DbConnector.h"
 #include <boost/program_options.hpp>
@@ -14,7 +13,7 @@ class video_utils
 {
  public:
 
-  video_utils(DbConnector * dbCon, po::variables_map * vm, bfs::path & tempPath);
+  video_utils(po::variables_map * vm);
 
   video_utils();
 
@@ -34,15 +33,36 @@ class video_utils
 
   Magick::Image * get_image(int vid);
 
+  void start_thumbs(std::vector<VidFile *> & vFile);
+  
+  void start_make_traces(std::vector<VidFile *> & vFile);
+
+  void compare_traces(std::vector<int> & vid_list);
+
+  void make_vids(std::vector<VidFile *> & vidFiles);
+
+  std::vector<std::future_status> get_status();
+
   std::map<std::pair<int,int>,int> result_map;
+
+ std::set<std::string> get_extensions();
+
+ void set_paths(std::vector<std::string> paths);
+
+ std::string save_icon(int vid);
+
+ void save_db();
 
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cBFrames, cCutThresh, cStartT;
   int cHeight, cWidth, cImgThresh, cCache;
   po::variables_map * vm;
   bfs::path tempPath;
+  std::vector<bfs::path> paths;
   DbConnector * dbCon;
   std::map<int,Magick::Image *> img_cache;
+  std::vector<std::future<bool> > resVec;
+  cxxpool::thread_pool * TPool;
 };
 
 #endif // VIDEOUTILS_H

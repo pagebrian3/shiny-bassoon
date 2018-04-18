@@ -1,7 +1,6 @@
 #ifndef VBROWSER_H
 #define VBROWSER_H
 
-#include "cxxpool.h"
 #include "VideoUtils.h"
 #include "VideoIcon.h"
 #include <gtkmm-3.0/gtkmm.h>
@@ -22,17 +21,14 @@ class VBrowser: public Gtk::Window
   void fdupe_clicked();
   void asc_clicked();
   void on_sort_changed();
-  void compare_traces();
   bool progress_timeout();
   std::string get_sort();
   void set_sort(std::string sort);
-  std::set<std::string> get_extensions();
   void update_progress(double fraction, std::string label);
     
  private:
   Gtk::ProgressBar * progress_bar;
   po::variables_map vm;
-  cxxpool::thread_pool * TPool;
   Gtk::ScrolledWindow * fScrollWin;
   Gtk::FlowBox * fFBox;
   std::string sort_by;
@@ -44,14 +40,10 @@ class VBrowser: public Gtk::Window
   Gtk::Button * asc_button;
   Gtk::Button * fdupe_button;
   Gtk::ComboBoxText * sort_combo;
-  std::vector<std::future_status> res;
-  std::vector<std::future<bool> > resVec;
   std::vector<int> vid_list;
   std::vector<VideoIcon*> * iconVec;
   sigc::slot<bool> p_timer_slot;
   sigc::connection p_timer;
-  DbConnector * dbCon;
-  std::vector<bfs::path> paths;
   std::vector<bfs::path> video_files;
   video_utils * vu;
 };

@@ -3,12 +3,15 @@
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 
-video_utils::video_utils(DbConnector * dbCon1, po::variables_map * vm1, bfs::path & temp) {
+video_utils::video_utils(po::variables_map * vm1) {
   vm = vm1;
-  dbCon = dbCon1;
+  tempPath = getenv("HOME");
+  tempPath+="/.video_proj/"; 
+  dbCon = new DbConnector(tempPath);
   dbCon->fetch_results(result_map);
-  tempPath = temp;
   Magick::InitializeMagick("");
+  paths.push_back(bfs::path((*vm)["default_path"].as<std::string>()));
+  TPool = new cxxpool::thread_pool((*vm)["threads"].as<int>());
   cTraceFPS =     (*vm)["trace_fps"].as<float>();
   cStartT =       (*vm)["trace_time"].as<float>();
   cCompTime =     (*vm)["comp_time"].as<float>();
@@ -220,7 +223,89 @@ void video_utils::compare_icons(std::vector<int> & vid_list) {
   return;
 }
 
+void video_utils::start_thumbs(std::vector<VidFile *> & vFile) {
+  resVec.clear();
+  for(auto &a: vFile) resVec.push_back(TPool->push([&](VidFile *b) {return create_thumb(b);}, a));
+  return;
+}
 
+void video_utils::start_make_traces(std::vector<VidFile *> & vFile) {
+  resVec.clear();
+  for(auto & b: vFile) if(!dbCon->trace_exists(b->vid))resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
+  return;
+}
 
+std::vector<std::future_status>  video_utils::get_status() {
+  std::chrono::milliseconds timer(1);
+  return cxxpool::wait_for(resVec.begin(), resVec.end(),timer);  
+}
 
+void video_utils::compare_traces(std::vector<int> & vid_list) {
+  resVec.clear();
+  std::map<int,std::vector<uint8_t> > data_holder;
+  //loop over files
+  for(int i = 0; i +1 < vid_list.size(); i++) {
+    dbCon->fetch_trace(vid_list[i],data_holder[vid_list[i]]);
+    //loop over files after i
+    for(int j = i+1; j < vid_list.size(); j++) {
+      if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;
+      else {
+	dbCon->fetch_trace(vid_list[j],data_holder[vid_list[j]]);
+	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<uint8_t>> & data){ return compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));
+      }
+    }
+  }
+  return;
+}
 
+void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
+  VidFile * vidTemp;
+  int min_vid = dbCon->get_last_vid();
+  std::vector<std::future<VidFile * > > vFiles;
+  for(auto & path: paths) {
+    for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
+      auto extension = x.path().extension().generic_string();
+      std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+      if(get_extensions().count(extension)) {
+	bfs::path pathName = x.path();
+	if(!dbCon->video_exists(pathName))  {
+	  min_vid++;
+	  vFiles.push_back(TPool->push([this](bfs::path path, int vid) {return new VidFile(path,vid);},pathName,min_vid));
+	}
+	else {
+	  vidTemp = dbCon->fetch_video(pathName);
+	  vidFiles.push_back(vidTemp);
+	}
+      }
+    }
+  }
+  cxxpool::wait(vFiles.begin(),vFiles.end());
+  for(auto &a: vFiles) {
+    vidTemp = a.get();
+    dbCon->save_video(vidTemp);
+    vidFiles.push_back(vidTemp);
+  }
+  return;
+}
+
+std::set<std::string> video_utils::get_extensions() {
+  std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
+  return extensions;
+}
+
+void video_utils::set_paths(std::vector<std::string> folders) {
+  paths.clear();
+  for(auto & a: folders) paths.push_back(bfs::path(a));
+  return;
+}
+
+std::string video_utils::save_icon(int vid) {
+  std::string icon_file = dbCon->create_icon_path(vid);
+  dbCon->save_icon(vid);
+  return icon_file;
+}
+
+void video_utils::save_db() {
+  dbCon->save_db_file();
+  return;
+}

@@ -3,8 +3,6 @@
 #include <boost/algorithm/string.hpp>
 
 VBrowser::VBrowser(int argc, char * argv[]) {
-  bfs::path temp_path = getenv("HOME");
-  temp_path+="/.video_proj/";
   po::options_description config("Configuration");
   config.add_options()
     ("win_width", po::value<int>()->default_value(800), "window width")
@@ -21,7 +19,6 @@ VBrowser::VBrowser(int argc, char * argv[]) {
     ("comp_time", po::value<float>()->default_value(10.0),"length of slices to compare")
     ("slice_spacing", po::value<float>()->default_value(60.0),"separation of slices in time")
     ("thresh", po::value<float>()->default_value(200.0),"threshold for video similarity")
-    ("app_path",po::value< std::string >()->default_value(temp_path.string().c_str()), "database and temp data path")
     ("default_path", po::value< std::string >()->default_value("/home/ungermax/mt_test/"), "starting path")
     ("progress_time",po::value<int>()->default_value(100), "progressbar update interval")
     ("cache_size",po::value<int>()->default_value(10), "max icon cache size")
@@ -30,11 +27,8 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   po::store(po::parse_command_line(argc, argv, config),vm);
   po::store(po::parse_config_file(config_file, config),vm);
   po::notify(vm);
-  TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
-  this->set_default_size(vm["win_width"].as<int>(),vm["win_height"].as<int>());
-  dbCon = new DbConnector(vm["app_path"].as<std::string>());
-  paths.push_back(bfs::path(vm["default_path"].as<std::string>()));
-  vu = new video_utils(dbCon,&vm, temp_path);
+  this->set_default_size(vm["win_width"].as<int>(),vm["win_height"].as<int>()); 
+  vu = new video_utils(&vm);
   sort_by="size"; //size, name, length
   sort_desc=true;  //true, false
   box_outer = new Gtk::VBox(false, 6);
@@ -73,8 +67,6 @@ VBrowser::VBrowser(int argc, char * argv[]) {
 
 VBrowser::~VBrowser() {
   std::system("reset");
-  delete TPool;
-  delete dbCon;
   delete fScrollWin;
   delete asc_button;
   delete sort_combo;
@@ -90,47 +82,21 @@ void VBrowser::populate_icons(bool clean) {
     vid_list.clear();
     fScrollWin->remove();
     delete fFBox;
-    resVec.clear();
     delete iconVec;
     video_files.clear();
   }
-  int min_vid = dbCon->get_last_vid();
   fFBox = new Gtk::FlowBox();
   fFBox->set_orientation(Gtk::ORIENTATION_HORIZONTAL);
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
   fFBox->set_homogeneous(false);
-  std::vector<std::future<VidFile * > > vFiles;
   std::vector<VidFile *> vidFiles;
-  VidFile * vidTemp;
-  for(auto & path: paths) {
-    for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
-      auto extension = x.path().extension().generic_string();
-      std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-      if(get_extensions().count(extension)) {
-	video_files.push_back(x.path());
-	bfs::path pathName = x.path();
-	if(!dbCon->video_exists(pathName))  {
-	  min_vid++;
-	  vFiles.push_back(TPool->push([this](bfs::path path, int vid) {return new VidFile(path,vid);},pathName,min_vid));
-	}
-	else {
-	  vidTemp = dbCon->fetch_video(pathName);
-	  vidFiles.push_back(vidTemp);
-	}
-      }
-    }
-  }
-  cxxpool::wait(vFiles.begin(),vFiles.end());
-  for(auto &a: vFiles) {
-    vidTemp = a.get();
-    dbCon->save_video(vidTemp);
-    vidFiles.push_back(vidTemp);
-  }   
+  vu->make_vids(vidFiles);
   iconVec =  new std::vector<VideoIcon *> (vidFiles.size());
   int j = 0;
   for(auto &a: vidFiles) {
     VideoIcon * b = new VideoIcon(a);
     (*iconVec)[j]=b;
+    video_files.push_back(a->fileName);
     vid_list.push_back(a->vid);
     j++;
     fFBox->add(*b);
@@ -140,7 +106,7 @@ void VBrowser::populate_icons(bool clean) {
   this->show_all();
   p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
   progressFlag = 1;
-  if(j > 0) for(auto &a: (*iconVec)) resVec.push_back(TPool->push([this](VidFile *b) {return vu->create_thumb(b);}, a->get_vid_file()));
+  if(j > 0) vu->start_thumbs(vidFiles); 
   return;
 }
 
@@ -150,16 +116,14 @@ bool VBrowser::progress_timeout() {
   float total=0.0;
   float percent=0.0;
   std::chrono::milliseconds timer(1);
-  res.clear();
-  res = cxxpool::wait_for(resVec.begin(), resVec.end(),timer);
-  total = resVec.size();
+  auto res = vu->get_status();
+  total = res.size();
   if(progressFlag==1) {
     int i=0;
     for(auto &b: res) {
       if(b == std::future_status::ready && vid_list[i] > 0){
 	int vid = vid_list[i];
-	std::string icon_file = dbCon->create_icon_path(vid);
-	dbCon->save_icon(vid);
+	std::string icon_file = vu->save_icon(vid);
 	(*iconVec)[i]->set(icon_file);
 	(*iconVec)[i]->show();
 	std::system((boost::format("rm %s") %icon_file).str().c_str());
@@ -170,7 +134,7 @@ bool VBrowser::progress_timeout() {
     }
     percent = 100.0*counter/total;
     update_progress(counter/total,(boost::format("Creating Icons %i/%i: %d%% Complete") % counter % total %  percent).str());
-    if(counter == res.size()) {
+    if(counter == total) {
       update_progress(1.0,"Icons Complete");
       return false;
     }
@@ -186,11 +150,12 @@ bool VBrowser::progress_timeout() {
     else {   //once traces are done, compare.
     update_progress(1.0,"Traces Complete");
     std::cout << "Traces complete." << std::endl;
-    compare_traces();
+    vu->compare_traces(vid_list);
+    progressFlag=3;
     return true;
     }
   }
-  else if(progressFlag==3 && res.size() > 0) {  
+  else if(progressFlag==3 && total > 0) {  
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
     percent = 100.0*counter/total;  
     if(percent < 100)  {
@@ -233,18 +198,14 @@ void VBrowser::browse_clicked() {
   dialog.add_button("Select", Gtk::RESPONSE_OK);
   auto response = dialog.run();
   if (response == Gtk::RESPONSE_OK){
-    paths.clear();
-    std::vector<std::string> folders  = dialog.get_filenames();
-    for(auto & a: folders) {
-      paths.push_back(bfs::path(a));
-    }
+    vu->set_paths(dialog.get_filenames());
     this->populate_icons(true);
   }
   return;
 }
 
 void VBrowser::on_delete() {
-  dbCon->save_db_file();
+  vu->save_db();
   return;
 }
 
@@ -255,32 +216,12 @@ void VBrowser::fdupe_clicked(){
     VidFile * vid_obj = vIcon->get_vid_file();
     int video_id = vid_obj->vid;
     vid_list.push_back(video_id);
-    if(!dbCon->trace_exists(video_id)) videos.push_back(vid_obj);
+    videos.push_back(vid_obj);
   }
   vu->compare_icons(vid_list);
-  resVec.clear();
   progressFlag=2;
   p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
-  for(auto & b: videos) resVec.push_back(TPool->push([&](VidFile * b ){ return vu->calculate_trace(b);},b));
-  return;
-}
-
-void VBrowser::compare_traces() {
-  resVec.clear();
-  std::map<int,std::vector<uint8_t> > data_holder;
-  //loop over files
-  for(int i = 0; i +1 < vid_list.size(); i++) {
-    dbCon->fetch_trace(vid_list[i],data_holder[vid_list[i]]);
-    //loop over files after i
-    for(int j = i+1; j < vid_list.size(); j++) {
-      if (vu->result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;
-      else {
-	dbCon->fetch_trace(vid_list[j],data_holder[vid_list[j]]);
-	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<uint8_t>> & data){ return vu->compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));
-      }
-    }
-  }
-  progressFlag=3;
+  vu->start_make_traces(videos);
   return;
 }
 
@@ -298,11 +239,6 @@ void VBrowser::asc_clicked() {
   asc_button->set_image_from_icon_name(iname,Gtk::ICON_SIZE_BUTTON);
   fFBox->invalidate_sort();
   return;
-}
-
-std::set<std::string> VBrowser::get_extensions() {
-  std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
-  return extensions;
 }
 
 void VBrowser::update_progress(double fraction, std::string label) {
