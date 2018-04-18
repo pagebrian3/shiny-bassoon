@@ -27,12 +27,12 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   po::store(po::parse_command_line(argc, argv, config),vm);
   po::store(po::parse_config_file(config_file, config),vm);
   po::notify(vm);
-  this->set_default_size(vm["win_width"].as<int>(),vm["win_height"].as<int>()); 
+  set_default_size(vm["win_width"].as<int>(),vm["win_height"].as<int>()); 
   vu = new video_utils(&vm);
   sort_by="size"; //size, name, length
   sort_desc=true;  //true, false
   box_outer = new Gtk::VBox(false, 6);
-  this->add(*box_outer);
+  add(*box_outer);
   browse_button = new Gtk::Button("...");
   browse_button->signal_clicked().connect(sigc::mem_fun(*this,&VBrowser::browse_clicked));
   fdupe_button = new Gtk::Button("Find Dupes");
@@ -62,7 +62,7 @@ VBrowser::VBrowser(int argc, char * argv[]) {
   fScrollWin = new Gtk::ScrolledWindow();
   box_outer->pack_start(*fScrollWin, true, true, 0);
   p_timer_slot = sigc::mem_fun(*this,&VBrowser::progress_timeout);
-  this->populate_icons();  
+  populate_icons();  
 }
 
 VBrowser::~VBrowser() {
@@ -103,7 +103,7 @@ void VBrowser::populate_icons(bool clean) {
   }
   fFBox->invalidate_sort();
   fScrollWin->add(*fFBox);
-  this->show_all();
+  show_all();
   p_timer = Glib::signal_timeout().connect(p_timer_slot,vm["progress_time"].as<int>());
   progressFlag = 1;
   if(j > 0) vu->start_thumbs(vidFiles); 
@@ -184,8 +184,8 @@ int VBrowser::sort_videos(Gtk::FlowBoxChild *videoFile1, Gtk::FlowBoxChild *vide
   VidFile *v1=(reinterpret_cast<VideoIcon*>(videoFile1->get_child()))->get_vid_file();
   VidFile *v2=(reinterpret_cast<VideoIcon*>(videoFile2->get_child()))->get_vid_file();
   if(sort_desc) value *= -1;
-  if(!std::strcmp(this->get_sort().c_str(),"size")) return value*(v1->size - v2->size);
-  else if(!std::strcmp(this->get_sort().c_str(),"length")) return value*(v1->length - v2->length);
+  if(!std::strcmp(get_sort().c_str(),"size")) return value*(v1->size - v2->size);
+  else if(!std::strcmp(get_sort().c_str(),"length")) return value*(v1->length - v2->length);
   else return value*boost::algorithm::to_lower_copy(v1->fileName.native()).compare(boost::algorithm::to_lower_copy(v2->fileName.native()));   
 }
 
@@ -199,7 +199,7 @@ void VBrowser::browse_clicked() {
   auto response = dialog.run();
   if (response == Gtk::RESPONSE_OK){
     vu->set_paths(dialog.get_filenames());
-    this->populate_icons(true);
+    populate_icons(true);
   }
   return;
 }
