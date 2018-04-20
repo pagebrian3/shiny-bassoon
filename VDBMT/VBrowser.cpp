@@ -1,6 +1,7 @@
 #include "VBrowser.h"
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/timer/timer.hpp>
 
 VBrowser::VBrowser(po::variables_map & vm) {
   fProgTime = vm["progress_time"].as<int>();
@@ -67,6 +68,7 @@ void VBrowser::populate_icons(bool clean) {
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
   fFBox->set_homogeneous(false);
   std::vector<VidFile *> vidFiles;
+  boost::timer::auto_cpu_timer t;
   vu->make_vids(vidFiles);
   iconVec =  new std::vector<VideoIcon *> (vidFiles.size());
   int j = 0;
