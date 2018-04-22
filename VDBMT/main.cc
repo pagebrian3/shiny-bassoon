@@ -21,6 +21,7 @@ int main (int argc, char *argv[]) {
     ("thresh", po::value<float>()->default_value(200.0),"threshold for video similarity")
     ("default_path", po::value< std::string >()->default_value("/home/ungermax/mt_test/"), "starting path")
     ("extensions", po::value< std::string >()->default_value(".mp4"), "extensions to process")
+    ("bad_chars", po::value< std::string >()->default_value("&"), "characters to remove from filenames")
     ("progress_time",po::value<int>()->default_value(100), "progressbar update interval")
     ("cache_size",po::value<int>()->default_value(10), "max icon cache size")
     ("image_thresh",po::value<int>()->default_value(4), "image difference threshold");

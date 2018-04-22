@@ -63,6 +63,7 @@ class video_utils
   std::vector<std::future<bool> > resVec;
   cxxpool::thread_pool * TPool;
   std::set<std::string> extensions;
+  std::vector<std::string> cBadChars;
 };
 
 #endif // VIDEOUTILS_H

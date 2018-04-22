@@ -2,6 +2,7 @@
 #include <fstream>
 #include <boost/process.hpp>
 #include <boost/format.hpp>
+#include <boost/algorithm/string.hpp>
 
 video_utils::video_utils(po::variables_map & vm) {
   tempPath = getenv("HOME");
@@ -24,10 +25,13 @@ video_utils::video_utils(po::variables_map & vm) {
   cBFrames =      vm["border_frames"].as<float>();
   cCutThresh =    vm["cut_thresh"].as<float>();
   cImgThresh =    vm["image_thresh"].as<int>();
+  std::string bad_chars =     vm["bad_chars"].as<std::string>();
   std::string extStrin = vm["extensions"].as<std::string>();
   boost::char_separator<char> sep(" \"");
   boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
-  for(auto &a: tok) extensions.insert(a);  
+  for(auto &a: tok) extensions.insert(a);
+  boost::tokenizer<boost::char_separator<char> > tok1(bad_chars,sep);
+  for(auto &a: tok1) cBadChars.push_back(a);
 }
 
 video_utils::video_utils(){}
@@ -271,6 +275,16 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(extensions.count(extension)) {
 	bfs::path pathName = x.path();
+	for(auto & bChar: cBadChars) {
+	  std::string nameHolder = pathName.native();
+	  if(nameHolder.find(bChar)!=std::string::npos){
+	    boost::erase_all(nameHolder,bChar);
+	    bfs::path newName(nameHolder);
+	    bfs::rename(pathName,newName);
+	    pathName = newName;
+	  }	  
+	}
+	
 	if(!dbCon->video_exists(pathName))  {
 	  min_vid++;
 	  vFiles.push_back(TPool->push([this](bfs::path path, int vid) {return new VidFile(path,vid);},pathName,min_vid));
