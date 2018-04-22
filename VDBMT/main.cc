@@ -20,6 +20,7 @@ int main (int argc, char *argv[]) {
     ("slice_spacing", po::value<float>()->default_value(60.0),"separation of slices in time")
     ("thresh", po::value<float>()->default_value(200.0),"threshold for video similarity")
     ("default_path", po::value< std::string >()->default_value("/home/ungermax/mt_test/"), "starting path")
+    ("extensions", po::value< std::string >()->default_value(".mp4"), "extensions to process")
     ("progress_time",po::value<int>()->default_value(100), "progressbar update interval")
     ("cache_size",po::value<int>()->default_value(10), "max icon cache size")
     ("image_thresh",po::value<int>()->default_value(4), "image difference threshold");

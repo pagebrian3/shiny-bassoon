@@ -1,0 +1,6 @@
+List of future enhancements/fixes:
+
+-Rename files including & in their name.
+-Deal with bad files gracefully.
+-Database cleanup, remove data relating to removed files.
+-Seek further on blank/solid/stationary frames.  Should also remove these sections from trace.  Perhaps part of the border detection.

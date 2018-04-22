@@ -24,6 +24,10 @@ video_utils::video_utils(po::variables_map & vm) {
   cBFrames =      vm["border_frames"].as<float>();
   cCutThresh =    vm["cut_thresh"].as<float>();
   cImgThresh =    vm["image_thresh"].as<int>();
+  std::string extStrin = vm["extensions"].as<std::string>();
+  boost::char_separator<char> sep(" \"");
+  boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
+  for(auto &a: tok) extensions.insert(a);  
 }
 
 video_utils::video_utils(){}
@@ -265,7 +269,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
     for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
       auto extension = x.path().extension().generic_string();
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-      if(get_extensions().count(extension)) {
+      if(extensions.count(extension)) {
 	bfs::path pathName = x.path();
 	if(!dbCon->video_exists(pathName))  {
 	  min_vid++;
@@ -285,11 +289,6 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
     vidFiles.push_back(vidTemp);
   }
   return;
-}
-
-std::set<std::string> video_utils::get_extensions() {
-  std::set<std::string> extensions{".3gp",".avi",".flv",".m4v",".mkv",".mov",".mp4",".mpeg",".mpg",".mpv",".qt",".rm",".webm",".wmv"};
-  return extensions;
 }
 
 void video_utils::set_paths(std::vector<std::string> folders) {

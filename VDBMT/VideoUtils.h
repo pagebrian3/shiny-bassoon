@@ -45,13 +45,13 @@ class video_utils
 
   std::map<std::pair<int,int>,int> result_map;
 
- std::set<std::string> get_extensions();
+  std::set<std::string> get_extensions();
 
- void set_paths(std::vector<std::string> paths);
+  void set_paths(std::vector<std::string> paths);
 
- std::string save_icon(int vid);
+  std::string save_icon(int vid);
 
- void save_db();
+  void save_db();
 
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cBFrames, cCutThresh, cStartT;
@@ -62,6 +62,7 @@ class video_utils
   std::map<int,Magick::Image *> img_cache;
   std::vector<std::future<bool> > resVec;
   cxxpool::thread_pool * TPool;
+  std::set<std::string> extensions;
 };
 
 #endif // VIDEOUTILS_H
