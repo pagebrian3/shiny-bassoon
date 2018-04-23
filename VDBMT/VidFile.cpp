@@ -2,10 +2,8 @@
 #include "MediaInfo/MediaInfo.h"
 #include "ZenLib/Ztring.h"
 
-VidFile::VidFile(bfs::path fileName1,int vid1) {
-  fileName=fileName1;
-  size = bfs::file_size(fileName);
-  vid = vid1;
+VidFile::VidFile(bfs::path fileName1,int vid1) : fileName(fileName1), vid (vid1) {
+  size = bfs::file_size(fileName); 
   MediaInfoLib::MediaInfo MI;
   ZenLib::Ztring zFile;
   zFile += fileName.wstring();

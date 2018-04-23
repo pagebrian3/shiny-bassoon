@@ -266,11 +266,9 @@ void video_utils::compare_traces(std::vector<int> & vid_list) {
 }
 
 void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
-  VidFile * vidTemp;
   int min_vid = dbCon->get_last_vid();
   std::vector<std::future<VidFile * > > vFiles;
-  for(auto & path: paths) {
-    for (bfs::directory_entry & x : bfs::directory_iterator(path)) {
+  for(auto & path: paths) for(auto & x: bfs::directory_iterator(path)) {
       auto extension = x.path().extension().generic_string();
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(extensions.count(extension)) {
@@ -283,22 +281,19 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	    bfs::rename(pathName,newName);
 	    pathName = newName;
 	  }	  
-	}
-	
+	}	
 	if(!dbCon->video_exists(pathName))  {
 	  min_vid++;
-	  vFiles.push_back(TPool->push([this](bfs::path path, int vid) {return new VidFile(path,vid);},pathName,min_vid));
+	  vFiles.push_back(TPool->push([this](bfs::path path, int &vid) {return new VidFile(path,vid);},pathName,min_vid));
 	}
-	else {
-	  vidTemp = dbCon->fetch_video(pathName);
-	  vidFiles.push_back(vidTemp);
-	}
-      }
+	else vidFiles.push_back(dbCon->fetch_video(pathName));
+      }    
     }
-  }
   cxxpool::wait(vFiles.begin(),vFiles.end());
+  VidFile * vidTemp;
   for(auto &a: vFiles) {
     vidTemp = a.get();
+    std::cout << vidTemp->vid << std::endl;
     dbCon->save_video(vidTemp);
     vidFiles.push_back(vidTemp);
   }
