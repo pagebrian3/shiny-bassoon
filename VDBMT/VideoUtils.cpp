@@ -192,7 +192,7 @@ bool video_utils::compare_images(int vid1, int vid2) {
   Magick::Image * img2 = get_image(vid2);
   float width1 = img1->size().width();
   float width2 = img2->size().width();
-  if(fabs(width1 - width2) > 20) return false;
+  if(fabs(width1 - width2) > 20) return false;  //20 is untuned parameter, allowable difference in width
   else {
     float width = width1;
     if(width1 > width2) width = width2;
@@ -293,7 +293,6 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
   VidFile * vidTemp;
   for(auto &a: vFiles) {
     vidTemp = a.get();
-    std::cout << vidTemp->vid << std::endl;
     dbCon->save_video(vidTemp);
     vidFiles.push_back(vidTemp);
   }

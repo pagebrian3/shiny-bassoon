@@ -65,7 +65,6 @@ void VBrowser::populate_icons(bool clean) {
   fFBox = new Gtk::FlowBox();
   fFBox->set_orientation(Gtk::ORIENTATION_HORIZONTAL);
   fFBox->set_sort_func(sigc::mem_fun(*this,&VBrowser::sort_videos));
-  fFBox->set_homogeneous(false);
   std::vector<VidFile *> vidFiles;
   vu->make_vids(vidFiles);
   iconVec =  new std::vector<VideoIcon *> (vidFiles.size());
