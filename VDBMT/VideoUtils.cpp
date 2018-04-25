@@ -168,22 +168,17 @@ void video_utils::create_image(bfs::path & fileName, float start_time, std::vect
   dataFile.seekg (0, dataFile.beg);
   char buffer[length];
   dataFile.read(buffer,length);
-  for(int i = 0; i < length; i++)    (*imgDat)[i] = buffer[i];
+  for(int i = 0; i < length; i++) (*imgDat)[i] = buffer[i];
   bfs::remove(temp);
   return;
 }
   
 Magick::Image *video_utils::get_image(int vid) {
-  Magick::Image * img;
-  if(img_cache[vid]) {
-    img = img_cache[vid];
-  }
-  else {
-    std::string image_file(dbCon->fetch_icon(vid));
-    img = new Magick::Image(image_file);
-    std::system((boost::format("rm %s") % image_file).str().c_str());
-    if(img_cache.size() < cCache) img_cache[vid] = img;  
-  }
+  if(img_cache[vid]) return img_cache[vid];
+  std::string image_file(dbCon->fetch_icon(vid));
+  Magick::Image * img = new Magick::Image(image_file);
+  std::system((boost::format("rm %s") % image_file).str().c_str());
+  if(img_cache.size() < cCache) img_cache[vid] = img;  
   return img;
 }
 
@@ -268,7 +263,9 @@ void video_utils::compare_traces(std::vector<int> & vid_list) {
 void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
   int min_vid = dbCon->get_last_vid();
   std::vector<std::future<VidFile * > > vFiles;
-  for(auto & path: paths) for(auto & x: bfs::directory_iterator(path)) {
+  for(auto & path: paths){
+    std::vector<bfs::path> current_dir_files;
+    for(auto & x: bfs::directory_iterator(path)) {
       auto extension = x.path().extension().generic_string();
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(extensions.count(extension)) {
@@ -280,15 +277,20 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	    bfs::path newName(nameHolder);
 	    bfs::rename(pathName,newName);
 	    pathName = newName;
-	  }	  
+	  }
 	}	
 	if(!dbCon->video_exists(pathName))  {
 	  min_vid++;
 	  vFiles.push_back(TPool->push([this](bfs::path path, int &vid) {return new VidFile(path,vid);},pathName,min_vid));
 	}
-	else vidFiles.push_back(dbCon->fetch_video(pathName));
+	else {
+	  vidFiles.push_back(dbCon->fetch_video(pathName));
+	  current_dir_files.push_back(pathName);
+	}
       }    
     }
+    dbCon->cleanup(path,current_dir_files);
+  }
   cxxpool::wait(vFiles.begin(),vFiles.end());
   VidFile * vidTemp;
   for(auto &a: vFiles) {

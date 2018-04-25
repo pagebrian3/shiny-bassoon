@@ -6,6 +6,7 @@
 #include <gtkmm-3.0/gtkmm.h>
 #include <boost/program_options.hpp>
 #include <set>
+#include <boost/timer/timer.hpp>
 
 namespace po = boost::program_options;
 
@@ -46,6 +47,7 @@ class VBrowser: public Gtk::Window
   sigc::connection p_timer;
   std::vector<bfs::path> video_files;
   video_utils * vu;
+  boost::timer::auto_cpu_timer * fTimer;
 };
 
 #endif //VBROWSER_H

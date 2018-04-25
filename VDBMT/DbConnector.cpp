@@ -346,3 +346,49 @@ std::string DbConnector::create_icon_path(int vid) {
   return (boost::format("%s%i.jpg") % temp_icon % vid).str();
 }
 
+void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
+  sqlite3_stmt *stmt;
+  int rc = sqlite3_prepare_v2(db,(boost::format("SELECT path,vdatid FROM videos WHERE path LIKE '%s%%'") % dir.string()).str().c_str(), -1, &stmt, NULL);
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+  //rc = sqlite3_bind_text(stmt, 1, dir.c_str(),-1, NULL);  
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
+  }
+  std::map<int,bfs::path> videos;
+  while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+    bfs::path path1(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
+    int vid = sqlite3_column_int(stmt,1);
+    videos[vid]=path1;
+  }
+  sqlite3_finalize(stmt);
+  std::vector<int> orphans;
+  for(auto & a: videos) {
+    bool match = false;
+    for(auto & b: files)   
+      if(a.second==b) match=true;
+    if(!match) orphans.push_back(a.first);
+  }
+  for(auto & a: orphans) {
+    rc = sqlite3_prepare_v2(db, "DELETE FROM icon_blobs WHERE vid = ?", -1, &stmt, NULL);
+    rc = sqlite3_bind_int(stmt, 1, a); 
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    rc = sqlite3_prepare_v2(db, "DELETE FROM trace_blobs WHERE vid = ?", -1, &stmt, NULL);
+    rc = sqlite3_bind_int(stmt, 1, a); 
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    rc = sqlite3_prepare_v2(db, "DELETE FROM videos WHERE vdatid = ?", -1, &stmt, NULL);
+    rc = sqlite3_bind_int(stmt, 1, a); 
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+     rc = sqlite3_prepare_v2(db, "DELETE FROM results WHERE v1id = ? OR v2id = ?", -1, &stmt, NULL);
+    rc = sqlite3_bind_int(stmt, 1, a); 
+    rc = sqlite3_bind_int(stmt, 2, a); 
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+  }  
+  return;
+}
+

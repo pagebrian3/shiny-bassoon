@@ -3,6 +3,7 @@
 #include <boost/algorithm/string.hpp>
 
 VBrowser::VBrowser(po::variables_map & vm) {
+  fTimer = new boost::timer::auto_cpu_timer();
   fProgTime = vm["progress_time"].as<int>();
   set_default_size(vm["win_width"].as<int>(),vm["win_height"].as<int>()); 
   vu = new video_utils(vm);
@@ -112,6 +113,7 @@ bool VBrowser::progress_timeout() {
     update_progress(counter/total,(boost::format("Creating Icons %i/%i: %d%% Complete") % counter % total %  percent).str());
     if(counter == total) {
       update_progress(1.0,"Icons Complete");
+      delete fTimer;
       return false;
     }
     else return true;

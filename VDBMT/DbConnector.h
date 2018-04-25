@@ -41,6 +41,8 @@ class DbConnector {
   int get_last_vid();
 
   void save_db_file();
+
+  void cleanup(bfs::path & dir, std::vector<bfs::path> & files);
   
  private:
 
