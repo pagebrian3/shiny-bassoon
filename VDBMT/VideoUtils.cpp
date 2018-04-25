@@ -262,6 +262,8 @@ void video_utils::compare_traces(std::vector<int> & vid_list) {
 
 void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
   int min_vid = dbCon->get_last_vid();
+  bool new_db = false;
+  if(min_vid == 0) new_db = true;
   std::vector<std::future<VidFile * > > vFiles;
   for(auto & path: paths){
     std::vector<bfs::path> current_dir_files;
@@ -289,7 +291,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	}
       }    
     }
-    dbCon->cleanup(path,current_dir_files);
+    if(!new_db) dbCon->cleanup(path,current_dir_files);
   }
   cxxpool::wait(vFiles.begin(),vFiles.end());
   VidFile * vidTemp;
