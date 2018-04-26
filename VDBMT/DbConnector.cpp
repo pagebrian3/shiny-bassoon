@@ -1,7 +1,7 @@
 #include <DbConnector.h>
 #include <boost/format.hpp>
 
-DbConnector::DbConnector(bfs::path appPath) {
+DbConnector::DbConnector(bfs::path & appPath) {
   bool newFile = true;
   bfs::path db_path = appPath;
   bfs::path icon_path = appPath;

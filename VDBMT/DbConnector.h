@@ -10,7 +10,7 @@ class DbConnector {
 
  public:
 
-  DbConnector(bfs::path path);
+  DbConnector(bfs::path & path);
 
   bool video_exists(bfs::path & filename);
 
