@@ -1,6 +1,6 @@
 CC = g++ #clang++
 CFLAGS  = -I. -std=gnu++14 -march=native -O3
-LDFLAGS = `pkg-config --cflags --libs gtkmm-3.0` -L/usr/lib/ -lboost_program_options -lboost_filesystem -lboost_system -lsqlite3 -lMagick++-7.Q16HDRI -lmediainfo -lzen -lboost_timer
+LDFLAGS = `pkg-config --libs gtkmm-3.0` -pthread -L/usr/lib/ -lboost_program_options -lboost_filesystem -lboost_system -lsqlite3 -lMagick++-7.Q16HDRI -lmediainfo -lzen -lboost_timer
 GTKFLAGS = `pkg-config --cflags gtkmm-3.0`
 MAGICKFLAGS = `pkg-config --cflags Magick++`
 default: vbrowser
