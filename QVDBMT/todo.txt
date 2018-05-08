@@ -1,0 +1,5 @@
+List of future enhancements/fixes:
+
+-Deal with bad files gracefully.
+-Seek further on blank/solid/stationary frames.  Should also remove these sections from trace.  Perhaps part of the border detection.  Some intros have animation, so perhaps it would be better to just set a later start time for traces.
+-Fix intermittant failure.  Probably a thread-safety issue.
