@@ -187,8 +187,7 @@ bool video_utils::compare_images(int vid1, int vid2) {
   Magick::Image * img2 = get_image(vid2);
   float width1 = img1->size().width();
   float width2 = img2->size().width();
-  if(fabs(width1 - width2) > 20) return false;  //20 is untuned parameter, allowable difference in width
-  else {
+  if(fabs(width1 - width2) <= 20) {  //20 is untuned parameter, allowable difference in width
     float width = width1;
     if(width1 > width2) width = width2;
     float height = img2->size().height();
@@ -210,6 +209,7 @@ bool video_utils::compare_images(int vid1, int vid2) {
     if(!img_cache[vid2]) delete img2;
     else return false;
   }
+  return false;
 }
 
 void video_utils::compare_icons(std::vector<int> & vid_list) {
