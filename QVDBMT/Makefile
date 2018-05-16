@@ -30,4 +30,4 @@ VidFile.o:  VidFile.cpp VidFile.h
 	$(CC) $(CFLAGS) -DUNICODE -c VidFile.cpp
 
 clean: 
-	$(RM) vbrowser *.o *~
+	$(RM) qvbrowser *.o *~
