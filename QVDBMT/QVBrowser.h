@@ -30,8 +30,8 @@ class QVBrowser: public QMainWindow
   void asc_clicked();
   void on_sort_changed();
   bool progress_timeout();
-  std::string get_sort();
   void set_sort(std::string sort);
+  void update_sort();
   void update_progress(int percent, std::string label);
     
  private:
@@ -39,7 +39,7 @@ class QVBrowser: public QMainWindow
   QListView * fFBox;
   QStandardItemModel * fModel;
   std::string sort_by;
-  bool sort_desc;
+  Qt::SortOrder sOrder;
   int progressFlag; //0=none 1=icons 2=traces 3=dupes
   int fProgTime;
   QGroupBox * sort_opt;

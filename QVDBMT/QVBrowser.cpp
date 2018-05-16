@@ -12,7 +12,7 @@ QVBrowser::QVBrowser(po::variables_map & vm) {
   setMinimumHeight(vm["win_height"].as<int>()); 
   vu = new video_utils(vm);
   sort_by="size"; //size, name, length
-  sort_desc=true;  //true, false
+  sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder
   browse_button = new QPushButton("...");
   connect(browse_button, &QPushButton::clicked, this, &QVBrowser::browse_clicked);
   fdupe_button = new QPushButton("Find Dupes");
@@ -69,16 +69,24 @@ void QVBrowser::populate_icons(bool clean) {
   iconVec =  new std::vector<QVideoIcon *> (vidFiles.size());
   fModel = new QStandardItemModel(vidFiles.size(),1,fFBox);
   int j = 0;
-  QList<QStandardItem*> qvList;
   for(auto &a: vidFiles) {
     QVideoIcon * b = new QVideoIcon(a);
     (*iconVec)[j]=b;
     video_files.push_back(a->fileName);
     vid_list.push_back(a->vid);
-    fModel->appendRow(b);
+    QList<QStandardItem * > row;
+    row.append(b); 
+    QStandardItem * i1 = new QStandardItem((boost::format("%010i") % b->get_vid_file()->size).str().c_str());
+    row.append(i1);
+    i1 = new QStandardItem((boost::format("%08i") % b->get_vid_file()->length).str().c_str());
+    row.append(i1);
+    i1 = new QStandardItem((boost::format("%s") % b->get_vid_file()->fileName).str().c_str());
+    row.append(i1);
+    fModel->appendRow(row);
     j++;
   }
   fFBox->setModel(fModel);
+  //update_sort();
   p_timer->start(fProgTime);
   progressFlag = 1;
   fFBox->show();
@@ -153,24 +161,11 @@ bool QVBrowser::progress_timeout() {
   return true;
 }
 
-std::string QVBrowser::get_sort() {
-  return sort_by;
-}
 
 void QVBrowser::set_sort(std::string sort) {
   sort_by = sort;
   return;
 }
-
-/*int QVBrowser::sort_videos(Gtk::FlowBoxChild *videoFile1, Gtk::FlowBoxChild *videoFile2) {
-  int value=1;
-  VidFile *v1=(reinterpret_cast<VideoIcon*>(videoFile1->get_child()))->get_vid_file();
-  VidFile *v2=(reinterpret_cast<VideoIcon*>(videoFile2->get_child()))->get_vid_file();
-  if(sort_desc) value *= -1;
-  if(!std::strcmp(get_sort().c_str(),"size")) return value*(v1->size - v2->size);
-  else if(!std::strcmp(get_sort().c_str(),"length")) return value*(v1->length - v2->length);
-  else return value*boost::algorithm::to_lower_copy(v1->fileName.native()).compare(boost::algorithm::to_lower_copy(v2->fileName.native()));   
-  }*/
 
 void QVBrowser::browse_clicked() {
   QFileDialog dialog(this, tr("Please choose a folder or folders"));
@@ -208,17 +203,31 @@ void QVBrowser::fdupe_clicked(){
 }
 
 void QVBrowser::on_sort_changed() {
-  sort_by = sort_combo->currentText().toStdString();
-  //fFBox->invalidate_sort();
+  sort_by = sort_combo->currentText().toStdString();  
+  update_sort();
   return;
 }
 
 void QVBrowser::asc_clicked() {
-  sort_desc=! sort_desc;
   QString iname = "view-sort-ascending";
-  if (sort_desc) iname = "view-sort-descending";
+  if(sOrder == Qt::DescendingOrder){
+    sOrder = Qt::AscendingOrder;
+  }
+  else{
+    iname = "view-sort-descending";
+    sOrder = Qt::DescendingOrder;
+  }
   asc_button->setIcon(QIcon::fromTheme(iname));
-  //fFBox->invalidate_sort();
+  update_sort();
+  return;
+}
+
+void QVBrowser::update_sort() {
+  int column = 1;
+  if(sort_by == "length") column=2;
+  else if(sort_by == "name") column=3;
+  fModel->sort(column,sOrder);
+  update();
   return;
 }
 
