@@ -80,7 +80,7 @@ void QVBrowser::populate_icons(bool clean) {
     row.append(i1);
     i1 = new QStandardItem((boost::format("%08i") % b->get_vid_file()->length).str().c_str());
     row.append(i1);
-    i1 = new QStandardItem((boost::format("%s") % b->get_vid_file()->fileName).str().c_str());
+    i1 = new QStandardItem(boost::algorithm::to_lower_copy((boost::format("%s") % b->get_vid_file()->fileName).str()).c_str());
     row.append(i1);
     fModel->appendRow(row);
     j++;
