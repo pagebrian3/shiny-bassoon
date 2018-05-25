@@ -8,14 +8,11 @@ default: qvbrowser
 debug: CFLAGS =  -I. -std=gnu++14 -g -Wall -fPIC
 debug: qvbrowser
 
-qvbrowser:  VidFile.o VideoUtils.o QVideoIcon.o DbConnector.o QVBrowser.o qmain.o 
-	$(CC) $(CFLAGS) $(LDFLAGS) -o qvbrowser VidFile.o VideoUtils.o QVideoIcon.o DbConnector.o QVBrowser.o qmain.o
+qvbrowser:  VidFile.o VideoUtils.o DbConnector.o QVBrowser.o qmain.o 
+	$(CC) $(CFLAGS) $(LDFLAGS) -o qvbrowser VidFile.o VideoUtils.o DbConnector.o QVBrowser.o qmain.o
 
 qmain.o:  qmain.cc
 	$(CC) $(CFLAGS) $(QTFLAGS) $(MAGICKFLAGS) -c qmain.cc
-
-QVideoIcon.o:  QVideoIcon.cpp QVideoIcon.h
-	$(CC) $(CFLAGS) $(QTFLAGS) -c QVideoIcon.cpp
 
 QVBrowser.o:  QVBrowser.cpp QVBrowser.h
 	$(CC) $(CFLAGS) $(QTFLAGS) $(MAGICKFLAGS) -c QVBrowser.cpp

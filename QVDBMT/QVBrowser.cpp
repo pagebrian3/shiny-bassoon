@@ -59,34 +59,52 @@ void QVBrowser::populate_icons(bool clean) {
   if(clean) {
     vid_list.clear();
     delete fModel;
-    delete iconVec;
     video_files.clear();
   }
   
   setCentralWidget(fFBox);
-  std::vector<VidFile *> vidFiles;
   vu->make_vids(vidFiles);
-  iconVec =  new std::vector<QVideoIcon *> (vidFiles.size());
+  iconVec =  new std::vector<QStandardItem *> (vidFiles.size());
   fModel = new QStandardItemModel(vidFiles.size(),1,fFBox);
   int j = 0;
   for(auto &a: vidFiles) {
-    QVideoIcon * b = new QVideoIcon(a);
+    QStandardItem * b = new QStandardItem();
+    float size = a->size;
+    std::string sizeLabel = "B";
+    float factor=1.0/1024.0;
+    if(factor*size >= 1.0) {
+      size*=factor;
+      if(factor*size >= 1.0) {
+	size*=factor;
+	if(factor*size >= 1.0) {
+	  size*=factor;
+	  sizeLabel = "GB";
+	}
+	else sizeLabel = "MB";
+      }
+      else sizeLabel = "KB";
+    }
+    int h = a->length/3600.0;
+    int m = ((int)(a->length)%3600)/60;
+    float s = a->length-m*60.0;
+    b->setIcon(QIcon::fromTheme("image-missing"));
+    QString toolTip((boost::format("Filename: %s\nSize: %3.2f%s\nLength: %i:%02i:%02.1f") % a->fileName %  size % sizeLabel % h % m % s).str().c_str());
+    b->setToolTip(toolTip);
     (*iconVec)[j]=b;
     video_files.push_back(a->fileName);
     vid_list.push_back(a->vid);
     QList<QStandardItem * > row;
     row.append(b); 
-    QStandardItem * i1 = new QStandardItem((boost::format("%010i") % b->get_vid_file()->size).str().c_str());
+    QStandardItem * i1 = new QStandardItem((boost::format("%010i") % a->size).str().c_str());
     row.append(i1);
-    i1 = new QStandardItem((boost::format("%08i") % b->get_vid_file()->length).str().c_str());
+    i1 = new QStandardItem((boost::format("%08i") % a->length).str().c_str());
     row.append(i1);
-    i1 = new QStandardItem(boost::algorithm::to_lower_copy((boost::format("%s") % b->get_vid_file()->fileName).str()).c_str());
+    i1 = new QStandardItem(boost::algorithm::to_lower_copy((boost::format("%s") % a->fileName).str()).c_str());
     row.append(i1);
     fModel->appendRow(row);
     j++;
   }
   fFBox->setModel(fModel);
-  //update_sort();
   p_timer->start(fProgTime);
   progressFlag = 1;
   fFBox->show();
@@ -126,6 +144,7 @@ bool QVBrowser::progress_timeout() {
     update_progress(percent,(boost::format("Creating Icons %i/%i: %d%% Complete") % counter % total %  percent).str());
     if(counter == total) {
       update_progress(100,"Icons Complete");
+      update_sort();
       return false;
     }
     else return true;
@@ -189,16 +208,12 @@ void QVBrowser::on_delete() {
 void QVBrowser::fdupe_clicked(){
   std::vector<VidFile *> videos;
   vid_list.clear();
-  for(auto & vIcon: *iconVec) {
-    VidFile * vid_obj = vIcon->get_vid_file();
-    int video_id = vid_obj->vid;
-    vid_list.push_back(video_id);
-    videos.push_back(vid_obj);
-  }
+  for(auto & vFile: vidFiles) 
+    vid_list.push_back(vFile->vid);
   vu->compare_icons(vid_list);
   progressFlag=2;
   p_timer->start(fProgTime);
-  vu->start_make_traces(videos);
+  vu->start_make_traces(vidFiles);
   return;
 }
 

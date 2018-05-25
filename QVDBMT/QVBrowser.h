@@ -2,7 +2,6 @@
 #define QVBROWSER_H
 
 #include "VideoUtils.h"
-#include "QVideoIcon.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QProgressBar>
@@ -10,6 +9,7 @@
 #include <QListView>
 #include <QGroupBox>
 #include <QComboBox>
+#include <QStandardItem>
 #include <boost/program_options.hpp>
 #include <set>
 #include <boost/timer/timer.hpp>
@@ -48,7 +48,8 @@ class QVBrowser: public QMainWindow
   QPushButton * fdupe_button;
   QComboBox * sort_combo;
   std::vector<int> vid_list;
-  std::vector<QVideoIcon*> * iconVec;
+  std::vector<VidFile *> vidFiles;
+  std::vector<QStandardItem *> * iconVec;
   //sigc::slot<bool> p_timer_slot;
   QTimer * p_timer;
   std::vector<bfs::path> video_files;
