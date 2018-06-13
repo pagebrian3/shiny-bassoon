@@ -9,7 +9,7 @@ else
     CPU_COMMENT="CPU_SUP_AMD"
 fi
 
-VIRT_TEST=`dmesg | grep "Hypervisor detected"`
+VIRT_TEST=`hostnamectl | grep "computer-vm"`
 VIRT_COMMENT=""
 if [[ -z $VIRT_TEST ]]; then
     VIRT_COMMENT="HYPERVISOR_GUEST VIRT_DRIVERS VIRTIO_MENU DRM_VBOXVIDEO"
