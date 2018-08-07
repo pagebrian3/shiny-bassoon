@@ -16,7 +16,7 @@ import sqlite3
 import numpy as np
 import multiprocessing
 import tempfile
-from wand.image import Image
+from PIL import Image
 from pymediainfo import MediaInfo
 
 iconHeight = 180
@@ -57,16 +57,18 @@ def calculate_trace(videoFile, vid):
          flExt = fExt.lower()           
          if flExt == ".bmp": icons.append(filename)
     icons=sorted(icons)
-    last_image = Image(filename=temp_dir.name+"/"+icons[0])
+    last_im_file = Image.open(filename=temp_dir.name+"/"+icons[0])
+    last_image = last_im_file.load()
     accum = np.zeros((last_image.size[0],last_image.size[1]), dtype=np.int32)
     icon_counter=0
     #use Image.difference instead.
     for icon in icons[1:]:
-        with Image(filename=temp_dir.name+"/"+icon) as img:
+        with Image.open(filename=temp_dir.name+"/"+icon) as img_f:
+            img = img_f.load()
             print(str(vid)+" "+str(icon_counter))
             for row1,row2,row_accum in zip(img,last_image,accum):
                 for pixel1,pixel2,pixel_accum in zip(row1,row2,row_accum):
-                    pixel_accum+=pow(int(255*pixel1.red)-int(255*pixel2.red),2)+pow(int(255*pixel1.green)-int(255*pixel2.green),2)+pow(int(255*pixel1.blue)-int(255*pixel2.blue),2)                           
+                    pixel_accum+=pow(int(255*pixel1[0])-int(255*pixel2[0]),2)+pow(int(255*pixel1[1])-int(255*pixel2[1]),2)+pow(int(255*pixel1[2])-int(255*pixel2[2]),2)                           
             last_image=img
         icon_counter+=1
     array_dims = accum.size
@@ -97,12 +99,13 @@ def calculate_trace(videoFile, vid):
          if flExt == ".bmp": icons.append(filename)
     icons=sorted(icons)
     for icon in icons:
-        with Image(filename=temp_dir.name+"/"+icon) as img:
+        with Image.open(filename=temp_dir.name+"/"+icon) as img_f:
+            img = img_f.load()
             for row in img:
                 for pixel in row:
-                    trace.append(int(255*pixel.red))
-                    trace.append(int(255*pixel.green))
-                    trace.append(int(255*pixel.blue))
+                    trace.append(int(255*pixel[0]))
+                    trace.append(int(255*pixel[1]))
+                    trace.append(int(255*pixel[2]))
     return (vid,trace)
 
 class MyWindow(Gtk.Window):
