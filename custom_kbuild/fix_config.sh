@@ -1,5 +1,6 @@
 #!/bin/sh
 
+echo "FIXING CONFIG!!!!!!!"
 CPU_TEST=`lscpu | grep Intel`
 CPU_COMMENT=""
 VIRT_YES=""
