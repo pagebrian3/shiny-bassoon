@@ -44,7 +44,7 @@ sed -i "s/CONFIG_DEFAULT_IO_DELAY_TYPE=0/CONFIG_DEFAULT_IO_DELAY_TYPE=3/" .confi
 
 sed -i "/CONFIG_NODES_SHIFT=/c\CONFIG_NODES_SHIFT=3" .config
 
-sed -i "/CONFIG_NR_CPUS=/c\CONFIG_NR_CPUS=5" .config
+sed -i "/CONFIG_NR_CPUS=/c\CONFIG_NR_CPUS=9" .config
 
 lead='^\#\ Crypto\ core\ or\ helper'
 tail='^\#\ Certificates\ for\ signature\ checking'
