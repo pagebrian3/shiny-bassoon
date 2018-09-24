@@ -1,6 +1,5 @@
-#!/bin/sh
+#!/bin/bash
 
-echo "FIXING CONFIG!!!!!!!"
 CPU_TEST=`lscpu | grep Intel`
 CPU_COMMENT=""
 VIRT_YES=""
@@ -26,7 +25,7 @@ do
     sed -i "/^CONFIG_${i}=/c\# CONFIG_${i} is not set" .config
 done
 
-YES_LIST="LEGACY_VSYSCALL_NONE FB_SIMPLE NTFS_RW TRIM_UNUSED_KSYMS X86_P6_NOP KERNEL_LZ4 IO_DELAY_NONE MNATIVE OPTIMIZE_INLINING NLS_ASCII NLS_CODEPAGE_437 NLS_UTF8 HZ_300 $VIRT_YES"
+YES_LIST="SMT_NICE LEGACY_VSYSCALL_NONE FB_SIMPLE NTFS_RW TRIM_UNUSED_KSYMS KERNEL_LZ4 IO_DELAY_NONE MNATIVE OPTIMIZE_INLINING NLS_ASCII NLS_CODEPAGE_437 NLS_UTF8 HZ_300 $VIRT_YES"
 
 for i in $YES_LIST
 do
@@ -44,7 +43,9 @@ sed -i "s/CONFIG_DEFAULT_IO_DELAY_TYPE=0/CONFIG_DEFAULT_IO_DELAY_TYPE=3/" .confi
 
 sed -i "/CONFIG_NODES_SHIFT=/c\CONFIG_NODES_SHIFT=3" .config
 
-sed -i "/CONFIG_NR_CPUS=/c\CONFIG_NR_CPUS=9" .config
+NUM1=$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
+NRCPUS=$(( NUM1 + 1 ))
+sed -i "/CONFIG_NR_CPUS=/c\CONFIG_NR_CPUS=$NRCPUS" .config
 
 lead='^\#\ Crypto\ core\ or\ helper'
 tail='^\#\ Certificates\ for\ signature\ checking'
@@ -58,3 +59,4 @@ sed -i "s/CONFIG_NET_VENDOR_INTEL=n/CONFIG_NET_VENDOR_INTEL=y/" .config
 sed -i "/^# CONFIG_NLS_/s/ is not set/=m/" .config
 sed -i "/^# CONFIG_NLS_/s/# //" .config
 sed -i "s/CONFIG_HZ=1000/CONFIG_HZ=300/" .config
+sed -i "s/CONFIG_RQ_MC=0/CONFIG_RQ_MC=2/" .config
