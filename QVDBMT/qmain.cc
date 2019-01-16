@@ -31,7 +31,15 @@ int main(int argc, char *argv[])
   po::store(po::parse_command_line(argc, argv, config),vm);
   po::store(po::parse_config_file(config_file, config),vm);
   po::notify(vm);
-  QApplication app(argc, argv);
+  char * *args;
+  char  blah[30] = "qvbrowser";
+  args[0] = blah;
+  char blah2[30] = "--platformtheme";
+  args[1] = blah2;
+  char blah3[30] = "qt5ct";
+  args[2]=blah3;
+  int argn = 3;
+  QApplication app(argn, args);
   QVBrowser mainWin(vm);
   mainWin.show();
   return app.exec();
