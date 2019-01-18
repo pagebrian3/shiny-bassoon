@@ -1,5 +1,4 @@
 #include <QApplication>
-
 #include <QVBrowser.h>
 
 int main(int argc, char *argv[])
@@ -31,7 +30,7 @@ int main(int argc, char *argv[])
   po::store(po::parse_command_line(argc, argv, config),vm);
   po::store(po::parse_config_file(config_file, config),vm);
   po::notify(vm);
-  char * *args;
+  char * *args = (char**) malloc(3*sizeof(char*));
   char  blah[30] = "qvbrowser";
   args[0] = blah;
   char blah2[30] = "--platformtheme";

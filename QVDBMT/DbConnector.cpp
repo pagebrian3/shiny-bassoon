@@ -6,7 +6,7 @@ DbConnector::DbConnector(bfs::path & appPath) {
   bfs::path db_path = appPath;
   bfs::path icon_path = appPath;
   if(!bfs::exists(appPath)) bfs::create_directory(appPath);
-  db_path+="vdb.sql";
+  db_path+="vdb.db";
   temp_icon = new char[icon_path.size()];
   strcpy(temp_icon, icon_path.c_str());
   if (bfs::exists(db_path)) newFile=false;
@@ -15,7 +15,7 @@ DbConnector::DbConnector(bfs::path & appPath) {
     sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text)", NULL,NULL, NULL);
-    sqlite3_exec(db,"create table videos(path text,crop text, length double, size integer, okflag integer, rotate integer, vdatid integer)", NULL,NULL, NULL);
+    sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer)", NULL,NULL, NULL);
   }
 }
 
@@ -25,7 +25,7 @@ void DbConnector::save_db_file() {
 
 VidFile * DbConnector::fetch_video(bfs::path & filename){
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "SELECT crop, length, size, okflag, rotate, vdatid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "SELECT crop, length, size, okflag, rotate, vid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_text(stmt, 1, filename.c_str(),-1, NULL);    
   if (rc != SQLITE_OK) {               
@@ -82,7 +82,7 @@ std::string DbConnector::fetch_icon(int vid){
 void DbConnector::save_video(VidFile* a) {
   a->okflag=1;
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,length,size,okflag,rotate, vdatid) VALUES (?,?,?,?,?,?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,length,size,okflag,rotate, vid) VALUES (?,?,?,?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   sqlite3_bind_text(stmt, 1, a->fileName.c_str(), -1, NULL);
   sqlite3_bind_double(stmt, 2, a->length);
@@ -102,7 +102,7 @@ void DbConnector::save_video(VidFile* a) {
 
 void DbConnector::save_crop(VidFile* a) {
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "UPDATE videos SET crop=? WHERE vdatid=?", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "UPDATE videos SET crop=? WHERE vid=?", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   sqlite3_bind_text(stmt, 1, a->crop.c_str(), -1, NULL);
   sqlite3_bind_int(stmt, 2, a->vid);
@@ -348,7 +348,7 @@ std::string DbConnector::create_icon_path(int vid) {
 
 void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db,(boost::format("SELECT path,vdatid FROM videos WHERE path LIKE '%s%%'") % dir.string()).str().c_str(), -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db,(boost::format("SELECT path,vid FROM videos WHERE path LIKE '%s%%'") % dir.string()).str().c_str(), -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   //rc = sqlite3_bind_text(stmt, 1, dir.c_str(),-1, NULL);  
   if (rc != SQLITE_OK) {               
@@ -379,7 +379,7 @@ void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
     rc = sqlite3_bind_int(stmt, 1, a); 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-    rc = sqlite3_prepare_v2(db, "DELETE FROM videos WHERE vdatid = ?", -1, &stmt, NULL);
+    rc = sqlite3_prepare_v2(db, "DELETE FROM videos WHERE vid = ?", -1, &stmt, NULL);
     rc = sqlite3_bind_int(stmt, 1, a); 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);

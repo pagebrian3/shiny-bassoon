@@ -75,10 +75,20 @@ bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<uint8_t> 
 bool video_utils::calculate_trace(VidFile * obj) {
   float start_time = cStartT;
   if(obj->length <= start_time) start_time=0.0;
-  boost::process::ipstream is;
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo - ") % start_time % obj->fileName  % cTraceFPS % obj->crop).str(),boost::process::std_out > is);
+  std::string tracePath = tempPath.c_str();
+  std::cout << obj->vid << std::endl;
+  char filePath[50];
+  sprintf(filePath,"%d.bin", obj->vid);
+    std::cout << obj->vid << " " << tracePath << " "<<filePath <<std::endl;
+  tracePath.append(filePath);
+  std::cout << tracePath << std::endl;
+  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % cTraceFPS % obj->crop %tracePath ).str());
+   std::ifstream ifstr(tracePath.c_str());
   std::string outString;
-  std::getline(is,outString);
+  ifstr.seekg(0, std::ios::end);   
+outString.reserve(ifstr.tellg());
+ifstr.seekg(0, std::ios::beg);
+ outString.assign(std::istreambuf_iterator<char>(ifstr),std::istreambuf_iterator<char>());
   dbCon->save_trace(obj->vid, outString);
   return true; 
 }
