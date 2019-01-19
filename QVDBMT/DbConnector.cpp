@@ -3,21 +3,32 @@
 
 DbConnector::DbConnector(bfs::path & appPath) {
   bool newFile = true;
-  bfs::path db_path = appPath;
+  std::string db_path = appPath.c_str();
   bfs::path icon_path = appPath;
   if(!bfs::exists(appPath)) bfs::create_directory(appPath);
-  db_path+="vdb.db";
+  db_path.append("vdb.db");
   temp_icon = new char[icon_path.size()];
   strcpy(temp_icon, icon_path.c_str());
   if (bfs::exists(db_path)) newFile=false;
-  sqlite3_open(db_path.c_str(),&db);
+  std::cout << db_path <<  " " << newFile <<std::endl;
+  int rc = 0;
+  try {
+    rc = sqlite3_open(db_path.c_str(),&db);
+  }
+  catch(const std::exception& e) {
+    if( rc ){
+      fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+      sqlite3_close(db);
+    }
+  }
+  
   if (newFile) {
     sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer)", NULL,NULL, NULL);
   }
-}
+  }
 
 void DbConnector::save_db_file() {
   sqlite3_close(db);

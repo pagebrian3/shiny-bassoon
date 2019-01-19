@@ -187,7 +187,7 @@ Magick::Image *video_utils::get_image(int vid) {
   if(img_cache[vid]) return img_cache[vid];
   std::string image_file(dbCon->fetch_icon(vid));
   Magick::Image * img = new Magick::Image(image_file);
-  std::system((boost::format("rm %s") % image_file).str().c_str());
+  //std::system((boost::format("rm %s") % image_file).str().c_str());
   if(img_cache.size() < cCache) img_cache[vid] = img;  
   return img;
 }
