@@ -1,4 +1,4 @@
 #!/bin/bash
 
 #QT_XCB_NO_XI2=True
-./qvbrowser --qtplatformtheme qt5ct
+QT_QPA_PLATFORMTHEME=qt5ct ./qvbrowser

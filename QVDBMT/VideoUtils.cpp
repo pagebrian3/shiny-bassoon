@@ -76,12 +76,9 @@ bool video_utils::calculate_trace(VidFile * obj) {
   float start_time = cStartT;
   if(obj->length <= start_time) start_time=0.0;
   std::string tracePath = tempPath.c_str();
-  std::cout << obj->vid << std::endl;
   char filePath[50];
   sprintf(filePath,"%d.bin", obj->vid);
-    std::cout << obj->vid << " " << tracePath << " "<<filePath <<std::endl;
   tracePath.append(filePath);
-  std::cout << tracePath << std::endl;
   boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % cTraceFPS % obj->crop %tracePath ).str());
    std::ifstream ifstr(tracePath.c_str());
   std::string outString;
@@ -95,6 +92,7 @@ ifstr.seekg(0, std::ios::beg);
 
 bool video_utils::create_thumb(VidFile * vidFile) {
   if(dbCon->icon_exists(vidFile->vid)) {
+    std::cout << "Already Exists" << std::endl;
     dbCon->fetch_icon(vidFile->vid);
     return true;
   }
@@ -104,7 +102,8 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   float thumb_t = cThumbT;
   if(vidFile->length < cThumbT) thumb_t = vidFile->length/2.0;
   std::string icon_file(dbCon->create_icon_path(vidFile->vid));
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
+  std::string command((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
+  boost::process::system(command);
   return true;
 };
 
@@ -154,13 +153,16 @@ std::string video_utils::find_border(bfs::path & fileName,float length) {
   }
   if(!skipBorder) {
     int x1(0), x2(width-1), y1(0), y2(height-1);
-    while(colSums[x1] < cCutThresh) x1++;
-    while(colSums[x2] < cCutThresh) x2--;
-    while(rowSums[y1] < cCutThresh) y1++;
-    while(rowSums[y2] < cCutThresh) y2--;
-    x2-=x1-1;  
-    y2-=y1-1;
-    crop = (boost::format("crop=%i:%i:%i:%i,")% x2 % y2 % x1 % y1).str();
+    while(colSums[x1] < cCutThresh && x1 < width-1) x1++;
+    while(colSums[x2] < cCutThresh && x2 > 0) x2--;
+    while(rowSums[y1] < cCutThresh && y1 < height -1) y1++;
+    while(rowSums[y2] < cCutThresh && y2 > 0) y2--;
+    if( x1 < x2 and  y1 < y2) { 
+      x2-=x1-1;  
+      y2-=y1-1;
+      crop = (boost::format("crop=%i:%i:%i:%i,")% x2 % y2 % x1 % y1).str();
+    }
+    else std::cout << "Find border failed for:" << fileName.string() << std::endl;  
   }
   delete imgDat0;
   delete imgDat1;
@@ -271,9 +273,6 @@ void video_utils::compare_traces(std::vector<int> & vid_list) {
 }
 
 void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
-  int min_vid = dbCon->get_last_vid();
-  bool new_db = false;
-  if(min_vid == 0) new_db = true;
   std::vector<std::future<VidFile * > > vFiles;
   for(auto & path: paths){
     std::vector<bfs::path> current_dir_files;
@@ -292,8 +291,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	  }
 	}	
 	if(!dbCon->video_exists(pathName))  {
-	  min_vid++;
-	  vFiles.push_back(TPool->push([this](bfs::path path, int &vid) {return new VidFile(path,vid);},pathName,min_vid));
+	  vFiles.push_back(TPool->push([this](bfs::path path) {return new VidFile(path);},pathName));
 	}
 	else {
 	  vidFiles.push_back(dbCon->fetch_video(pathName));
@@ -301,7 +299,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	}
       }    
     }
-    if(!new_db) dbCon->cleanup(path,current_dir_files);
+    //if(!new_db) dbCon->cleanup(path,current_dir_files);  //Bring back
   }
   cxxpool::wait(vFiles.begin(),vFiles.end());
   VidFile * vidTemp;

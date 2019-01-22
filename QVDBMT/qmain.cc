@@ -27,8 +27,7 @@ int main(int argc, char *argv[])
     ("image_thresh",po::value<int>()->default_value(4), "image difference threshold");
   std::ifstream config_file("config.cfg");
   po::variables_map vm;
-  char * a[1];
-  po::store(po::parse_command_line(1, a, config),vm);
+  po::store(po::parse_command_line(argc, argv, config),vm);
   po::store(po::parse_config_file(config_file, config),vm);
   po::notify(vm);
   QApplication app(argc, argv);

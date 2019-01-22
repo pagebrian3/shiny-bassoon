@@ -38,8 +38,6 @@ class DbConnector {
 
   void fetch_trace(int vid, std::vector<uint8_t> & trace);
 
-  int get_last_vid();
-
   void save_db_file();
 
   void cleanup(bfs::path & dir, std::vector<bfs::path> & files);
@@ -48,7 +46,7 @@ class DbConnector {
 
   sqlite3 * db;
 
-  char* temp_icon;
+  bfs::path icon_path;
 
 };
 
