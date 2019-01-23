@@ -61,7 +61,6 @@ void QVBrowser::populate_icons(bool clean) {
     delete fModel;
     video_files.clear();
   }
-  
   setCentralWidget(fFBox);
   vu->make_vids(vidFiles);
   iconVec =  new std::vector<QStandardItem *> (vidFiles.size());
@@ -130,8 +129,6 @@ bool QVBrowser::progress_timeout() {
 	(*iconVec)[i]->setIcon(QIcon());
 	(*iconVec)[i]->setSizeHint(img.size());
 	(*iconVec)[i]->setBackground(QBrush(img));
-	fModel->removeRow(i);
-	fModel->insertRow(i,(*iconVec)[i]);
 	std::system((boost::format("rm %s") %icon_file).str().c_str());
 	vid_list[i]=0;
       }
