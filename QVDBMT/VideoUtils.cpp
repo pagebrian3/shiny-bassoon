@@ -3,38 +3,56 @@
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
+#if defined(_WIN32)
+ #define PLATFORM_NAME "windows" // Windows
+#elif defined(_WIN64)
+ #define PLATFORM_NAME "windows"
+#elif defined(__linux__)
+#define PLATFORM_NAME "linux"
+#endif
 
-video_utils::video_utils(po::variables_map & vm) {
-  tempPath = getenv("HOME");
+video_utils::video_utils() {
+  if(PLATFORM_NAME == "linux") tempPath = getenv("HOME");
+  else if(PLATFORM_NAME == "windows") {
+    std::string temp(getenv("USERPROFILE"));
+    tempPath =temp.substr(temp.find("="));
+  }
+  else std::cout << "Unsupported platform" << std::endl;
   tempPath+="/.video_proj/"; 
   dbCon = new DbConnector(tempPath);
   dbCon->fetch_results(result_map);
+  appConfig = new qvdb_config();
+  appConfig.load_config(dbCon->fetch_config());
   Magick::InitializeMagick("");
-  paths.push_back(bfs::path(vm["default_path"].as<std::string>()));
-  TPool = new cxxpool::thread_pool(vm["threads"].as<int>());
-  cTraceFPS =     vm["trace_fps"].as<float>();
-  cStartT =       vm["trace_time"].as<float>();
-  cCompTime =     vm["comp_time"].as<float>();
-  cSliceSpacing = vm["slice_spacing"].as<float>();
-  cThresh =       vm["thresh"].as<float>();
-  cFudge =        vm["fudge"].as<int>();
-  cThumbT =       vm["thumb_time"].as<float>();
-  cHeight =       vm["thumb_height"].as<int>();
-  cWidth =        vm["thumb_width"].as<int>();
-  cCache =        vm["cache_size"].as<int>();
-  cBFrames =      vm["border_frames"].as<float>();
-  cCutThresh =    vm["cut_thresh"].as<float>();
-  cImgThresh =    vm["image_thresh"].as<int>();
-  std::string bad_chars =     vm["bad_chars"].as<std::string>();
-  std::string extStrin = vm["extensions"].as<std::string>();
+  std::string initialPath;
+  appConfig.get("default_path", initialPath)
+  paths.push_back(bfs::path(initialPath));
+  int numThreads;
+  appConfig.get("threads",numThreads);
+  TPool = new cxxpool::thread_pool(numThreads);
+  appConfig.get("trace_fps",cTraceFPS);
+appConfig.get("trace_time",cStartT);
+appConfig.get("comp_time",cCompTime););
+appConfig.get("slice_spacing",cSliceSpacing);
+appConfig.get("thresh",cThresh);
+appConfig.get("fudge",cFudge);
+appConfig.get("thumb_time",cThumbT);
+appConfig.get("thumb_height",cHeight);
+appConfig.get("thumb_width",cWidth);
+appConfig.get("cache_size",cCache);
+appConfig.get("border_frames",cBFrames);
+appConfig.get("cut_thresh",cCutThresh);
+appConfig.get("image_thresh",cImgThresh);
+  std::string bad_chars;
+  appConfig.get("bad_chars",badChars);
+  std::string extStrin;
+  appConfig.get("extensions",extStrin);
   boost::char_separator<char> sep(" \"");
   boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
   for(auto &a: tok) extensions.insert(a);
   boost::tokenizer<boost::char_separator<char> > tok1(bad_chars,sep);
   for(auto &a: tok1) cBadChars.push_back(a);
 }
-
-video_utils::video_utils(){}
 
 bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<uint8_t> > & data) {
   bool match=false;
@@ -327,3 +345,4 @@ void video_utils::save_db() {
   dbCon->save_db_file();
   return;
 }
+

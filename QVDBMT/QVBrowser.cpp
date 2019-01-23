@@ -5,12 +5,12 @@
 #include <QHBoxLayout>
 #include <QLabel>
 
-QVBrowser::QVBrowser(po::variables_map & vm) {
+QVBrowser::QVBrowser() {
   fTimer = new boost::timer::auto_cpu_timer();
   fProgTime = vm["progress_time"].as<int>();
   setMinimumWidth(vm["win_width"].as<int>());
   setMinimumHeight(vm["win_height"].as<int>()); 
-  vu = new video_utils(vm);
+  vu = new video_utils();
   sort_by="size"; //size, name, length
   sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder
   browse_button = new QPushButton("...");

@@ -4,16 +4,12 @@
 #include "cxxpool.h"
 #include "VidFile.h"
 #include "DbConnector.h"
-#include <boost/program_options.hpp>
+#include "QVBConfig.h"
 #include "Magick++.h"
-
-namespace po = boost::program_options;
 
 class video_utils
 {
  public:
-
-  video_utils(po::variables_map & vm);
 
   video_utils();
 
@@ -59,6 +55,7 @@ class video_utils
   bfs::path tempPath;
   std::vector<bfs::path> paths;
   DbConnector * dbCon;
+  qvdb_config * appConfig;
   std::map<int,Magick::Image *> img_cache;
   std::vector<std::future<bool> > resVec;
   cxxpool::thread_pool * TPool;

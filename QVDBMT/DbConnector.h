@@ -41,6 +41,8 @@ class DbConnector {
   void save_db_file();
 
   void cleanup(bfs::path & dir, std::vector<bfs::path> & files);
+
+  std::vector<std::tuple<std::string,int,float,std::string> >fetch_config(); 
   
  private:
 

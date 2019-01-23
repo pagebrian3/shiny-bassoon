@@ -8,24 +8,15 @@ DbConnector::DbConnector(bfs::path & appPath) {
   db_path.append("vdb.db");
   bool newFile = true;
   if (bfs::exists(db_path)) newFile=false;
-  int rc = 0;
-  
-    rc = sqlite3_open(db_path.c_str(),&db);
-  
-  // catch(const std::exception& e) {
-  //   if( rc ){
-  //     fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-  //     sqlite3_close(db);
-  //   }
-  // }
-  
+   sqlite3_open(db_path.c_str(),&db);
   if (newFile) {
     sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer)", NULL,NULL, NULL);
+    sqlite3_exec(db,"create table config(cfg_label text, cfg_int integer, cfg_float double, cfg_str text)",NULL,NULL,NULL);
   }
-  }
+}
 
 void DbConnector::save_db_file() {
   sqlite3_close(db);
@@ -379,5 +370,25 @@ void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
     sqlite3_finalize(stmt);
   }  
   return;
+}
+
+std::vector<std::tuple<std::string,int,float,std::string> DbConnector::fetch_config() {
+  sqlite3_stmt *stmt;
+  int rc = sqlite3_prepare_v2(db,"SELECT cfg_label, cfg_int, cfg_float, cfg_str FROM config" , -1, &stmt, NULL);
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
+  }
+  std::vector<std::string,int,float,std::string> configs;
+  while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+    std::string label(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
+    int var_i = sqlite3_column_int(stmt,1);
+    float var_f = sqlite3_column_double(stmt,2);
+    std::string var_s(reinterpret_cast<const char *>(sqlite3_column_text(stmt,3)));
+    configs.append(std::make_tuple(label,var_i,var_f,var_s));
+  }
+  sqlite3_finalize(stmt);
+  return configus;
 }
 

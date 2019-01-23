@@ -10,16 +10,13 @@
 #include <QGroupBox>
 #include <QComboBox>
 #include <QStandardItem>
-#include <boost/program_options.hpp>
 #include <set>
 #include <boost/timer/timer.hpp>
-
-namespace po = boost::program_options;
 
 class QVBrowser: public QMainWindow
 {
  public:
-  QVBrowser(po::variables_map &vm);
+  QVBrowser();
   //~QVBrowser();
   virtual ~QVBrowser();
   void populate_icons(bool clean = false);
@@ -50,7 +47,6 @@ class QVBrowser: public QMainWindow
   std::vector<int> vid_list;
   std::vector<VidFile *> vidFiles;
   std::vector<QStandardItem *> * iconVec;
-  //sigc::slot<bool> p_timer_slot;
   QTimer * p_timer;
   std::vector<bfs::path> video_files;
   video_utils * vu;
