@@ -17,10 +17,8 @@ class QVBrowser: public QMainWindow
 {
  public:
   QVBrowser();
-  //~QVBrowser();
   virtual ~QVBrowser();
   void populate_icons(bool clean = false);
-  //int sort_videos(Gtk::FlowBoxChild *vFile1, Gtk::FlowBoxChild *vFile2);
   void browse_clicked();
   void on_delete();
   void fdupe_clicked();

@@ -8,7 +8,7 @@ default: qvbrowser
 debug: CFLAGS =  -I. -std=gnu++14 -g -Wall -fPIC
 debug: qvbrowser
 
-qvbrowser:  VidFile.o VideoUtils.o DbConnector.o QVBrowser.o qmain.o 
+qvbrowser:  VidFile.o VideoUtils.o DbConnector.o QVBrowser.o qmain.o
 	$(CC) $(CFLAGS) $(LDFLAGS)  $(QTFLAGS) -o qvbrowser VidFile.o VideoUtils.o DbConnector.o QVBrowser.o qmain.o
 
 qmain.o:  qmain.cc

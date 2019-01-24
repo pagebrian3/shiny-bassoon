@@ -5,7 +5,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 
-QVBrowser::QVBrowser() {
+QVBrowser::QVBrowser() : QMainWindow() {
   fTimer = new boost::timer::auto_cpu_timer();
   vu = new video_utils();
   qvdb_config * qCfg = vu->get_config();

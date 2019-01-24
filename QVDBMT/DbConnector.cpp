@@ -14,7 +14,7 @@ DbConnector::DbConnector(bfs::path & appPath) {
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer)", NULL,NULL, NULL);
-    sqlite3_exec(db,"create table config(cfg_label text, cfg_int integer, cfg_float double, cfg_str text)",NULL,NULL,NULL);
+    sqlite3_exec(db,"create table config(cfg_label text primary key, cfg_int integer, cfg_float double, cfg_str text)",NULL,NULL,NULL);
   }
 }
 
@@ -330,7 +330,6 @@ void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db,(boost::format("SELECT path,vid FROM videos WHERE path LIKE '%s%%'") % dir.string()).str().c_str(), -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  //rc = sqlite3_bind_text(stmt, 1, dir.c_str(),-1, NULL);  
   if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 
     sqlite3_finalize(stmt);            
@@ -390,5 +389,30 @@ std::vector<std::tuple<std::string,int,float,std::string>> DbConnector::fetch_co
   }
   sqlite3_finalize(stmt);
   return configs;
+}
+
+void DbConnector::save_config(std::map<std::string, std::tuple<int,float,std::string> > config) {
+  for( auto &a: config) {
+    std::cout << "Save Called" << std::endl;
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO config (cfg_label, cfg_int, cfg_float, cfg_str) VALUES (?,?,?,?)", -1, &stmt, NULL);
+    if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+    rc = sqlite3_bind_text(stmt, 1, a.first.c_str(),-1, NULL);
+    rc = sqlite3_bind_int(stmt, 2, std::get<0>(a.second));
+    rc = sqlite3_bind_double(stmt, 3, std::get<1>(a.second));
+    rc = sqlite3_bind_text(stmt, 4, std::get<2>(a.second).c_str(),-1, NULL);
+    if (rc != SQLITE_OK) {               
+      std::string errmsg(sqlite3_errmsg(db)); 
+      sqlite3_finalize(stmt);            
+      throw errmsg;                      
+    }
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+      std::string errmsg(sqlite3_errmsg(db));
+      sqlite3_finalize(stmt);
+      throw errmsg;
+    }
+    sqlite3_finalize(stmt);
+  }
 }
 

@@ -3,30 +3,24 @@
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
-#if defined(_WIN32)
- #define PLATFORM_NAME "windows" // Windows
-#elif defined(_WIN64)
- #define PLATFORM_NAME "windows"
-#elif defined(__linux__)
-#define PLATFORM_NAME "linux"
-#endif
 
 video_utils::video_utils() {
-  if(PLATFORM_NAME == "linux") tempPath = getenv("HOME");
+  if(PLATFORM_NAME == "linux") {
+    tempPath = getenv("HOME");
+  }
   else if(PLATFORM_NAME == "windows") {
     std::string temp(getenv("USERPROFILE"));
     tempPath =temp.substr(temp.find("="));
   }
   else std::cout << "Unsupported platform" << std::endl;
+  bfs::path homeP(tempPath);
   tempPath+="/.video_proj/"; 
   dbCon = new DbConnector(tempPath);
   dbCon->fetch_results(result_map);
   appConfig = new qvdb_config();
-  appConfig->load_config(dbCon->fetch_config());
+  if(appConfig->load_config(dbCon->fetch_config()))   dbCon->save_config(appConfig->get_data());
   Magick::InitializeMagick("");
-  std::string initialPath;
-  appConfig->get("default_path", initialPath);
-  paths.push_back(bfs::path(initialPath));
+  paths.push_back(homeP);
   int numThreads;
   appConfig->get("threads",numThreads);
   TPool = new cxxpool::thread_pool(numThreads);

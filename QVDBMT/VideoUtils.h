@@ -1,12 +1,18 @@
 #ifndef VIDEOUTILS_H
 #define VIDEOUTILS_H
-
+#include "QVBConfig.h"
 #include <set>
 #include "cxxpool.h"
 #include "VidFile.h"
 #include "DbConnector.h"
-#include "QVBConfig.h"
 #include "Magick++.h"
+#if defined(_WIN32)
+ #define PLATFORM_NAME "windows" // Windows
+#elif defined(_WIN64)
+ #define PLATFORM_NAME "windows"
+#elif defined(__linux__)
+#define PLATFORM_NAME "linux"
+#endif
 
 class video_utils
 {
