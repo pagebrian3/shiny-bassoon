@@ -8,15 +8,14 @@
 QVBrowser::QVBrowser() : QMainWindow() {
   fTimer = new boost::timer::auto_cpu_timer();
   vu = new video_utils();
-  qvdb_config * qCfg = vu->get_config();
+  qCfg = vu->get_config();
   qCfg->get("progress_time",fProgTime);
   int winWidth, winHeight;
   qCfg->get("win_width",winWidth);
-  setMinimumWidth(winWidth);
   qCfg->get("win_height",winHeight);
-  setMinimumHeight(winHeight); 
-  sort_by="size"; //size, name, length
-  sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder
+  resize(winWidth,winHeight);
+  sort_by="size"; //size, name, length  TODO: make it remember last selection
+  sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder TODO: TODO: make it remember last selection
   browse_button = new QPushButton("...");
   connect(browse_button, &QPushButton::clicked, this, &QVBrowser::browse_clicked);
   fdupe_button = new QPushButton("Find Dupes");
@@ -58,7 +57,23 @@ QVBrowser::QVBrowser() : QMainWindow() {
 QVBrowser::~QVBrowser() {
   std::system("reset");
 }
-  
+
+void QVBrowser::resizeEvent(QResizeEvent* event)
+{
+  QMainWindow::resizeEvent(event);
+  int w = event->size().width();
+  int h = event->size().height();
+  qCfg->set("win_width",w);
+  qCfg->set("win_height",h);
+  return;
+}
+
+void QVBrowser::closeEvent(QCloseEvent *event) {
+  vu->close();
+  QMainWindow::closeEvent(event);
+}
+
+
 void QVBrowser::populate_icons(bool clean) {
   if(clean) {
     vid_list.clear();
@@ -198,11 +213,6 @@ void QVBrowser::browse_clicked() {
     vu->set_paths(files);
     populate_icons(true);
   }
-  return;
-}
-
-void QVBrowser::on_delete() {
-  vu->save_db();
   return;
 }
 

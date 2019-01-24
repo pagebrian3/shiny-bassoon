@@ -28,15 +28,15 @@ public:
     var.assign(std::get<2>(config_data[config]));
   };
 
-  void sett(std::string config, int & var){
+  void set(std::string config, int  var){
   config_data[config] = std::make_tuple(var,0.0,"");
 };
 
-  void set(std::string config, float & var){
+  void set(std::string config, float var){
   config_data[config] = std::make_tuple(0,var,"");
 };
 
-  void set(std::string config,  std::string & var){
+  void set(std::string config,  std::string  var){
   config_data[config] = std::make_tuple(0,0.0,var);
 };
   

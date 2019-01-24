@@ -10,7 +10,7 @@
 #include <QGroupBox>
 #include <QComboBox>
 #include <QStandardItem>
-#include <set>
+#include <QResizeEvent>
 #include <boost/timer/timer.hpp>
 
 class QVBrowser: public QMainWindow
@@ -20,10 +20,11 @@ class QVBrowser: public QMainWindow
   virtual ~QVBrowser();
   void populate_icons(bool clean = false);
   void browse_clicked();
-  void on_delete();
   void fdupe_clicked();
   void asc_clicked();
   void on_sort_changed();
+  void resizeEvent(QResizeEvent * event);
+  void closeEvent(QCloseEvent * event);
   bool progress_timeout();
   void set_sort(std::string sort);
   void update_sort();
@@ -33,6 +34,7 @@ class QVBrowser: public QMainWindow
   QProgressBar * progress_bar;
   QListView * fFBox;
   QStandardItemModel * fModel;
+  qvdb_config * qCfg ;
   std::string sort_by;
   Qt::SortOrder sOrder;
   int progressFlag; //0=none 1=icons 2=traces 3=dupes

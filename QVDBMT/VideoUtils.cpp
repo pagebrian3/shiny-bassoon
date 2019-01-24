@@ -334,7 +334,8 @@ std::string video_utils::save_icon(int vid) {
   return icon_file;
 }
 
-void video_utils::save_db() {
+void video_utils::close() {
+  dbCon->save_config(appConfig->get_data());
   dbCon->save_db_file();
   return;
 }

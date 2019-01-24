@@ -54,7 +54,7 @@ class video_utils
 
   std::string save_icon(int vid);
 
-  void save_db();
+  void close();
 
   qvdb_config * get_config();
 
