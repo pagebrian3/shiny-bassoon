@@ -393,7 +393,6 @@ std::vector<std::tuple<std::string,int,float,std::string>> DbConnector::fetch_co
 
 void DbConnector::save_config(std::map<std::string, std::tuple<int,float,std::string> > config) {
   for( auto &a: config) {
-    std::cout << "Save Called" << std::endl;
     sqlite3_stmt *stmt;
     int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO config (cfg_label, cfg_int, cfg_float, cfg_str) VALUES (?,?,?,?)", -1, &stmt, NULL);
     if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));

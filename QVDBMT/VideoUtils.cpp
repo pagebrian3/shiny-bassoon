@@ -104,7 +104,6 @@ ifstr.seekg(0, std::ios::beg);
 
 bool video_utils::create_thumb(VidFile * vidFile) {
   if(dbCon->icon_exists(vidFile->vid)) {
-    std::cout << "Already Exists" << std::endl;
     dbCon->fetch_icon(vidFile->vid);
     return true;
   }
