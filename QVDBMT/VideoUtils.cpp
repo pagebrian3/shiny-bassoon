@@ -22,35 +22,35 @@ video_utils::video_utils() {
   dbCon = new DbConnector(tempPath);
   dbCon->fetch_results(result_map);
   appConfig = new qvdb_config();
-  appConfig.load_config(dbCon->fetch_config());
+  appConfig->load_config(dbCon->fetch_config());
   Magick::InitializeMagick("");
   std::string initialPath;
-  appConfig.get("default_path", initialPath)
+  appConfig->get("default_path", initialPath);
   paths.push_back(bfs::path(initialPath));
   int numThreads;
-  appConfig.get("threads",numThreads);
+  appConfig->get("threads",numThreads);
   TPool = new cxxpool::thread_pool(numThreads);
-  appConfig.get("trace_fps",cTraceFPS);
-appConfig.get("trace_time",cStartT);
-appConfig.get("comp_time",cCompTime););
-appConfig.get("slice_spacing",cSliceSpacing);
-appConfig.get("thresh",cThresh);
-appConfig.get("fudge",cFudge);
-appConfig.get("thumb_time",cThumbT);
-appConfig.get("thumb_height",cHeight);
-appConfig.get("thumb_width",cWidth);
-appConfig.get("cache_size",cCache);
-appConfig.get("border_frames",cBFrames);
-appConfig.get("cut_thresh",cCutThresh);
-appConfig.get("image_thresh",cImgThresh);
-  std::string bad_chars;
-  appConfig.get("bad_chars",badChars);
+  appConfig->get("trace_fps",cTraceFPS);
+  appConfig->get("trace_time",cStartT);
+  appConfig->get("comp_time",cCompTime);
+  appConfig->get("slice_spacing",cSliceSpacing);
+  appConfig->get("thresh",cThresh);
+  appConfig->get("fudge",cFudge);
+  appConfig->get("thumb_time",cThumbT);
+  appConfig->get("thumb_height",cHeight);
+  appConfig->get("thumb_width",cWidth);
+  appConfig->get("cache_size",cCache);
+  appConfig->get("border_frames",cBFrames);
+  appConfig->get("cut_thresh",cCutThresh);
+  appConfig->get("image_thresh",cImgThresh);
+  std::string badChars;
+  appConfig->get("bad_chars",badChars);
   std::string extStrin;
-  appConfig.get("extensions",extStrin);
+  appConfig->get("extensions",extStrin);
   boost::char_separator<char> sep(" \"");
   boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
   for(auto &a: tok) extensions.insert(a);
-  boost::tokenizer<boost::char_separator<char> > tok1(bad_chars,sep);
+  boost::tokenizer<boost::char_separator<char> > tok1(badChars,sep);
   for(auto &a: tok1) cBadChars.push_back(a);
 }
 
@@ -344,5 +344,9 @@ std::string video_utils::save_icon(int vid) {
 void video_utils::save_db() {
   dbCon->save_db_file();
   return;
+}
+
+qvdb_config * video_utils::get_config(){
+  return appConfig;
 }
 

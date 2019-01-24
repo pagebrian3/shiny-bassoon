@@ -372,7 +372,7 @@ void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
   return;
 }
 
-std::vector<std::tuple<std::string,int,float,std::string> DbConnector::fetch_config() {
+std::vector<std::tuple<std::string,int,float,std::string>> DbConnector::fetch_config() {
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db,"SELECT cfg_label, cfg_int, cfg_float, cfg_str FROM config" , -1, &stmt, NULL);
   if (rc != SQLITE_OK) {               
@@ -380,15 +380,15 @@ std::vector<std::tuple<std::string,int,float,std::string> DbConnector::fetch_con
     sqlite3_finalize(stmt);            
     throw errmsg;                      
   }
-  std::vector<std::string,int,float,std::string> configs;
+  std::vector<std::tuple<std::string,int,float,std::string> > configs;
   while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
     std::string label(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
     int var_i = sqlite3_column_int(stmt,1);
     float var_f = sqlite3_column_double(stmt,2);
     std::string var_s(reinterpret_cast<const char *>(sqlite3_column_text(stmt,3)));
-    configs.append(std::make_tuple(label,var_i,var_f,var_s));
+    configs.push_back(std::make_tuple(label,var_i,var_f,var_s));
   }
   sqlite3_finalize(stmt);
-  return configus;
+  return configs;
 }
 

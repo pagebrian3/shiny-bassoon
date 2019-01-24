@@ -1,6 +1,7 @@
 #ifndef VIDEOUTILS_H
 #define VIDEOUTILS_H
 
+#include <set>
 #include "cxxpool.h"
 #include "VidFile.h"
 #include "DbConnector.h"
@@ -48,6 +49,8 @@ class video_utils
   std::string save_icon(int vid);
 
   void save_db();
+
+  qvdb_config * get_config();
 
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cBFrames, cCutThresh, cStartT;

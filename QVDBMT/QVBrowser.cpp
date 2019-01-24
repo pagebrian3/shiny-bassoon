@@ -7,10 +7,14 @@
 
 QVBrowser::QVBrowser() {
   fTimer = new boost::timer::auto_cpu_timer();
-  fProgTime = vm["progress_time"].as<int>();
-  setMinimumWidth(vm["win_width"].as<int>());
-  setMinimumHeight(vm["win_height"].as<int>()); 
   vu = new video_utils();
+  qvdb_config * qCfg = vu->get_config();
+  qCfg->get("progress_time",fProgTime);
+  int winWidth, winHeight;
+  qCfg->get("win_width",winWidth);
+  setMinimumWidth(winWidth);
+  qCfg->get("win_height",winHeight);
+  setMinimumHeight(winHeight); 
   sort_by="size"; //size, name, length
   sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder
   browse_button = new QPushButton("...");
