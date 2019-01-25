@@ -4,6 +4,9 @@
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QComboBox>
+#include <QGroupBox>
+#include <ConfigDialog.h>
 
 QVBrowser::QVBrowser() : QMainWindow() {
   fTimer = new boost::timer::auto_cpu_timer();
@@ -16,14 +19,14 @@ QVBrowser::QVBrowser() : QMainWindow() {
   resize(winWidth,winHeight);
   sort_by="size"; //size, name, length  TODO: make it remember last selection
   sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder TODO: TODO: make it remember last selection
-  browse_button = new QPushButton("...");
+  QPushButton *browse_button = new QPushButton("...");
   connect(browse_button, &QPushButton::clicked, this, &QVBrowser::browse_clicked);
-  fdupe_button = new QPushButton("Find Dupes");
-  connect(fdupe_button, &QPushButton::clicked, this, &QVBrowser::fdupe_clicked);
-  sort_opt = new QGroupBox();
+  QPushButton * dupe_button = new QPushButton("Find Dupes");
+  connect(dupe_button, &QPushButton::clicked, this, &QVBrowser::fdupe_clicked);
+  QGroupBox  * sort_opt = new QGroupBox();
   QHBoxLayout * hbox = new QHBoxLayout();  
   QLabel sort_label("Sort by:");
-  sort_combo = new QComboBox();
+  QComboBox * sort_combo = new QComboBox();
   sort_combo->addItem("size");
   sort_combo->addItem("length");
   sort_combo->addItem("name");
@@ -32,15 +35,18 @@ QVBrowser::QVBrowser() : QMainWindow() {
   progress_bar->setMinimum(0);
   progress_bar->setMaximum(100);
   asc_button = new QPushButton();
-  QString iname = "view-sort-descending";
-  asc_button->setIcon(QIcon::fromTheme(iname));
-  connect(asc_button, &QPushButton::clicked, this, &QVBrowser::asc_clicked); 
+  asc_button->setIcon(QIcon::fromTheme("view-sort-descending"));
+  connect(asc_button, &QPushButton::clicked, this, &QVBrowser::asc_clicked);
+  QPushButton * config_button = new QPushButton();
+  config_button->setIcon(QIcon::fromTheme("preferences-system"));
+  connect(config_button, &QPushButton::clicked, this, &QVBrowser::config_clicked);
   hbox->addWidget(&sort_label);
   hbox->addWidget(sort_combo);
   hbox->addWidget(asc_button);
   hbox->addWidget(progress_bar);
-  hbox->addWidget(fdupe_button);
-  hbox->addWidget(browse_button); 
+  hbox->addWidget(dupe_button);
+  hbox->addWidget(browse_button);
+  hbox->addWidget(config_button); 
   sort_opt->setLayout(hbox);
   setMenuWidget(sort_opt);
   fFBox = new QListView(this);
@@ -66,6 +72,11 @@ void QVBrowser::resizeEvent(QResizeEvent* event)
   qCfg->set("win_width",w);
   qCfg->set("win_height",h);
   return;
+}
+
+void QVBrowser::config_clicked() {
+  ConfigDialog * cfgd = new ConfigDialog(this,qCfg);
+  cfgd->open();
 }
 
 void QVBrowser::closeEvent(QCloseEvent *event) {
@@ -228,8 +239,8 @@ void QVBrowser::fdupe_clicked(){
   return;
 }
 
-void QVBrowser::on_sort_changed() {
-  sort_by = sort_combo->currentText().toStdString();  
+void QVBrowser::on_sort_changed(const QString & text) {
+  sort_by = text.toStdString();  
   update_sort();
   return;
 }

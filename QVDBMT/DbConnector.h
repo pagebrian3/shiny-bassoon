@@ -5,6 +5,7 @@
 #include <VidFile.h>
 #include <map>
 #include <iostream>
+#include <boost/variant.hpp>
 
 class DbConnector {
 
@@ -42,9 +43,9 @@ class DbConnector {
 
   void cleanup(bfs::path & dir, std::vector<bfs::path> & files);
 
-  std::vector<std::tuple<std::string,int,float,std::string> >fetch_config();
+  std::vector<std::pair<std::string,boost::variant<int,float,std::string> > >fetch_config();
 
-  void save_config(std::map<std::string,std::tuple<int,float,std::string> >  config); 
+  void save_config(std::map<std::string,boost::variant<int,float,std::string> >  config); 
   
  private:
 

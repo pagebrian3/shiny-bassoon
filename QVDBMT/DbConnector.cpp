@@ -14,7 +14,7 @@ DbConnector::DbConnector(bfs::path & appPath) {
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer)", NULL,NULL, NULL);
-    sqlite3_exec(db,"create table config(cfg_label text primary key, cfg_int integer, cfg_float double, cfg_str text)",NULL,NULL,NULL);
+    sqlite3_exec(db,"create table config(cfg_label text primary key, cfg_type integer, cfg_int integer, cfg_float double, cfg_str text)",NULL,NULL,NULL);
   }
 }
 
@@ -371,35 +371,49 @@ void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
   return;
 }
 
-std::vector<std::tuple<std::string,int,float,std::string>> DbConnector::fetch_config() {
+std::vector<std::pair<std::string,boost::variant<int,float,std::string>> >DbConnector::fetch_config() {
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db,"SELECT cfg_label, cfg_int, cfg_float, cfg_str FROM config" , -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db,"SELECT cfg_label, cfg_type, cfg_int, cfg_float, cfg_str FROM config" , -1, &stmt, NULL);
   if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 
     sqlite3_finalize(stmt);            
     throw errmsg;                      
   }
-  std::vector<std::tuple<std::string,int,float,std::string> > configs;
+  std::vector<std::pair<std::string,boost::variant<int,float,std::string> > > configs;
   while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
     std::string label(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
-    int var_i = sqlite3_column_int(stmt,1);
-    float var_f = sqlite3_column_double(stmt,2);
-    std::string var_s(reinterpret_cast<const char *>(sqlite3_column_text(stmt,3)));
-    configs.push_back(std::make_tuple(label,var_i,var_f,var_s));
+    int var_type = sqlite3_column_int(stmt,1);
+    int var_i = sqlite3_column_int(stmt,2);
+    float var_f = sqlite3_column_double(stmt,3);
+    std::string var_s(reinterpret_cast<const char *>(sqlite3_column_text(stmt,4)));
+    boost::variant<int,float,std::string> val;
+    if(var_type == 0)  val = var_i;
+    else if(var_type ==  1) val = var_f;
+    else if(var_type == 2) val = var_s;
+    configs.push_back(std::make_pair(label,val));
   }
   sqlite3_finalize(stmt);
   return configs;
 }
 
-void DbConnector::save_config(std::map<std::string, std::tuple<int,float,std::string> > config) {
+void DbConnector::save_config(std::map<std::string, boost::variant<int,float,std::string> > config) {
   for( auto &a: config) {
+    int var_type = a.second.which();
+    int val_i=0;
+    float val_f = 0.0;
+    std::string val_s = "";
+    if(var_type == 0)  val_i= boost::get<int>(a.second);
+    else if(var_type ==  1) val_f= boost::get<float>(a.second);
+    else if(var_type == 2) val_s= boost::get<std::string>(a.second);
+    std::cout << config.size() << " " << var_type << std::endl;
     sqlite3_stmt *stmt;
-    int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO config (cfg_label, cfg_int, cfg_float, cfg_str) VALUES (?,?,?,?)", -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO config (cfg_label, cfg_type,cfg_int, cfg_float, cfg_str) VALUES (?,?,?,?,?)", -1, &stmt, NULL);
     if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-    rc = sqlite3_bind_text(stmt, 1, a.first.c_str(),-1, NULL);
-    rc = sqlite3_bind_int(stmt, 2, std::get<0>(a.second));
-    rc = sqlite3_bind_double(stmt, 3, std::get<1>(a.second));
-    rc = sqlite3_bind_text(stmt, 4, std::get<2>(a.second).c_str(),-1, NULL);
+     sqlite3_bind_text(stmt, 1, a.first.c_str(),-1, NULL);
+     sqlite3_bind_int(stmt, 2, var_type);
+     sqlite3_bind_int(stmt, 3, val_i);
+     sqlite3_bind_double(stmt, 4,val_f) ;
+     sqlite3_bind_text(stmt, 5, val_s.c_str(),-1, NULL);
     if (rc != SQLITE_OK) {               
       std::string errmsg(sqlite3_errmsg(db)); 
       sqlite3_finalize(stmt);            

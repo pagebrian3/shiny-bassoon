@@ -6,6 +6,7 @@
 #include <tuple>
 #include <string>
 #include <boost/tokenizer.hpp>
+#include <boost/variant.hpp>
 
 class qvdb_config
 {
@@ -17,32 +18,32 @@ public:
   ~qvdb_config(){};
   
   void get(std::string config, int & var) {
-    var = std::get<0>(config_data[config]);
+    var = boost::get<int>(config_data[config]);
   };
   
   void get(std::string config, float & var){
-    var = std::get<1>(config_data[config]);
+    var = boost::get<float>(config_data[config]);
   };
 
   void get(std::string config,  std::string & var){
-    var.assign(std::get<2>(config_data[config]));
+    var.assign(boost::get<std::string>(config_data[config]));
   };
 
   void set(std::string config, int  var){
-  config_data[config] = std::make_tuple(var,0.0,"");
+  config_data[config] = var;
 };
 
   void set(std::string config, float var){
-  config_data[config] = std::make_tuple(0,var,"");
+  config_data[config] = var;
 };
 
   void set(std::string config,  std::string  var){
-  config_data[config] = std::make_tuple(0,0.0,var);
+  config_data[config] = var;
 };
   
- bool  load_config(std::vector<std::tuple<std::string, int, float, std::string>> input) {
+  bool  load_config(std::vector<std::pair<std::string,boost::variant<int, float, std::string>> >input) {
     if(input.size() == 0) {
-      std::vector<std::string> defaults={"win_height,i,600","win_width,i,800","thumb_height,i,135","thumb_width,i,240","progress_time,i,100","thumb_time,f,25.0","fudge,i,15","image_thresh,i,10000","threads,i,7","trace_time,f,10.0","trace_fps,f,30.0","border_frames,f,6.0","cut_thresh,f,3.0","comp_time,f,10.0","slice_spacing,f,60.0","thresh,f,50.0","cache_size,i,10","extensions,s,.3gp .avi .flv .m4v .mkv .mov .mp4 .mpeg .mpg .mpv .qt .rm .webm .wmv","bad_chars,s,&"};
+      std::vector<std::string> defaults={"win_height,i,600","win_width,i,800","thumb_height,i,135","thumb_width,i,240","progress_time,i,100","thumb_time,f,25.0","fudge,f,15.0","image_thresh,i,10000","threads,i,7","trace_time,f,10.0","trace_fps,f,30.0","border_frames,f,6.0","cut_thresh,f,3.0","comp_time,f,10.0","slice_spacing,f,60.0","thresh,f,50.0","cache_size,i,10","extensions,s,.3gp .avi .flv .m4v .mkv .mov .mp4 .mpeg .mpg .mpv .qt .rm .webm .wmv","bad_chars,s,&"};
       boost::char_separator<char> sep(",");
       for( auto &a: defaults) {
 	boost::tokenizer<boost::char_separator<char> > tok(a,sep);
@@ -52,24 +53,24 @@ public:
 	 char dType((*beg)[0]);
 	 beg++;
 	 std::string val(*beg);
-	if(dType == 'i') config_data[label]=std::make_tuple(std::stoi(val),0,"");
-	else if(dType == 'f') config_data[label]=std::make_tuple(0,std::stof(val),"");
-	else if(dType == 's') config_data[label]=std::make_tuple(0,0,val);
+	if(dType == 'i') config_data[label]=std::stoi(val);
+	else if(dType == 'f') config_data[label]=std::stof(val);
+	else if(dType == 's') config_data[label]=val;
 	else continue;             
       }
       return true;
     }
-    else for(auto &a:input)   config_data[std::get<0>(a)]=std::make_tuple(std::get<1>(a),std::get<2>(a),std::get<3>(a));
+    else for(auto &a:input)   config_data[a.first]=a.second;
     return false;
   };
 
-  std::map<std::string,std::tuple<int, float, std::string > > get_data() {
+  std::map<std::string,boost::variant<int, float, std::string > > get_data() {
     return config_data;
   };
   
  private:
 
-  std::map<std::string,std::tuple<int, float, std::string > > config_data;
+  std::map<std::string,boost::variant<int, float, std::string > > config_data;
 
 };
 

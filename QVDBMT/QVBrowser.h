@@ -7,8 +7,6 @@
 #include <QProgressBar>
 #include <QTimer>
 #include <QListView>
-#include <QGroupBox>
-#include <QComboBox>
 #include <QStandardItem>
 #include <QResizeEvent>
 #include <boost/timer/timer.hpp>
@@ -21,8 +19,9 @@ class QVBrowser: public QMainWindow
   void populate_icons(bool clean = false);
   void browse_clicked();
   void fdupe_clicked();
+  void config_clicked();
   void asc_clicked();
-  void on_sort_changed();
+  void on_sort_changed(const QString & text);
   void resizeEvent(QResizeEvent * event);
   void closeEvent(QCloseEvent * event);
   bool progress_timeout();
@@ -39,11 +38,7 @@ class QVBrowser: public QMainWindow
   Qt::SortOrder sOrder;
   int progressFlag; //0=none 1=icons 2=traces 3=dupes
   int fProgTime;
-  QGroupBox * sort_opt;
-  QPushButton * browse_button;
   QPushButton * asc_button;
-  QPushButton * fdupe_button;
-  QComboBox * sort_combo;
   std::vector<int> vid_list;
   std::vector<VidFile *> vidFiles;
   std::vector<QStandardItem *> * iconVec;
