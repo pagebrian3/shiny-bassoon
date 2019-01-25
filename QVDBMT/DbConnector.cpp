@@ -405,7 +405,6 @@ void DbConnector::save_config(std::map<std::string, boost::variant<int,float,std
     if(var_type == 0)  val_i= boost::get<int>(a.second);
     else if(var_type ==  1) val_f= boost::get<float>(a.second);
     else if(var_type == 2) val_s= boost::get<std::string>(a.second);
-    std::cout << config.size() << " " << var_type << std::endl;
     sqlite3_stmt *stmt;
     int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO config (cfg_label, cfg_type,cfg_int, cfg_float, cfg_str) VALUES (?,?,?,?,?)", -1, &stmt, NULL);
     if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));

@@ -5,7 +5,6 @@
 #include "cxxpool.h"
 #include "VidFile.h"
 #include "DbConnector.h"
-#include "Magick++.h"
 #if defined(_WIN32)
  #define PLATFORM_NAME "windows" // Windows
 #elif defined(_WIN64)
@@ -13,6 +12,10 @@
 #elif defined(__linux__)
 #define PLATFORM_NAME "linux"
 #endif
+
+namespace Magick {
+   class Image;
+}
 
 class video_utils
 {

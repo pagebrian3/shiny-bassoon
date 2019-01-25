@@ -12,10 +12,10 @@ qvbrowser:  VidFile.o VideoUtils.o DbConnector.o ConfigDialog.o QVBrowser.o qmai
 	$(CC) $(CFLAGS) $(LDFLAGS)  $(QTFLAGS) -o qvbrowser VidFile.o VideoUtils.o DbConnector.o ConfigDialog.o QVBrowser.o qmain.o
 
 qmain.o:  qmain.cc
-	$(CC) $(CFLAGS) $(QTFLAGS) $(MAGICKFLAGS) -c qmain.cc
+	$(CC) $(CFLAGS) $(QTFLAGS) -c qmain.cc 
 
 QVBrowser.o:  QVBrowser.cpp QVBrowser.h
-	$(CC) $(CFLAGS) $(QTFLAGS) $(MAGICKFLAGS) -c QVBrowser.cpp
+	$(CC) $(CFLAGS) $(QTFLAGS) -c QVBrowser.cpp 
 
 ConfigDialog.o:  ConfigDialog.cpp ConfigDialog.h
 	$(CC) $(CFLAGS) $(QTFLAGS) -c ConfigDialog.cpp

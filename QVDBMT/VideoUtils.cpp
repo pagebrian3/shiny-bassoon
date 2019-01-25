@@ -1,8 +1,10 @@
+#include "Magick++.h"
 #include "VideoUtils.h"
 #include <fstream>
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
+
 
 video_utils::video_utils() {
   if(PLATFORM_NAME == "linux") {
