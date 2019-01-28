@@ -53,7 +53,7 @@ class video_utils
 
   std::set<std::string> get_extensions();
 
-  void set_paths(std::vector<std::string> paths);
+  void set_paths(std::vector<std::string> & paths);
 
   std::string save_icon(int vid);
 
@@ -61,9 +61,11 @@ class video_utils
 
   qvdb_config * get_config();
 
+  std::vector<VidFile *> vid_factory(std::vector<bfs::path> & paths);
+
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cBFrames, cCutThresh, cStartT;
-  int cHeight, cWidth, cImgThresh, cCache;
+  int cHeight, cWidth, cImgThresh, cCache, numThreads;
   bfs::path tempPath;
   std::vector<bfs::path> paths;
   DbConnector * dbCon;

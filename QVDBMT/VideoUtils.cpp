@@ -1,6 +1,9 @@
 #include "Magick++.h"
 #include "VideoUtils.h"
 #include <fstream>
+#include <QMediaPlayer>
+#include <QMediaPlaylist>
+#include <QUrl>
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
@@ -23,7 +26,6 @@ video_utils::video_utils() {
   if(appConfig->load_config(dbCon->fetch_config()))   dbCon->save_config(appConfig->get_data());
   Magick::InitializeMagick("");
   paths.push_back(homeP);
-  int numThreads;
   appConfig->get("threads",numThreads);
   TPool = new cxxpool::thread_pool(numThreads);
   appConfig->get("trace_fps",cTraceFPS);
@@ -286,7 +288,9 @@ void video_utils::compare_traces(std::vector<int> & vid_list) {
 }
 
 void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
-  std::vector<std::future<VidFile * > > vFiles;
+  std::vector<std::future<std::vector<VidFile * > > >vFiles;
+  std::vector<std::vector<bfs::path> > pathVs(numThreads);
+  int counter = 0;
   for(auto & path: paths){
     std::vector<bfs::path> current_dir_files;
     for(auto & x: bfs::directory_iterator(path)) {
@@ -304,7 +308,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	  }
 	}	
 	if(!dbCon->video_exists(pathName))  {
-	  vFiles.push_back(TPool->push([this](bfs::path path) {return new VidFile(path);},pathName));
+	  pathVs[counter%numThreads].push_back(pathName);
 	}
 	else {
 	  vidFiles.push_back(dbCon->fetch_video(pathName));
@@ -312,19 +316,25 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	}
       }    
     }
+    for(auto & y: pathVs) vFiles.push_back(TPool->push([this](std::vector<bfs::path> pathvs) {return vid_factory(pathvs);},y));
     //if(!new_db) dbCon->cleanup(path,current_dir_files);  //Bring back
   }
   cxxpool::wait(vFiles.begin(),vFiles.end());
-  VidFile * vidTemp;
+  std::vector<VidFile *> vidTemp;
   for(auto &a: vFiles) {
+    
     vidTemp = a.get();
-    dbCon->save_video(vidTemp);
-    vidFiles.push_back(vidTemp);
+    for(auto & v: vidTemp) {
+      for(int i = 0; i < vidTemp.size(); i++) {
+	dbCon->save_video(vidTemp[i]);
+      vidFiles.push_back(vidTemp[i]);
+    }
+    }
   }
   return;
 }
 
-void video_utils::set_paths(std::vector<std::string> folders) {
+void video_utils::set_paths(std::vector<std::string> & folders) {
   paths.clear();
   for(auto & a: folders) paths.push_back(bfs::path(a));
   return;
@@ -346,3 +356,26 @@ qvdb_config * video_utils::get_config(){
   return appConfig;
 }
 
+ std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) {
+   QMediaPlaylist playlist;
+   QMediaPlayer player;
+   std::vector<VidFile *> output(files.size());
+   for(auto & file: files) 
+     playlist.addMedia(QUrl::fromLocalFile(file.string().c_str()));
+   playlist.setCurrentIndex(0);
+   player.setPlaylist(&playlist);
+   for(int i = 0; i < files.size(); i++) {
+     player.play();
+     auto fileName = files[i];
+     int size = bfs::file_size(fileName);  
+     float length = 0.001 * player.metaData("Duration").toFloat();
+     int rotate = player.metaData("Orientation").toInt();
+     std::cout << fileName.string() <<" "<<size<< " " << length << " " << rotate << " ";
+     for(auto & b: player.availableMetaData()) std::cout << b.toStdString() << " ";
+	   std::cout<<std::endl;
+     output[i] = new VidFile(fileName,length,size,0,-1,"",rotate);
+     player.stop();
+     playlist.next();
+   }
+   return output;
+ }
