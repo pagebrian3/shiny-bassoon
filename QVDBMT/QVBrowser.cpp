@@ -114,23 +114,18 @@ void QVBrowser::populate_icons(bool clean) {
       else sizeLabel = "KB";
     }
     int h = a->length/3600.0;
-    int m = ((int)(a->length)%3600)/60;
-    float s = a->length-m*60.0;
+    int m = ((int)(a->length-h*3600))/60;
+    float s = a->length-m*60.0-h*3600.0;
     b->setIcon(QIcon::fromTheme("image-missing"));
     QString toolTip((boost::format("Filename: %s\nSize: %3.2f%s\nLength: %i:%02i:%02.1f") % a->fileName %  size % sizeLabel % h % m % s).str().c_str());
     b->setToolTip(toolTip);
     (*iconVec)[j]=b;
     video_files.push_back(a->fileName);
     vid_list.push_back(a->vid);
-    QList<QStandardItem * > row;
-    row.append(b); 
-    QStandardItem * i1 = new QStandardItem((boost::format("%010i") % a->size).str().c_str());
-    row.append(i1);
-    i1 = new QStandardItem((boost::format("%08i") % a->length).str().c_str());
-    row.append(i1);
-    i1 = new QStandardItem(boost::algorithm::to_lower_copy((boost::format("%s") % a->fileName).str()).c_str());
-    row.append(i1);
-    fModel->appendRow(row);
+    b->setData(a->size,Qt::UserRole+1);
+    b->setData(a->length,Qt::UserRole+2);
+    b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
+    fModel->appendRow(b);
     j++;
   }
   fFBox->setModel(fModel);
@@ -260,10 +255,11 @@ void QVBrowser::asc_clicked() {
 }
 
 void QVBrowser::update_sort() {
-  int column = 1;
-  if(sort_by == "length") column=2;
-  else if(sort_by == "name") column=3;
-  fModel->sort(column,sOrder);
+  int roleIndex = 1;
+  if(sort_by == "length") roleIndex=2;
+  else if(sort_by == "name") roleIndex=3;
+  fModel->setSortRole(Qt::UserRole+roleIndex);
+  fModel->sort(0,sOrder);
   update();
   return;
 }

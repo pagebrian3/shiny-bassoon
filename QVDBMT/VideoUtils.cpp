@@ -356,13 +356,14 @@ std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) 
   MediaInfoLib::MediaInfo MI;
   std::vector<VidFile *> output(files.size());
   for(int i = 0; i < files.size(); i++) {
-      ZenLib::Ztring zFile;
-      auto fileName = files[i];
-      zFile += fileName.wstring();
+    ZenLib::Ztring zFile;
+    auto fileName = files[i];
+    zFile += fileName.wstring();
     int size = bfs::file_size(fileName); 
     MI.Open(zFile);
     MI.Option(__T("Inform"),__T("Video;%Duration%"));
     float length = 0.001*ZenLib::Ztring(MI.Inform()).To_float32();
+    if(length < 1 ) std::cout << "Length failed for " << files[i].string() << std::endl; 
     MI.Option(__T("Inform"),__T("Video;%Rotation%"));
     int rotate = ZenLib::Ztring(MI.Inform()).To_float32();
     MI.Close();
