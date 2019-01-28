@@ -1,17 +1,16 @@
 CC = g++ #clang++
 CFLAGS  = -I. -std=gnu++14 -march=native -O3 -fPIC
 QTGUIFLAGS = `pkg-config --cflags Qt5Widgets`
-QTMMFLAGS = `pkg-config --cflags Qt5Multimedia`
 MAGICKFLAGS = `pkg-config --cflags Magick++`
-LDFLAGS = -L/usr/lib/ `pkg-config --libs Qt5Widgets` `pkg-config --libs Qt5Multimedia` -lboost_filesystem -lboost_timer -lsqlite3 -lMagick++-7.Q16HDRI -pthread
+LDFLAGS = -L/usr/lib/ `pkg-config --libs Qt5Widgets`  -lboost_filesystem -lboost_timer -lsqlite3 -lMagick++-7.Q16HDRI -lmediainfo -lzen -pthread
 
 default: qvbrowser
 
 debug: CFLAGS =  -I. -std=gnu++14 -g -Wall -fPIC
 debug: qvbrowser
 
-qvbrowser:   VideoUtils.o DbConnector.o ConfigDialog.o QVBrowser.o qmain.o #VidFile.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(QTGUIFLAGS) $(QTMMFLAGS) -o qvbrowser VideoUtils.o DbConnector.o ConfigDialog.o QVBrowser.o qmain.o #VidFile.o 
+qvbrowser:   VideoUtils.o DbConnector.o ConfigDialog.o QVBrowser.o qmain.o
+	$(CC) $(CFLAGS) $(LDFLAGS)  -o qvbrowser VideoUtils.o DbConnector.o ConfigDialog.o QVBrowser.o qmain.o 
 
 qmain.o:  qmain.cc
 	$(CC) $(CFLAGS) $(QTGUIFLAGS) -c qmain.cc 
@@ -26,10 +25,7 @@ DbConnector.o:  DbConnector.cpp DbConnector.h
 	$(CC) $(CFLAGS) -c DbConnector.cpp
 
 VideoUtils.o:  VideoUtils.cpp VideoUtils.h
-	$(CC) $(CFLAGS) $(MAGICKFLAGS) $(QTMMFLAGS) -c VideoUtils.cpp
-
-#VidFile.o:  VidFile.cpp VidFile.h
-#	$(CC) $(CFLAGS) $(QTMMFLAGS) -DUNICODE -c VidFile.cpp
+	$(CC) $(CFLAGS) $(MAGICKFLAGS)  -DUNICODE -c VideoUtils.cpp
 
 clean: 
 	$(RM) qvbrowser *.o *~

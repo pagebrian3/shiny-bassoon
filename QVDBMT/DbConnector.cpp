@@ -40,7 +40,7 @@ VidFile * DbConnector::fetch_video(bfs::path & filename){
   }
   if (rc == SQLITE_DONE) {
     sqlite3_finalize(stmt);
-    throw std::string("something not found");
+    throw std::string("video not found");
   }
   std::string crop(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
   float length = sqlite3_column_double(stmt,1);

@@ -1,9 +1,8 @@
 #include "Magick++.h"
 #include "VideoUtils.h"
 #include <fstream>
-#include <QMediaPlayer>
-#include <QMediaPlaylist>
-#include <QUrl>
+#include "MediaInfo/MediaInfo.h"
+#include "ZenLib/Ztring.h"
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
@@ -204,7 +203,7 @@ Magick::Image *video_utils::get_image(int vid) {
   if(img_cache[vid]) return img_cache[vid];
   std::string image_file(dbCon->fetch_icon(vid));
   Magick::Image * img = new Magick::Image(image_file);
-  //std::system((boost::format("rm %s") % image_file).str().c_str());
+  std::system((boost::format("rm %s") % image_file).str().c_str());
   if(img_cache.size() < cCache) img_cache[vid] = img;  
   return img;
 }
@@ -314,21 +313,18 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	  vidFiles.push_back(dbCon->fetch_video(pathName));
 	  current_dir_files.push_back(pathName);
 	}
-      }    
+      }        
     }
     for(auto & y: pathVs) vFiles.push_back(TPool->push([this](std::vector<bfs::path> pathvs) {return vid_factory(pathvs);},y));
     //if(!new_db) dbCon->cleanup(path,current_dir_files);  //Bring back
   }
   cxxpool::wait(vFiles.begin(),vFiles.end());
-  std::vector<VidFile *> vidTemp;
+  std::vector<VidFile *> vidsTemp;
   for(auto &a: vFiles) {
-    
-    vidTemp = a.get();
-    for(auto & v: vidTemp) {
-      for(int i = 0; i < vidTemp.size(); i++) {
-	dbCon->save_video(vidTemp[i]);
-      vidFiles.push_back(vidTemp[i]);
-    }
+    vidsTemp = a.get();
+    for(auto & v: vidsTemp) {
+      dbCon->save_video(v);
+      vidFiles.push_back(v);      
     }
   }
   return;
@@ -356,26 +352,21 @@ qvdb_config * video_utils::get_config(){
   return appConfig;
 }
 
- std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) {
-   QMediaPlaylist playlist;
-   QMediaPlayer player;
-   std::vector<VidFile *> output(files.size());
-   for(auto & file: files) 
-     playlist.addMedia(QUrl::fromLocalFile(file.string().c_str()));
-   playlist.setCurrentIndex(0);
-   player.setPlaylist(&playlist);
-   for(int i = 0; i < files.size(); i++) {
-     player.play();
-     auto fileName = files[i];
-     int size = bfs::file_size(fileName);  
-     float length = 0.001 * player.metaData("Duration").toFloat();
-     int rotate = player.metaData("Orientation").toInt();
-     std::cout << fileName.string() <<" "<<size<< " " << length << " " << rotate << " ";
-     for(auto & b: player.availableMetaData()) std::cout << b.toStdString() << " ";
-	   std::cout<<std::endl;
-     output[i] = new VidFile(fileName,length,size,0,-1,"",rotate);
-     player.stop();
-     playlist.next();
-   }
-   return output;
- }
+std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) {
+  MediaInfoLib::MediaInfo MI;
+  std::vector<VidFile *> output(files.size());
+  for(int i = 0; i < files.size(); i++) {
+      ZenLib::Ztring zFile;
+      auto fileName = files[i];
+      zFile += fileName.wstring();
+    int size = bfs::file_size(fileName); 
+    MI.Open(zFile);
+    MI.Option(__T("Inform"),__T("Video;%Duration%"));
+    float length = 0.001*ZenLib::Ztring(MI.Inform()).To_float32();
+    MI.Option(__T("Inform"),__T("Video;%Rotation%"));
+    int rotate = ZenLib::Ztring(MI.Inform()).To_float32();
+    MI.Close();
+    output[i] = new VidFile(fileName,length,size,0,-1,"",rotate);
+  }
+  return output;
+}
