@@ -25,6 +25,8 @@ class video_utils
 
   bool compare_vids(int i, int j, std::map<int,std::vector<uint8_t> > & data);
 
+   bool compare_vids_fft(int i, int j, std::map<int,std::vector<uint8_t> > & data);
+
   bool calculate_trace(VidFile * obj);
 
   bool create_thumb(VidFile * vFile);

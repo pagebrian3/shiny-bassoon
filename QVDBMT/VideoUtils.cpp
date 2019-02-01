@@ -6,6 +6,7 @@
 #include <boost/process.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
+#include <fftw3.h>
 
 
 video_utils::video_utils() {
@@ -79,6 +80,60 @@ bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<uint8_t> 
       if(counter == 12) match=true;
       if(match) std::cout << "ACCUM " <<i<<" " <<j <<" " <<t_o <<" slice " <<t_s <<" 2nd offset " <<t_x <<" " <<*max_element(accum.begin(),accum.end())  <<std::endl;
     }
+  }
+  std::pair<int,int> key(i,j);
+  if(match) result_map[key]+=2;
+  else if(result_map[key]==0) result_map[key]=4;
+  dbCon->update_results(i,j,result_map[key]);
+  return true;
+}
+
+bool video_utils::compare_vids_fft(int i, int j, std::map<int, std::vector<uint8_t> > & data) {
+  bool match=false;
+  int counter=0;
+  int size = 2;
+  int length1 = data[i].size()/12;
+  int length2 = data[j].size()/12;
+  while(size < length2) size*=2;     //Value to calculate  2*A*B/(A^2+B^2)  find peaks
+  int dims[]={size};
+  double * in=(double *) fftw_malloc(sizeof(double)*12*size);
+  double * out =(double *) fftw_malloc(sizeof(double)*12*size);
+  double * holder = (double *) malloc(sizeof(double)*12*size);
+  std::vector<double> result(length2-cCompTime);
+  std::vector<double> compCoeffs(12);
+  std::vector<double> coeffs(12*(size-cTraceFPS*cCompTime));
+  fftw_r2r_kind fKind[] = {FFTW_R2HC};
+   fftw_r2r_kind rKind[] = {FFTW_HC2R};
+  fftw_plan fPlan = fftw_plan_many_r2r(1,dims,12, in,dims, 12,12*size,out, dims,12,12*size,fKind,FFTW_ESTIMATE);
+  fftw_plan rPlan = fftw_plan_many_r2r(1,dims,12, out,dims, 12,12*size,in, dims,12,12*size,rKind,FFTW_ESTIMATE);
+  uint t_s;  //current slice position
+  uint t_x, t_o, t_d;
+  //loop over slices
+  for(t_s =0; t_s < 12*(length1-cTraceFPS*cCompTime); t_s+= 12*cTraceFPS*cSliceSpacing){
+    uint k,l;
+    for(k = 0; k < 12*cCompTime; k++)  in[k]=data[i][k+t_s];
+    while(k<12*size) {
+      in[k]=0.0;
+      k++;
+    }
+    for(int deltaT=0; deltaT < cCompTime; deltaT++) for(l = 0; l < 12; l++)  compCoeffs[l]+=pow(data[i][12*deltaT+t_s+l],2);
+    for(int offset = 0; offset < length2; offset+=12) for(int deltaT=0; deltaT < cCompTime; deltaT+=12) for(l = 0; l < 12; l++)  coeffs[offset+l]+=pow(data[j][deltaT+offset+l],2);  //replace with more efficient fifo  window method
+    fftw_execute(fPlan);
+    for(k=0; k < size*12; k++) holder[k]=out[k];
+    for(k=0; k < 12*length2; k++)  in[k]=data[j][k];
+    while(k<12*size) {
+      in[k]=0.0;
+      k++;
+    }
+    fftw_execute(fPlan);
+    for(k=0;k<=size/6; k++) in[k]=out[k]*holder[k];
+    while(k < size*12) {
+      in[k]=-1.0*out[k]*holder[k];
+    }
+    fftw_execute(rPlan);
+    for(k = 0; k < length2-cCompTime; k++)  for(l=0; l <12; l++) result[k]+=out[12*k+l]/(size* 6*(compCoeffs[l]+coeffs[12*k+l]));
+    double max_val = *max_element(result.begin(),result.end());
+    std::cout << "Max result " <<i <<" " << j<<" "<<t_s<<" "<< max_val << std::endl;
   }
   std::pair<int,int> key(i,j);
   if(match) result_map[key]+=2;
@@ -279,7 +334,7 @@ void video_utils::compare_traces(std::vector<int> & vid_list) {
       if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;
       else {
 	dbCon->fetch_trace(vid_list[j],data_holder[vid_list[j]]);
-	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<uint8_t>> & data){ return compare_vids(i,j,data);},vid_list[i],vid_list[j],data_holder));
+	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<uint8_t>> & data){ return compare_vids_fft(i,j,data);},vid_list[i],vid_list[j],data_holder));
       }
     }
   }

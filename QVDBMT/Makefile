@@ -2,7 +2,7 @@ CC = g++ #clang++
 CFLAGS  = -I. -std=gnu++14 -march=native -O3 -fPIC
 QTGUIFLAGS = `pkg-config --cflags Qt5Widgets`
 MAGICKFLAGS = `pkg-config --cflags Magick++`
-LDFLAGS = -L/usr/lib/ `pkg-config --libs Qt5Widgets`  -lboost_filesystem -lboost_timer -lsqlite3 -lMagick++-7.Q16HDRI -lmediainfo -lzen -pthread
+LDFLAGS = -L/usr/lib/ `pkg-config --libs Qt5Widgets`  -lboost_filesystem -lboost_timer -lsqlite3 -lMagick++-7.Q16HDRI -lmediainfo -lzen -lfftw3 -pthread
 
 default: qvbrowser
 

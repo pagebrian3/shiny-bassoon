@@ -1,5 +1,7 @@
 #include <DbConnector.h>
 #include <boost/format.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/split.hpp>
 
 DbConnector::DbConnector(bfs::path & appPath) {
   std::string db_path(appPath.c_str());
@@ -11,10 +13,13 @@ DbConnector::DbConnector(bfs::path & appPath) {
    sqlite3_open(db_path.c_str(),&db);
   if (newFile) {
     sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
-    sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob)",NULL, NULL, NULL);
-    sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text)", NULL,NULL, NULL);
+    sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob, FOREIGN KEY(vid) REFERENCES videos(vid))",NULL, NULL, NULL);
+    sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text,FOREIGN KEY(vid) REFERENCES videos(vid))", NULL,NULL, NULL);
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table config(cfg_label text primary key, cfg_type integer, cfg_int integer, cfg_float double, cfg_str text)",NULL,NULL,NULL);
+    sqlite3_exec(db,"create table md_types(md_type_index integer primary key not null, md_type_label text unique)",NULL,NULL,NULL);
+    sqlite3_exec(db,"create table md_index(md_index integer primary key not null, md_type integer not null, md_label text unique)",NULL,NULL,NULL);
+    sqlite3_exec(db,"create table file_mdx(vid integer primary key, tagids text,FOREIGN KEY(vid) REFERENCES videos(vid))",NULL,NULL,NULL);
   }
 }
 
@@ -294,6 +299,7 @@ void DbConnector::fetch_trace(int vid, std::vector<uint8_t> & trace) {
   std::string result;
   result.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
   trace.resize(uncomp_size);
+  std::cout <<"Trace:  " << vid << " "<<uncomp_size << " "<< result.size() << std::endl; 
   for(int i = 0; i < uncomp_size; i++) trace[i] = result[i];
   sqlite3_finalize(stmt);
   return;
@@ -427,4 +433,84 @@ void DbConnector::save_config(std::map<std::string, boost::variant<int,float,std
     sqlite3_finalize(stmt);
   }
 }
+
+void DbConnector::load_metadata_labels(std::map<int,std::pair<int,std::string> > & labelLookup, boost::bimap<int, std::string> & typeLookup) {
+  sqlite3_stmt *stmt;
+  int rc = sqlite3_prepare_v2(db,"SELECT md_index , md_type , md_label from md_index" , -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
+  }
+  while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+    int index = sqlite3_column_int(stmt,0);
+    int type = sqlite3_column_int(stmt,1);
+    std::string label(reinterpret_cast<const char *>(sqlite3_column_text(stmt,2)));
+    labelLookup[index]=std::make_pair(type,label);
+  }
+  sqlite3_finalize(stmt);
+   sqlite3_stmt *stmt1;
+  rc = sqlite3_prepare_v2(db,"SELECT md_type_index ,md_type_label from md_types" , -1, &stmt1, NULL);
+    if (rc != SQLITE_OK) {          
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt1);            
+    throw errmsg;                      
+  }
+  while((rc = sqlite3_step(stmt1)) == SQLITE_ROW) {
+    int index = sqlite3_column_int(stmt1,0);
+    std::string label(reinterpret_cast<const char *>(sqlite3_column_text(stmt1,1)));
+    typeLookup.insert({index,label});
+  }
+  sqlite3_finalize(stmt1);
+  return;
+}
+
+void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,std::vector<int > > & fileMetadata) {
+  for(auto & vid: vids) {
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, "SELECT  tagids FROM file_mdx WHERE vid = ? limit 1)", -1, &stmt, NULL);
+    if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+    rc = sqlite3_bind_int(stmt, 1, vid);    
+    if (rc != SQLITE_OK) {               
+      std::string errmsg(sqlite3_errmsg(db)); 
+      sqlite3_finalize(stmt);            
+      throw errmsg;                      
+    }
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+      std::string errmsg(sqlite3_errmsg(db));
+      sqlite3_finalize(stmt);
+      throw errmsg;
+    }
+    if (rc == SQLITE_DONE) {
+      sqlite3_finalize(stmt);
+      throw std::string("video not found");
+    }
+    std::string tag_str(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
+    std::vector<std::string> split_vec;
+    boost::algorithm::split( split_vec, tag_str, boost::is_any_of(","));
+    std::vector<int> tag_ids;
+    for(auto & s: split_vec) tag_ids.push_back(std::atoi(s.c_str()));
+    fileMetadata[vid]=tag_ids;
+    sqlite3_finalize(stmt); 
+  }
+  return;
+}
+
+int DbConnector::add_tag(int type, std::string & label) {
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, "insert into md_index WHERE (md_type,md_label)  values (?,?)", -1, &stmt, NULL);
+    if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+    sqlite3_bind_int(stmt, 1, type);
+    sqlite3_bind_text(stmt, 2, label.c_str(),-1, NULL);
+    if (rc != SQLITE_OK) {               
+      std::string errmsg(sqlite3_errmsg(db)); 
+      sqlite3_finalize(stmt);            
+      throw errmsg;                      
+    }
+   rc = sqlite3_step(stmt);
+  sqlite3_finalize(stmt);
+  return sqlite3_last_insert_rowid(db);
+}
+
 

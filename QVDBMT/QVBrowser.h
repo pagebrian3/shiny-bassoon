@@ -38,6 +38,7 @@ class QVBrowser: public QMainWindow
   Qt::SortOrder sOrder;
   int progressFlag; //0=none 1=icons 2=traces 3=dupes
   int fProgTime;
+  int fIW, fIH;
   QPushButton * asc_button;
   std::vector<int> vid_list;
   std::vector<VidFile *> vidFiles;

@@ -17,6 +17,8 @@ QVBrowser::QVBrowser() : QMainWindow() {
   qCfg->get("win_width",winWidth);
   qCfg->get("win_height",winHeight);
   resize(winWidth,winHeight);
+   qCfg->get("thumb_height",fIH);
+  qCfg->get("thumb_width",fIW);
   sort_by="size"; //size, name, length  TODO: make it remember last selection
   sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder TODO: TODO: make it remember last selection
   QPushButton *browse_button = new QPushButton("...");
@@ -117,6 +119,7 @@ void QVBrowser::populate_icons(bool clean) {
     int m = ((int)(a->length-h*3600))/60;
     float s = a->length-m*60.0-h*3600.0;
     b->setIcon(QIcon::fromTheme("image-missing"));
+    b->setSizeHint(QSize(fIH,fIW));
     QString toolTip((boost::format("Filename: %s\nSize: %3.2f%s\nLength: %i:%02i:%02.1f") % a->fileName %  size % sizeLabel % h % m % s).str().c_str());
     b->setToolTip(toolTip);
     (*iconVec)[j]=b;
