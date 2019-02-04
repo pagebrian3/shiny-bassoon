@@ -357,6 +357,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
   std::vector<std::future<std::vector<VidFile * > > >vFiles;
   std::vector<std::vector<bfs::path> > pathVs(numThreads);
   int counter = 0;
+  std::vector<int> curVIDs;
   for(auto & path: paths){
     std::vector<bfs::path> current_dir_files;
     for(auto & x: bfs::directory_iterator(path)) {
@@ -377,7 +378,9 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	  pathVs[counter%numThreads].push_back(pathName);
 	}
 	else {
-	  vidFiles.push_back(dbCon->fetch_video(pathName));
+	  VidFile * v =dbCon->fetch_video(pathName);
+	  vidFiles.push_back(v);
+	  curVIDs.push_back(v->vid);
 	  current_dir_files.push_back(pathName);
 	}
       }        
@@ -391,9 +394,11 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
     vidsTemp = a.get();
     for(auto & v: vidsTemp) {
       dbCon->save_video(v);
+      curVIDs.push_back(v->vid);
       vidFiles.push_back(v);      
     }
   }
+  load_metadata(curVIDs);
   return;
 }
 
@@ -437,4 +442,7 @@ std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) 
     output[i] = new VidFile(fileName,length,size,0,-1,"",rotate);
   }
   return output;
+}
+
+void video_utils::load_metadata() {
 }
