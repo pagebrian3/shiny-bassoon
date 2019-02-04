@@ -100,7 +100,7 @@ bool video_utils::compare_vids_fft(int i, int j, std::map<int, std::vector<uint8
   double * out =(double *) fftw_malloc(sizeof(double)*12*size);
   double * holder = (double *) malloc(sizeof(double)*12*size);
   std::vector<double> result(length2-cCompTime);
-  std::vector<double> compCoeffs(12);
+ 
   std::vector<double> coeffs(12*(size-cTraceFPS*cCompTime));
   fftw_r2r_kind fKind[] = {FFTW_R2HC};
    fftw_r2r_kind rKind[] = {FFTW_HC2R};
@@ -111,13 +111,25 @@ bool video_utils::compare_vids_fft(int i, int j, std::map<int, std::vector<uint8
   //loop over slices
   for(t_s =0; t_s < 12*(length1-cTraceFPS*cCompTime); t_s+= 12*cTraceFPS*cSliceSpacing){
     uint k,l;
-    for(k = 0; k < 12*cCompTime; k++)  in[k]=data[i][k+t_s];
+    for(k = 0; k < 12*cTraceFPS*cCompTime; k++)  in[k]=data[i][k+t_s];
     while(k<12*size) {
       in[k]=0.0;
       k++;
     }
-    for(int deltaT=0; deltaT < cCompTime; deltaT++) for(l = 0; l < 12; l++)  compCoeffs[l]+=pow(data[i][12*deltaT+t_s+l],2);
-    for(int offset = 0; offset < length2; offset+=12) for(int deltaT=0; deltaT < cCompTime; deltaT+=12) for(l = 0; l < 12; l++)  coeffs[offset+l]+=pow(data[j][deltaT+offset+l],2);  //replace with more efficient fifo  window method
+    std::vector<double> coeff_temp(12);
+    std::vector<double> compCoeffs(12);
+    for(int deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l++)  {
+	compCoeffs[l]+=pow(data[i][12*deltaT+t_s+l],2);
+	coeff_temp[l]+=pow(data[j][12*deltaT+l],2);
+      }
+    int offset = 0;
+    while(offset < 12*(length2-cTraceFPS*cCompTime))  {
+      for(l = 0; l < 12; l++)  {
+	coeffs[offset+l]=coeff_temp[l];
+	coeff_temp[l]+=pow(data[j][offset+12*cTraceFPS*cCompTime+l],2)-pow(data[j][offset+l],2);
+      }
+      offset+=12;
+    }
     fftw_execute(fPlan);
     for(k=0; k < size*12; k++) holder[k]=out[k];
     for(k=0; k < 12*length2; k++)  in[k]=data[j][k];
@@ -126,12 +138,12 @@ bool video_utils::compare_vids_fft(int i, int j, std::map<int, std::vector<uint8
       k++;
     }
     fftw_execute(fPlan);
-    for(k=0;k<=size/6; k++) in[k]=out[k]*holder[k];
+    for(k=0;k<=6*size; k++) in[k]=out[k]*holder[k];
     while(k < size*12) {
       in[k]=-1.0*out[k]*holder[k];
     }
     fftw_execute(rPlan);
-    for(k = 0; k < length2-cCompTime; k++)  for(l=0; l <12; l++) result[k]+=out[12*k+l]/(size* 6*(compCoeffs[l]+coeffs[12*k+l]));
+    for(k = 0; k < 12*(length2-cTraceFPS*cCompTime); k+=12)  for(l=0; l <12; l++) result[k]+=out[k+l]/(size* 6*(compCoeffs[l]+coeffs[k+l]));
     double max_val = *max_element(result.begin(),result.end());
     std::cout << "Max result " <<i <<" " << j<<" "<<t_s<<" "<< max_val << std::endl;
   }

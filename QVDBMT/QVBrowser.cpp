@@ -1,12 +1,20 @@
 #include "QVBrowser.h"
+#include <ConfigDialog.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <QFileDialog>
+#include <QMenu>
 #include <QHBoxLayout>
+#include <QProgressBar>
 #include <QLabel>
+#include <QPushButton>
 #include <QComboBox>
 #include <QGroupBox>
-#include <ConfigDialog.h>
+#include <QAction>
+#include <QTimer>
+#include <QListView>
+#include <QStandardItem>
+#include <QResizeEvent>
 
 QVBrowser::QVBrowser() : QMainWindow() {
   fTimer = new boost::timer::auto_cpu_timer();
@@ -55,6 +63,9 @@ QVBrowser::QVBrowser() : QMainWindow() {
   fFBox->setResizeMode(QListView::Adjust);
   fFBox->setViewMode(QListView::IconMode);
   fFBox->setMovement(QListView::Static);
+  mDAct = new QAction( ("&Edit Metadata"), this);
+  mDAct->setShortcuts(QKeySequence::New);
+  connect(mDAct, &QAction::triggered, this, &QVBrowser::edit_md_clicked);
   p_timer = new QTimer(this);
   connect(p_timer, &QTimer::timeout, this, &QVBrowser::progress_timeout);
   populate_icons();
@@ -66,6 +77,15 @@ QVBrowser::~QVBrowser() {
   std::system("reset");
 }
 
+#ifndef QT_NO_CONTEXTMENU
+void QVBrowser::contextMenuEvent(QContextMenuEvent *event)
+{
+    QMenu menu(this);
+    menu.addAction(mDAct);
+    menu.exec(event->globalPos());
+}
+#endif // QT_NO_CONTEXTMENU
+
 void QVBrowser::resizeEvent(QResizeEvent* event)
 {
   QMainWindow::resizeEvent(event);
@@ -74,6 +94,10 @@ void QVBrowser::resizeEvent(QResizeEvent* event)
   qCfg->set("win_width",w);
   qCfg->set("win_height",h);
   return;
+}
+
+void QVBrowser::edit_md_clicked() {
+  std::cout << "Edit MD clicked" << std::endl;
 }
 
 void QVBrowser::config_clicked() {
@@ -128,6 +152,7 @@ void QVBrowser::populate_icons(bool clean) {
     b->setData(a->size,Qt::UserRole+1);
     b->setData(a->length,Qt::UserRole+2);
     b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
+    b->setData(a->vid,Qt::UserRole+4);
     fModel->appendRow(b);
     j++;
   }
