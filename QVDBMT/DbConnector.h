@@ -14,6 +14,8 @@ class DbConnector {
 
   DbConnector(bfs::path & path);
 
+  std::string createPath(bfs::path & path, int vid, std::string extension);
+
   bool video_exists(bfs::path & filename);
 
   bool icon_exists(int vid);
@@ -26,19 +28,11 @@ class DbConnector {
 
   void save_icon(int vid);
 
-  std::string create_icon_path(int vid);
-
   void save_crop(VidFile *a);
 
   void fetch_results(std::map<std::pair<int,int>, int> & map);
 
   void update_results(int i, int j, int k);
-
-  bool trace_exists(int vid);
-
-  void save_trace(int vid, std::string & trace);
-
-  void fetch_trace(int vid, std::vector<uint8_t> & trace);
 
   void save_db_file();
 

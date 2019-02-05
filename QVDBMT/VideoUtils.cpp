@@ -21,9 +21,12 @@ video_utils::video_utils() {
   bfs::path homeP(tempPath);
   tempPath+="/.video_proj/"; 
   dbCon = new DbConnector(tempPath);
+  tracePath=tempPath;
+  tracePath+="traces/";
+  bfs::create_directory(tracePath);
   dbCon->fetch_results(result_map);
   appConfig = new qvdb_config();
-  if(appConfig->load_config(dbCon->fetch_config()))   dbCon->save_config(appConfig->get_data());
+  if(appConfig->load_config(dbCon->fetch_config())) dbCon->save_config(appConfig->get_data());
   Magick::InitializeMagick("");
   paths.push_back(homeP);
   appConfig->get("threads",numThreads);
@@ -52,15 +55,15 @@ video_utils::video_utils() {
   for(auto &a: tok1) cBadChars.push_back(a);
 }
 
-bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<uint8_t> > & data) {
+bool video_utils::compare_vids(int i, int j) {
   bool match=false;
   int counter=0;
   uint t_s,t_x, t_o, t_d;
   //loop over slices
-  for(t_s =0; t_s < data[i].size()-12*cTraceFPS*cCompTime; t_s+= 12*cTraceFPS*cSliceSpacing){
+  for(t_s =0; t_s < traceData[i].size()-12*cTraceFPS*cCompTime; t_s+= 12*cTraceFPS*cSliceSpacing){
     if(match) break;
     //starting offset for 2nd trace-this is the loop for the indiviual tests
-    for(t_x=0; t_x < data[j].size()-12*cTraceFPS*cCompTime; t_x+=12){
+    for(t_x=0; t_x < traceData[j].size()-12*cTraceFPS*cCompTime; t_x+=12){
       if(match) break;
       std::vector<int> accum(12);
       //offset loop
@@ -70,7 +73,7 @@ bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<uint8_t> 
 	if(counter != 0) break;
 	//pixel/color loop
 	for (t_d = 0; t_d < 12; t_d++) {
-	  float value = fabs((int)data[i][t_s+t_o+t_d]-(int)(data[j][t_x+t_o+t_d]))-cFudge;
+	  float value = fabs((int)traceData[i][t_s+t_o+t_d]-(int)(traceData[j][t_x+t_o+t_d]))-cFudge;
 	  if(value < 0) value = 0;
 	  accum[t_d]+=pow(value,2.0);
 	}
@@ -88,19 +91,18 @@ bool video_utils::compare_vids(int i, int j, std::map<int, std::vector<uint8_t> 
   return true;
 }
 
-bool video_utils::compare_vids_fft(int i, int j, std::map<int, std::vector<uint8_t> > & data) {
+bool video_utils::compare_vids_fft(int i, int j) {
   bool match=false;
   int counter=0;
   int size = 2;
-  int length1 = data[i].size()/12;
-  int length2 = data[j].size()/12;
+  int length1 = traceData[i].size()/12;
+  int length2 = traceData[j].size()/12;
   while(size < length2) size*=2;     //Value to calculate  2*A*B/(A^2+B^2)  find peaks
   int dims[]={size};
   double * in=(double *) fftw_malloc(sizeof(double)*12*size);
   double * out =(double *) fftw_malloc(sizeof(double)*12*size);
   double * holder = (double *) malloc(sizeof(double)*12*size);
   std::vector<double> result(length2-cCompTime);
- 
   std::vector<double> coeffs(12*(size-cTraceFPS*cCompTime));
   fftw_r2r_kind fKind[] = {FFTW_R2HC};
    fftw_r2r_kind rKind[] = {FFTW_HC2R};
@@ -111,7 +113,7 @@ bool video_utils::compare_vids_fft(int i, int j, std::map<int, std::vector<uint8
   //loop over slices
   for(t_s =0; t_s < 12*(length1-cTraceFPS*cCompTime); t_s+= 12*cTraceFPS*cSliceSpacing){
     uint k,l;
-    for(k = 0; k < 12*cTraceFPS*cCompTime; k++)  in[k]=data[i][k+t_s];
+    for(k = 0; k < 12*cTraceFPS*cCompTime; k++)  in[k]=traceData[i][k+t_s];
     while(k<12*size) {
       in[k]=0.0;
       k++;
@@ -119,20 +121,20 @@ bool video_utils::compare_vids_fft(int i, int j, std::map<int, std::vector<uint8
     std::vector<double> coeff_temp(12);
     std::vector<double> compCoeffs(12);
     for(int deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l++)  {
-	compCoeffs[l]+=pow(data[i][12*deltaT+t_s+l],2);
-	coeff_temp[l]+=pow(data[j][12*deltaT+l],2);
+	compCoeffs[l]+=pow(traceData[i][12*deltaT+t_s+l],2);
+	coeff_temp[l]+=pow(traceData[j][12*deltaT+l],2);
       }
     int offset = 0;
     while(offset < 12*(length2-cTraceFPS*cCompTime))  {
       for(l = 0; l < 12; l++)  {
 	coeffs[offset+l]=coeff_temp[l];
-	coeff_temp[l]+=pow(data[j][offset+12*cTraceFPS*cCompTime+l],2)-pow(data[j][offset+l],2);
+	coeff_temp[l]+=pow(traceData[j][offset+12*cTraceFPS*cCompTime+l],2)-pow(traceData[j][offset+l],2);
       }
       offset+=12;
     }
     fftw_execute(fPlan);
     for(k=0; k < size*12; k++) holder[k]=out[k];
-    for(k=0; k < 12*length2; k++)  in[k]=data[j][k];
+    for(k=0; k < 12*length2; k++)  in[k]=traceData[j][k];
     while(k<12*size) {
       in[k]=0.0;
       k++;
@@ -157,18 +159,15 @@ bool video_utils::compare_vids_fft(int i, int j, std::map<int, std::vector<uint8
 bool video_utils::calculate_trace(VidFile * obj) {
   float start_time = cStartT;
   if(obj->length <= start_time) start_time=0.0;
-  std::string tracePath = tempPath.c_str();
-  char filePath[50];
-  sprintf(filePath,"%d.bin", obj->vid);
-  tracePath.append(filePath);
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % cTraceFPS % obj->crop %tracePath ).str());
-   std::ifstream ifstr(tracePath.c_str());
+  std::string outPath = dbCon->createPath(tracePath,obj->vid,".bin");
+  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % cTraceFPS % obj->crop %outPath ).str());
+  /*std::ifstream ifstr(tracePath.c_str());
   std::string outString;
   ifstr.seekg(0, std::ios::end);   
 outString.reserve(ifstr.tellg());
 ifstr.seekg(0, std::ios::beg);
  outString.assign(std::istreambuf_iterator<char>(ifstr),std::istreambuf_iterator<char>());
-  dbCon->save_trace(obj->vid, outString);
+ dbCon->save_trace(obj->vid, outString);*/
   return true; 
 }
 
@@ -182,7 +181,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   dbCon->save_crop(vidFile);
   float thumb_t = cThumbT;
   if(vidFile->length < cThumbT) thumb_t = vidFile->length/2.0;
-  std::string icon_file(dbCon->create_icon_path(vidFile->vid));
+  std::string icon_file(dbCon->createPath(tempPath,vidFile->vid,".jpg"));
   std::string command((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
   boost::process::system(command);
   return true;
@@ -326,7 +325,10 @@ void video_utils::start_thumbs(std::vector<VidFile *> & vFile) {
 
 void video_utils::start_make_traces(std::vector<VidFile *> & vFile) {
   resVec.clear();
-  for(auto & b: vFile) if(!dbCon->trace_exists(b->vid))resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
+  for(auto & b: vFile) {
+    bfs::path tPath(dbCon->createPath(tracePath,b->vid,".bin"));
+   if(!bfs::exists(tPath))resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
+  }
   return;
 }
 
@@ -340,13 +342,13 @@ void video_utils::compare_traces(std::vector<int> & vid_list) {
   std::map<int,std::vector<uint8_t> > data_holder;
   //loop over files
   for(int i = 0; i +1 < vid_list.size(); i++) {
-    dbCon->fetch_trace(vid_list[i],data_holder[vid_list[i]]);
+    load_trace(vid_list[i]);
     //loop over files after i
     for(int j = i+1; j < vid_list.size(); j++) {
       if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;
       else {
-	dbCon->fetch_trace(vid_list[j],data_holder[vid_list[j]]);
-	resVec.push_back(TPool->push([&](int i, int j, std::map<int, std::vector<uint8_t>> & data){ return compare_vids_fft(i,j,data);},vid_list[i],vid_list[j],data_holder));
+	load_trace(vid_list[j]);
+	resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},vid_list[i],vid_list[j]));
       }
     }
   }
@@ -409,7 +411,7 @@ void video_utils::set_paths(std::vector<std::string> & folders) {
 }
 
 std::string video_utils::save_icon(int vid) {
-  std::string icon_file = dbCon->create_icon_path(vid);
+  std::string icon_file = dbCon->createPath(tempPath,vid,".jpg");  
   dbCon->save_icon(vid);
   return icon_file;
 }
@@ -444,5 +446,18 @@ std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) 
   return output;
 }
 
-void video_utils::load_metadata() {
+void video_utils::load_metadata(std::vector<int> & vids) {
 }
+
+void video_utils::load_trace(int vid) {
+  std::ifstream dataFile(dbCon->createPath(tracePath,vid,".bin"),std::ios::in|std::ios::binary|std::ios::ate);
+  dataFile.seekg (0, dataFile.end);
+  int length = dataFile.tellg();
+  dataFile.seekg (0, dataFile.beg);
+  char buffer[length];
+  dataFile.read(buffer,length);
+  std::vector<uint8_t> temp(length);
+  for(int i = 0; i < length; i++) temp[i] =(uint8_t) buffer[i];
+  traceData[vid] = temp;
+}
+

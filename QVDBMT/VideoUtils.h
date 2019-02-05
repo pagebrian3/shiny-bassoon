@@ -23,9 +23,9 @@ class video_utils
 
   video_utils();
 
-  bool compare_vids(int i, int j, std::map<int,std::vector<uint8_t> > & data);
+  bool compare_vids(int i, int j);
 
-   bool compare_vids_fft(int i, int j, std::map<int,std::vector<uint8_t> > & data);
+  bool compare_vids_fft(int i, int j);
 
   bool calculate_trace(VidFile * obj);
 
@@ -45,6 +45,8 @@ class video_utils
   
   void start_make_traces(std::vector<VidFile *> & vFile);
 
+  void load_trace(int vid);
+
   void compare_traces(std::vector<int> & vid_list);
 
   void make_vids(std::vector<VidFile *> & vidFiles);
@@ -63,16 +65,19 @@ class video_utils
 
   qvdb_config * get_config();
 
+  void load_metadata(std::vector<int> & vids);
+
   std::vector<VidFile *> vid_factory(std::vector<bfs::path> & paths);
 
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cCutThresh, cStartT;
   int cHeight, cWidth, cImgThresh, cCache, numThreads, cBFrames;
-  bfs::path tempPath;
+  bfs::path tempPath, tracePath;
   std::vector<bfs::path> paths;
   DbConnector * dbCon;
   qvdb_config * appConfig;
   std::map<int,Magick::Image *> img_cache;
+  std::map<int,std::vector<uint8_t> > traceData;
   std::vector<std::future<bool> > resVec;
   cxxpool::thread_pool * TPool;
   std::set<std::string> extensions;

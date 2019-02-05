@@ -14,9 +14,8 @@ DbConnector::DbConnector(bfs::path & appPath) {
   if (newFile) {
     sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob, FOREIGN KEY(vid) REFERENCES videos(vid))",NULL, NULL, NULL);
-    sqlite3_exec(db,"create table trace_blobs(vid integer primary key,  uncomp_size integer, trace_dat text,FOREIGN KEY(vid) REFERENCES videos(vid))", NULL,NULL, NULL);
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer)", NULL,NULL, NULL);
-    sqlite3_exec(db,"create table config(cfg_label text primary key, cfg_type integer, cfg_int integer, cfg_float double, cfg_str text)",NULL,NULL,NULL);
+    sqlite3_exec(db,"create table config(cfg_label text primary key,cfg_type integer,cfg_int integer,cfg_float double,cfg_str text)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table md_types(md_type_index integer primary key not null, md_type_label text unique)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table md_index(md_index integer primary key not null, md_type integer not null, md_label text unique)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table file_mdx(vid integer primary key, tagids text,FOREIGN KEY(vid) REFERENCES videos(vid))",NULL,NULL,NULL);
@@ -74,7 +73,7 @@ std::string DbConnector::fetch_icon(int vid){
     sqlite3_finalize(stmt);
     throw errmsg;
   }
-  std::string out_path = create_icon_path(vid);
+  std::string out_path = createPath(icon_path,vid,".jpg");
   std::ofstream output(out_path, std::ios::out|std::ios::binary|std::ios::ate);
   int size = sqlite3_column_bytes(stmt,0);
   output.write((char*)sqlite3_column_blob(stmt,0),size);
@@ -125,7 +124,7 @@ void DbConnector::save_icon(int vid) {
   int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,img_dat) VALUES (? , ?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);
-  std::string in_path = create_icon_path(vid);
+  std::string in_path = createPath(icon_path,vid,".jpg");
   std::ifstream input (in_path, std::ios::in|std::ios::binary|std::ios::ate);
   unsigned char * memblock;
   int length;
@@ -151,31 +150,6 @@ void DbConnector::save_icon(int vid) {
   sqlite3_finalize(stmt);
   delete[] memblock;
   return;
-}
-
-bool DbConnector::trace_exists(int vid){
-  sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM trace_blobs WHERE vid = ? limit 1)", -1, &stmt, NULL);
-  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_int(stmt, 1, vid);    
-  if (rc != SQLITE_OK) {               
-    std::string errmsg(sqlite3_errmsg(db)); 
-    sqlite3_finalize(stmt);            
-    throw errmsg;                      
-  }
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
-    std::string errmsg(sqlite3_errmsg(db));
-    sqlite3_finalize(stmt);
-    throw errmsg;
-  }
-  if (rc == SQLITE_DONE) {
-    sqlite3_finalize(stmt);
-    throw std::string("trace not found");
-  }
-  bool result = sqlite3_column_int(stmt, 0);
-  sqlite3_finalize(stmt);
-  return result;
 }
 
 bool DbConnector::video_exists(bfs::path & filename){
@@ -278,58 +252,9 @@ void DbConnector::update_results(int  i, int  j, int  k) {
   sqlite3_finalize(stmt);
   return;
 }
-  
-void DbConnector::fetch_trace(int vid, std::vector<uint8_t> & trace) {
-  sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "SELECT uncomp_size,trace_dat FROM trace_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
-  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_int(stmt, 1, vid);    
-  if (rc != SQLITE_OK) {               
-    std::string errmsg(sqlite3_errmsg(db)); 
-    sqlite3_finalize(stmt);            
-    throw errmsg;                      
-  }
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
-    std::string errmsg(sqlite3_errmsg(db));
-    sqlite3_finalize(stmt);
-    throw errmsg;
-  }
-  unsigned long int uncomp_size = sqlite3_column_int(stmt,0);
-  std::string result;
-  result.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
-  trace.resize(uncomp_size);
-  std::cout <<"Trace:  " << vid << " "<<uncomp_size << " "<< result.size() << std::endl; 
-  for(int i = 0; i < uncomp_size; i++) trace[i] = result[i];
-  sqlite3_finalize(stmt);
-  return;
-}
 
-void DbConnector::save_trace(int  vid, std::string & trace) {
-  sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO trace_blobs (vid,uncomp_size,trace_dat) VALUES (?,?,?)", -1, &stmt, NULL);
-  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_int(stmt, 1, vid);
-  unsigned long size = trace.length();
-  sqlite3_bind_int(stmt, 2, size);
-  sqlite3_bind_blob(stmt,3, trace.c_str(),size, NULL); 
-  if (rc != SQLITE_OK) {                
-    std::string errmsg(sqlite3_errmsg(db)); 
-    sqlite3_finalize(stmt);            
-    throw errmsg;                      
-  }
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
-    std::string errmsg(sqlite3_errmsg(db));
-    sqlite3_finalize(stmt);
-    throw errmsg;
-  }  
-  sqlite3_finalize(stmt);
-  return;
-}
-
-std::string DbConnector::create_icon_path(int vid) {
-  return (boost::format("%s%i.jpg") % icon_path.string() % vid).str();
+std::string DbConnector::createPath(bfs::path & path, int vid, std::string extension) {
+  return (boost::format("%s%i%s") % path.string() % vid % extension).str();
 }
 
 void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
@@ -357,10 +282,6 @@ void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
   }
   for(auto & a: orphans) {
     rc = sqlite3_prepare_v2(db, "DELETE FROM icon_blobs WHERE vid = ?", -1, &stmt, NULL);
-    rc = sqlite3_bind_int(stmt, 1, a); 
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    rc = sqlite3_prepare_v2(db, "DELETE FROM trace_blobs WHERE vid = ?", -1, &stmt, NULL);
     rc = sqlite3_bind_int(stmt, 1, a); 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
