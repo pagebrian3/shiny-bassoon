@@ -93,45 +93,46 @@ bool video_utils::compare_vids(int i, int j) {
 
 bool video_utils::compare_vids_fft(int i, int j) {
   bool match=false;
-  int counter=0;
-  int size = 2;
-  int length1 = traceData[i].size()/12;
-  int length2 = traceData[j].size()/12;
+  int size = 2;  //size of 1 transform  must be a power of 2
+  uint length1 = traceData[i].size()/12;
+  uint length2 = traceData[j].size()/12;
   while(size < length2) size*=2;     //Value to calculate  2*A*B/(A^2+B^2)  find peaks
   int dims[]={size};
   double * in=(double *) fftw_malloc(sizeof(double)*12*size);
   double * out =(double *) fftw_malloc(sizeof(double)*12*size);
   double * holder = (double *) malloc(sizeof(double)*12*size);
-  std::vector<double> result(length2-cCompTime);
+  std::vector<double> result(length2-cTraceFPS*cCompTime);
   std::vector<double> coeffs(12*(size-cTraceFPS*cCompTime));
   fftw_r2r_kind fKind[] = {FFTW_R2HC};
    fftw_r2r_kind rKind[] = {FFTW_HC2R};
-  fftw_plan fPlan = fftw_plan_many_r2r(1,dims,12, in,dims, 12,12*size,out, dims,12,12*size,fKind,FFTW_ESTIMATE);
-  fftw_plan rPlan = fftw_plan_many_r2r(1,dims,12, out,dims, 12,12*size,in, dims,12,12*size,rKind,FFTW_ESTIMATE);
+  fftw_plan fPlan = fftw_plan_many_r2r(1,dims,12, in,dims, 12,1,out, dims,12,1,fKind,FFTW_ESTIMATE);
+  fftw_plan rPlan = fftw_plan_many_r2r(1,dims,12, out,dims, 12,1,in, dims,12,1,rKind,FFTW_ESTIMATE);
+  std::cout << "starting " << i << " " << j <<" "<<size<< std::endl;
+  if(i == 4 and j ==5) std::cout << "BLAH " << (int)traceData[i][0] << " "<<(int)traceData[j][0] << " "<<(int)traceData[i][11] << " "<<(int)traceData[j][11] << std::endl;
   uint t_s;  //current slice position
-  uint t_x, t_o, t_d;
-  //loop over slices
+uint offset = 0;
+ uint l = 0;
+std::vector<double> compCoeffs(12);
+ std::vector<double> coeff_temp(12);
+for(uint deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l++) coeff_temp[l]+=pow(traceData[j][12*deltaT+l],2);
+    while(offset < 12*(length2-cTraceFPS*cCompTime))  {
+      for(l = 0; l < 12; l++)  {
+	coeffs[offset+l]=coeff_temp[l];
+	coeff_temp[l]+=(pow(traceData[j][offset+12*cTraceFPS*cCompTime+l],2)-pow(traceData[j][offset+l],2));
+      }
+      offset+=12;
+    }
+   //loop over slices
   for(t_s =0; t_s < 12*(length1-cTraceFPS*cCompTime); t_s+= 12*cTraceFPS*cSliceSpacing){
-    uint k,l;
+    uint k;
     for(k = 0; k < 12*cTraceFPS*cCompTime; k++)  in[k]=traceData[i][k+t_s];
     while(k<12*size) {
       in[k]=0.0;
       k++;
     }
-    std::vector<double> coeff_temp(12);
-    std::vector<double> compCoeffs(12);
-    for(int deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l++)  {
-	compCoeffs[l]+=pow(traceData[i][12*deltaT+t_s+l],2);
-	coeff_temp[l]+=pow(traceData[j][12*deltaT+l],2);
-      }
-    int offset = 0;
-    while(offset < 12*(length2-cTraceFPS*cCompTime))  {
-      for(l = 0; l < 12; l++)  {
-	coeffs[offset+l]=coeff_temp[l];
-	coeff_temp[l]+=pow(traceData[j][offset+12*cTraceFPS*cCompTime+l],2)-pow(traceData[j][offset+l],2);
-      }
-      offset+=12;
-    }
+     std::fill(compCoeffs.begin(),compCoeffs.end(),0);
+    for(uint deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l++)  compCoeffs[l]+=pow(traceData[i][12*deltaT+t_s+l],2);
+    //std::cout <<t_s<< "  execute " <<i << " "<<j<< std::endl;
     fftw_execute(fPlan);
     for(k=0; k < size*12; k++) holder[k]=out[k];
     for(k=0; k < 12*length2; k++)  in[k]=traceData[j][k];
@@ -143,9 +144,15 @@ bool video_utils::compare_vids_fft(int i, int j) {
     for(k=0;k<=6*size; k++) in[k]=out[k]*holder[k];
     while(k < size*12) {
       in[k]=-1.0*out[k]*holder[k];
+      k++;
     }
     fftw_execute(rPlan);
-    for(k = 0; k < 12*(length2-cTraceFPS*cCompTime); k+=12)  for(l=0; l <12; l++) result[k]+=out[k+l]/(size* 6*(compCoeffs[l]+coeffs[k+l]));
+    double sum;
+    for(k = 0; k < length2-cTraceFPS*cCompTime; k++)  {
+      sum=0.0;
+      for(l=0; l <12; l++) sum+=out[12*k+l]/(size* 6*(compCoeffs[l]+coeffs[12*k+l]));
+      result[k]=sum;
+    }
     double max_val = *max_element(result.begin(),result.end());
     std::cout << "Max result " <<i <<" " << j<<" "<<t_s<<" "<< max_val << std::endl;
   }
@@ -153,6 +160,9 @@ bool video_utils::compare_vids_fft(int i, int j) {
   if(match) result_map[key]+=2;
   else if(result_map[key]==0) result_map[key]=4;
   dbCon->update_results(i,j,result_map[key]);
+  fftw_free(in);
+  fftw_free(out);
+  free(holder);
   return true;
 }
 
@@ -345,11 +355,9 @@ void video_utils::compare_traces(std::vector<int> & vid_list) {
     load_trace(vid_list[i]);
     //loop over files after i
     for(int j = i+1; j < vid_list.size(); j++) {
-      if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;
-      else {
-	load_trace(vid_list[j]);
-	resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},vid_list[i],vid_list[j]));
-      }
+      //if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;  
+      load_trace(vid_list[j]);
+      resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},vid_list[i],vid_list[j]));
     }
   }
   return;
@@ -400,6 +408,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
       vidFiles.push_back(v);      
     }
   }
+  for(int i = 0; i < vidFiles.size(); i++) std::cout << vidFiles[i]->vid << " " << vidFiles[i]->fileName << std::endl;
   load_metadata(curVIDs);
   return;
 }
