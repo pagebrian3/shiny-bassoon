@@ -96,65 +96,70 @@ bool video_utils::compare_vids_fft(int i, int j) {
   int size = 2;  //size of 1 transform  must be a power of 2
   uint length1 = traceData[i].size()/12;
   uint length2 = traceData[j].size()/12;
-  while(size < length2) size*=2;     //Value to calculate  2*A*B/(A^2+B^2)  find peaks
+  while(size < length2) size*=2;    
   int dims[]={size};
   double * in=(double *) fftw_malloc(sizeof(double)*12*size);
-  double * out =(double *) fftw_malloc(sizeof(double)*12*size);
-  double * holder = (double *) malloc(sizeof(double)*12*size);
+  fftw_complex * out =(fftw_complex*) fftw_malloc(sizeof(fftw_complex)*12*(size/2+1));
+  std::vector<double>holder(12*size);
+  std::vector<fftw_complex> cHolder(12*(size/2+1));
   std::vector<double> result(length2-cTraceFPS*cCompTime);
   std::vector<double> coeffs(12*(size-cTraceFPS*cCompTime));
-  fftw_r2r_kind fKind[] = {FFTW_R2HC};
-   fftw_r2r_kind rKind[] = {FFTW_HC2R};
-  fftw_plan fPlan = fftw_plan_many_r2r(1,dims,12, in,dims, 12,1,out, dims,12,1,fKind,FFTW_ESTIMATE);
-  fftw_plan rPlan = fftw_plan_many_r2r(1,dims,12, out,dims, 12,1,in, dims,12,1,rKind,FFTW_ESTIMATE);
+  fftw_plan fPlan = fftw_plan_many_dft_r2c(1,dims,12, in,dims, 12,1,out, dims,12,1,FFTW_ESTIMATE);
+  fftw_plan rPlan = fftw_plan_many_dft_c2r(1,dims,12, out,dims, 12,1,in, dims,12,1,FFTW_ESTIMATE);
   std::cout << "starting " << i << " " << j <<" "<<size<< std::endl;
-  if(i == 4 and j ==5) std::cout << "BLAH " << (int)traceData[i][0] << " "<<(int)traceData[j][0] << " "<<(int)traceData[i][11] << " "<<(int)traceData[j][11] << std::endl;
   uint t_s;  //current slice position
-uint offset = 0;
- uint l = 0;
-std::vector<double> compCoeffs(12);
- std::vector<double> coeff_temp(12);
-for(uint deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l++) coeff_temp[l]+=pow(traceData[j][12*deltaT+l],2);
-    while(offset < 12*(length2-cTraceFPS*cCompTime))  {
-      for(l = 0; l < 12; l++)  {
-	coeffs[offset+l]=coeff_temp[l];
-	coeff_temp[l]+=(pow(traceData[j][offset+12*cTraceFPS*cCompTime+l],2)-pow(traceData[j][offset+l],2));
-      }
-      offset+=12;
+  uint offset = 0;
+  uint l = 0;
+  uint k ;
+  std::vector<double> compCoeffs(12);
+  std::vector<double> coeff_temp(12);
+  //calculate normalization for 2nd trace
+  for(uint deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l++) coeff_temp[l]+=pow(traceData[j][12*deltaT+l],2);
+  while(offset < 12*(length2-cTraceFPS*cCompTime))  {
+    for(l = 0; l < 12; l++)  {
+      coeffs[offset+l]=coeff_temp[l];
+      coeff_temp[l]+=(pow(traceData[j][offset+12*cTraceFPS*cCompTime+l],2)-pow(traceData[j][offset+l],2));
     }
-   //loop over slices
+    offset+=12;
+  }
+  //loop over slices
   for(t_s =0; t_s < 12*(length1-cTraceFPS*cCompTime); t_s+= 12*cTraceFPS*cSliceSpacing){
-    uint k;
+    k=0;
+    //load and pad data for slice
     for(k = 0; k < 12*cTraceFPS*cCompTime; k++)  in[k]=traceData[i][k+t_s];
     while(k<12*size) {
       in[k]=0.0;
       k++;
     }
-     std::fill(compCoeffs.begin(),compCoeffs.end(),0);
-    for(uint deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l++)  compCoeffs[l]+=pow(traceData[i][12*deltaT+t_s+l],2);
-    //std::cout <<t_s<< "  execute " <<i << " "<<j<< std::endl;
+    std::fill(compCoeffs.begin(),compCoeffs.end(),0);
+    //calculate normalization for slice
+    for(uint deltaT=0; deltaT < 12*cTraceFPS*cCompTime; deltaT+=12) for(l = 0; l < 12; l++)  compCoeffs[l]+=pow(traceData[i][deltaT+t_s+l],2);
     fftw_execute(fPlan);
-    for(k=0; k < size*12; k++) holder[k]=out[k];
+    for(k=0; k < (size/2+1)*12; k++)  {
+      cHolder[k][0]=out[k][0];
+      cHolder[k][1]=out[k][1];
+    }
+    //load 2nd trace
     for(k=0; k < 12*length2; k++)  in[k]=traceData[j][k];
     while(k<12*size) {
       in[k]=0.0;
       k++;
     }
     fftw_execute(fPlan);
-    for(k=0;k<=6*size; k++) in[k]=out[k]*holder[k];
-    while(k < size*12) {
-      in[k]=-1.0*out[k]*holder[k];
-      k++;
+    for(k=0;k<=12*(size/2+1); k++) {
+      out[k][0]=out[k][0]*cHolder[k][0]+out[k][1]*cHolder[k][1];
+      out[k][1]=-1.0*out[k][0]*cHolder[k][1]+out[k][1]*cHolder[k][0];
     }
     fftw_execute(rPlan);
     double sum;
     for(k = 0; k < length2-cTraceFPS*cCompTime; k++)  {
       sum=0.0;
-      for(l=0; l <12; l++) sum+=out[12*k+l]/(size* 6*(compCoeffs[l]+coeffs[12*k+l]));
+      for(l=0; l <12; l++) sum+=in[12*k+l]/(size* 6*(compCoeffs[l]+coeffs[12*k+l]));
       result[k]=sum;
     }
     double max_val = *max_element(result.begin(),result.end());
-    std::cout << "Max result " <<i <<" " << j<<" "<<t_s<<" "<< max_val << std::endl;
+    int max_offset = max_element(result.begin(),result.end()) - result.begin();
+    std::cout << "Max result " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset<< std::endl;
   }
   std::pair<int,int> key(i,j);
   if(match) result_map[key]+=2;
@@ -162,7 +167,6 @@ for(uint deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l+
   dbCon->update_results(i,j,result_map[key]);
   fftw_free(in);
   fftw_free(out);
-  free(holder);
   return true;
 }
 
@@ -171,13 +175,6 @@ bool video_utils::calculate_trace(VidFile * obj) {
   if(obj->length <= start_time) start_time=0.0;
   std::string outPath = dbCon->createPath(tracePath,obj->vid,".bin");
   boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % cTraceFPS % obj->crop %outPath ).str());
-  /*std::ifstream ifstr(tracePath.c_str());
-  std::string outString;
-  ifstr.seekg(0, std::ios::end);   
-outString.reserve(ifstr.tellg());
-ifstr.seekg(0, std::ios::beg);
- outString.assign(std::istreambuf_iterator<char>(ifstr),std::istreambuf_iterator<char>());
- dbCon->save_trace(obj->vid, outString);*/
   return true; 
 }
 
@@ -456,6 +453,8 @@ std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) 
 }
 
 void video_utils::load_metadata(std::vector<int> & vids) {
+  dbCon->load_metadata_labels(labelData, labelTypes);
+  dbCon->load_metadata_for_files(vids,fileMetadata);
 }
 
 void video_utils::load_trace(int vid) {
@@ -468,5 +467,19 @@ void video_utils::load_trace(int vid) {
   std::vector<uint8_t> temp(length);
   for(int i = 0; i < length; i++) temp[i] =(uint8_t) buffer[i];
   traceData[vid] = temp;
+}
+
+void video_utils::metadata_string(int vid) {
+  std::stringstream ss;
+  for(auto &a:labelTypes) {
+    int type = a.first;
+    std::string typeLabel = a.second;
+    ss << typeLabel << ": "
+    for(auto &b: fileMetadata[vid]) {
+      ss << labelData[b] << ", ";
+    }
+    ss << std::endl;
+  }
+  return ss.string();
 }
 

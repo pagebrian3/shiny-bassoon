@@ -69,6 +69,8 @@ class video_utils
 
   std::vector<VidFile *> vid_factory(std::vector<bfs::path> & paths);
 
+  std::string metadata_string(int vid);
+
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cCutThresh, cStartT;
   int cHeight, cWidth, cImgThresh, cCache, numThreads, cBFrames;
@@ -82,6 +84,9 @@ class video_utils
   cxxpool::thread_pool * TPool;
   std::set<std::string> extensions;
   std::vector<std::string> cBadChars;
+  std::map<int,std::pair<int,std::string> > labelData;
+  boost::bimap<int,std::string> labelTypes;
+  std::map<int,std::vector<int> > fileMetadata;
 };
 
 #endif // VIDEOUTILS_H
