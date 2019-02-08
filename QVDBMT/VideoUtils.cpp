@@ -93,6 +93,7 @@ bool video_utils::compare_vids(int i, int j) {
 
 bool video_utils::compare_vids_fft(int i, int j) {
   bool match=false;
+  int trT = cTraceFPS*cCompTime;
   int size = 2;  //size of 1 transform  must be a power of 2
   uint length1 = traceData[i].size()/12;
   uint length2 = traceData[j].size()/12;
@@ -102,38 +103,43 @@ bool video_utils::compare_vids_fft(int i, int j) {
   fftw_complex * out =(fftw_complex*) fftw_malloc(sizeof(fftw_complex)*12*(size/2+1));
   std::vector<double>holder(12*size);
   std::vector<fftw_complex> cHolder(12*(size/2+1));
-  std::vector<double> result(length2-cTraceFPS*cCompTime);
-  std::vector<double> coeffs(12*(size-cTraceFPS*cCompTime));
+  std::vector<double> result(length2-trT);
+  std::vector<double> coeffs(12*(length2-trT));
   fftw_plan fPlan = fftw_plan_many_dft_r2c(1,dims,12, in,dims, 12,1,out, dims,12,1,FFTW_ESTIMATE);
   fftw_plan rPlan = fftw_plan_many_dft_c2r(1,dims,12, out,dims, 12,1,in, dims,12,1,FFTW_ESTIMATE);
-  std::cout << "starting " << i << " " << j <<" "<<size<< std::endl;
+  std::cout << "starting " << i << " " << j <<" "<<size<< " "<<length2 <<std::endl;
   uint t_s;  //current slice position
-  uint offset = 0;
+  int offset = 0;
   uint l = 0;
   uint k ;
   std::vector<double> compCoeffs(12);
   std::vector<double> coeff_temp(12);
   //calculate normalization for 2nd trace
-  for(uint deltaT=0; deltaT < cTraceFPS*cCompTime; deltaT++) for(l = 0; l < 12; l++) coeff_temp[l]+=pow(traceData[j][12*deltaT+l],2);
-  while(offset < 12*(length2-cTraceFPS*cCompTime))  {
+  for(offset=0; offset < 12*trT; offset+=12) for(l = 0; l < 12; l++) coeff_temp[l]+=pow(traceData[j][offset+l],2);
+  while(offset < 12*length2)  {
     for(l = 0; l < 12; l++)  {
-      coeffs[offset+l]=coeff_temp[l];
-      coeff_temp[l]+=(pow(traceData[j][offset+12*cTraceFPS*cCompTime+l],2)-pow(traceData[j][offset+l],2));
+      coeffs[offset-12*trT+l]=coeff_temp[l];
+      coeff_temp[l]+=(pow(traceData[j][offset+l],2)-pow(traceData[j][offset-12*trT+l],2));
     }
     offset+=12;
   }
   //loop over slices
-  for(t_s =0; t_s < 12*(length1-cTraceFPS*cCompTime); t_s+= 12*cTraceFPS*cSliceSpacing){
+  for(t_s =0; t_s < 12*(length1-trT); t_s+= 12*cTraceFPS*cSliceSpacing){
     k=0;
     //load and pad data for slice
-    for(k = 0; k < 12*cTraceFPS*cCompTime; k++)  in[k]=traceData[i][k+t_s];
+    for(k = 0; k < 12*trT; k++)  in[k]=traceData[i][k+t_s];
     while(k<12*size) {
       in[k]=0.0;
       k++;
     }
-    std::fill(compCoeffs.begin(),compCoeffs.end(),0);
+    std::fill(compCoeffs.begin(),compCoeffs.end(),0.0);
     //calculate normalization for slice
-    for(uint deltaT=0; deltaT < 12*cTraceFPS*cCompTime; deltaT+=12) for(l = 0; l < 12; l++)  compCoeffs[l]+=pow(traceData[i][deltaT+t_s+l],2);
+    for(uint deltaT=0; deltaT < 12*trT; deltaT+=12) for(l = 0; l < 12; l++)  compCoeffs[l]+=pow(traceData[i][deltaT+t_s+l],2);
+    //if(i==1 && j ==2) for(k = 0; k
+    for(k = 0; k < (size/2+1)*12; k++) {
+      out[k][0]=0;
+      out[k][1]=0;
+    }
     fftw_execute(fPlan);
     for(k=0; k < (size/2+1)*12; k++)  {
       cHolder[k][0]=out[k][0];
@@ -145,21 +151,31 @@ bool video_utils::compare_vids_fft(int i, int j) {
       in[k]=0.0;
       k++;
     }
-    fftw_execute(fPlan);
-    for(k=0;k<=12*(size/2+1); k++) {
-      out[k][0]=out[k][0]*cHolder[k][0]+out[k][1]*cHolder[k][1];
-      out[k][1]=-1.0*out[k][0]*cHolder[k][1]+out[k][1]*cHolder[k][0];
+    for(k = 0; k < (size/2+1)*12; k++) {
+      out[k][0]=0;
+      out[k][1]=0;
     }
+    fftw_execute(fPlan);
+    for(k=0;k<12*(size/2+1); k++) {
+      double a,b,c,d;
+      a = out[k][0];
+      b = out[k][1];
+      c =cHolder[k][0];
+      d = cHolder[k][1];
+      out[k][0]=a*c+b*d;
+      out[k][1]=b*c-a*d;
+    }
+    for(k = 0; k < size*12; k++)  in[k]=0;
     fftw_execute(rPlan);
     double sum;
-    for(k = 0; k < length2-cTraceFPS*cCompTime; k++)  {
+    for(k = 0; k < length2-trT; k++)  {
       sum=0.0;
       for(l=0; l <12; l++) sum+=in[12*k+l]/(size* 6*(compCoeffs[l]+coeffs[12*k+l]));
       result[k]=sum;
     }
     double max_val = *max_element(result.begin(),result.end());
     int max_offset = max_element(result.begin(),result.end()) - result.begin();
-    std::cout << "Max result " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset<< std::endl;
+    std::cout << "Max result " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset<<" "<<result[0] <<" "<<in[12*max_offset] << " " <<in[12*(max_offset-1)] << " "<< coeffs[max_offset*12]<< " " <<compCoeffs[0] <<std::endl;
   }
   std::pair<int,int> key(i,j);
   if(match) result_map[key]+=2;
@@ -174,7 +190,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   float start_time = cStartT;
   if(obj->length <= start_time) start_time=0.0;
   std::string outPath = dbCon->createPath(tracePath,obj->vid,".bin");
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % cTraceFPS % obj->crop %outPath ).str());
+  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % cTraceFPS % obj->crop %outPath ).str());
   return true; 
 }
 
@@ -406,7 +422,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
     }
   }
   for(int i = 0; i < vidFiles.size(); i++) std::cout << vidFiles[i]->vid << " " << vidFiles[i]->fileName << std::endl;
-  load_metadata(curVIDs);
+  //load_metadata(curVIDs);
   return;
 }
 
@@ -469,17 +485,17 @@ void video_utils::load_trace(int vid) {
   traceData[vid] = temp;
 }
 
-void video_utils::metadata_string(int vid) {
+std::string video_utils::metadata_string(int vid) {
   std::stringstream ss;
-  for(auto &a:labelTypes) {
+  for(auto & a:labelTypes.left) {
     int type = a.first;
     std::string typeLabel = a.second;
-    ss << typeLabel << ": "
+    ss << typeLabel << ": ";
     for(auto &b: fileMetadata[vid]) {
-      ss << labelData[b] << ", ";
+      ss << labelData[b].second << ", ";
     }
     ss << std::endl;
   }
-  return ss.string();
+  return ss.str();
 }
 
