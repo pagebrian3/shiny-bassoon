@@ -1,6 +1,7 @@
 #include "Magick++.h"
 #include "VideoUtils.h"
 #include <fstream>
+#include <mutex>
 #include "MediaInfo/MediaInfo.h"
 #include "ZenLib/Ztring.h"
 #include <boost/process.hpp>
@@ -8,6 +9,7 @@
 #include <boost/algorithm/string.hpp>
 #include <fftw3.h>
 
+std::mutex mtx;
 
 video_utils::video_utils() {
   if(PLATFORM_NAME == "linux") {
@@ -93,89 +95,85 @@ bool video_utils::compare_vids(int i, int j) {
 
 bool video_utils::compare_vids_fft(int i, int j) {
   bool match=false;
+  int numVars=12;
   int trT = cTraceFPS*cCompTime;
   int size = 2;  //size of 1 transform  must be a power of 2
-  uint length1 = traceData[i].size()/12;
-  uint length2 = traceData[j].size()/12;
+  uint length1 = traceData[i].size()/numVars;
+  uint length2 = traceData[j].size()/numVars;
   while(size < length2) size*=2;    
   int dims[]={size};
-  double * in=(double *) fftw_malloc(sizeof(double)*12*size);
-  fftw_complex * out =(fftw_complex*) fftw_malloc(sizeof(fftw_complex)*12*(size/2+1));
-  std::vector<double>holder(12*size);
-  std::vector<fftw_complex> cHolder(12*(size/2+1));
+  double * in=(double *) fftw_malloc(sizeof(double)*numVars*size);
+  fftw_complex * out =(fftw_complex*) fftw_malloc(sizeof(fftw_complex)*numVars*(size/2+1));
+  std::vector<double>holder(numVars*size);
+  std::vector<fftw_complex> cHolder(numVars*(size/2+1));
   std::vector<double> result(length2-trT);
-  std::vector<double> coeffs(12*(length2-trT));
-  fftw_plan fPlan = fftw_plan_many_dft_r2c(1,dims,12, in,dims, 12,1,out, dims,12,1,FFTW_ESTIMATE);
-  fftw_plan rPlan = fftw_plan_many_dft_c2r(1,dims,12, out,dims, 12,1,in, dims,12,1,FFTW_ESTIMATE);
+  std::vector<double> coeffs(numVars*(length2-trT));
+  mtx.lock();
+  fftw_plan fPlan = fftw_plan_many_dft_r2c(1,dims,numVars, in,dims, numVars,1,out, dims,numVars,1,FFTW_ESTIMATE);
+  fftw_plan rPlan = fftw_plan_many_dft_c2r(1,dims,numVars, out,dims, numVars,1,in, dims,numVars,1,FFTW_ESTIMATE);
+  mtx.unlock();
   std::cout << "starting " << i << " " << j <<" "<<size<< " "<<length2 <<std::endl;
   uint t_s;  //current slice position
   int offset = 0;
   uint l = 0;
   uint k ;
-  std::vector<double> compCoeffs(12);
-  std::vector<double> coeff_temp(12);
+  std::vector<double> compCoeffs(numVars);
+  std::vector<double> coeff_temp(numVars);
   //calculate normalization for 2nd trace
-  for(offset=0; offset < 12*trT; offset+=12) for(l = 0; l < 12; l++) coeff_temp[l]+=pow(traceData[j][offset+l],2);
-  while(offset < 12*length2)  {
-    for(l = 0; l < 12; l++)  {
-      coeffs[offset-12*trT+l]=coeff_temp[l];
-      coeff_temp[l]+=(pow(traceData[j][offset+l],2)-pow(traceData[j][offset-12*trT+l],2));
+  for(offset=0; offset < numVars*trT; offset+=numVars) for(l = 0; l < numVars; l++) coeff_temp[l]+=pow(traceData[j][offset+l],2);
+  while(offset < numVars*length2)  {
+    for(l = 0; l < numVars; l++)  {
+      coeffs[offset-numVars*trT+l]=coeff_temp[l];
+      coeff_temp[l]+=(pow(traceData[j][offset+l],2)-pow(traceData[j][offset-numVars*trT+l],2));
     }
-    offset+=12;
+    offset+=numVars;
   }
+  for(k=0; k < numVars*length2; k++)  in[k]=traceData[j][k];
+    while(k<numVars*size) {
+      in[k]=0.0;
+      k++;
+    }
+    fftw_execute(fPlan);
+      for(k=0; k < (size/2+1)*numVars; k++)  {
+      cHolder[k][0]=out[k][0];
+      cHolder[k][1]=out[k][1];
+    }
   //loop over slices
-  for(t_s =0; t_s < 12*(length1-trT); t_s+= 12*cTraceFPS*cSliceSpacing){
+  for(t_s =0; t_s < numVars*(length1-trT); t_s+= numVars*cTraceFPS*cSliceSpacing){
     k=0;
     //load and pad data for slice
-    for(k = 0; k < 12*trT; k++)  in[k]=traceData[i][k+t_s];
-    while(k<12*size) {
+    for(k = 0; k < numVars*trT; k++)  in[k]=traceData[i][k+t_s];
+    while(k<numVars*size) {
       in[k]=0.0;
       k++;
     }
     std::fill(compCoeffs.begin(),compCoeffs.end(),0.0);
     //calculate normalization for slice
-    for(uint deltaT=0; deltaT < 12*trT; deltaT+=12) for(l = 0; l < 12; l++)  compCoeffs[l]+=pow(traceData[i][deltaT+t_s+l],2);
-    //if(i==1 && j ==2) for(k = 0; k
-    for(k = 0; k < (size/2+1)*12; k++) {
-      out[k][0]=0;
-      out[k][1]=0;
-    }
+    for(uint deltaT=0; deltaT < numVars*trT; deltaT+=numVars) for(l = 0; l < numVars; l++)  compCoeffs[l]+=pow(traceData[i][deltaT+t_s+l],2);
     fftw_execute(fPlan);
-    for(k=0; k < (size/2+1)*12; k++)  {
-      cHolder[k][0]=out[k][0];
-      cHolder[k][1]=out[k][1];
-    }
-    //load 2nd trace
-    for(k=0; k < 12*length2; k++)  in[k]=traceData[j][k];
-    while(k<12*size) {
-      in[k]=0.0;
-      k++;
-    }
-    for(k = 0; k < (size/2+1)*12; k++) {
-      out[k][0]=0;
-      out[k][1]=0;
-    }
-    fftw_execute(fPlan);
-    for(k=0;k<12*(size/2+1); k++) {
+    for(k=0;k<numVars*(size/2+1); k++) {
       double a,b,c,d;
-      a = out[k][0];
-      b = out[k][1];
-      c =cHolder[k][0];
-      d = cHolder[k][1];
+      c = out[k][0];
+      d = out[k][1];
+      a =cHolder[k][0];
+      b = cHolder[k][1];
       out[k][0]=a*c+b*d;
       out[k][1]=b*c-a*d;
     }
-    for(k = 0; k < size*12; k++)  in[k]=0;
     fftw_execute(rPlan);
     double sum;
     for(k = 0; k < length2-trT; k++)  {
       sum=0.0;
-      for(l=0; l <12; l++) sum+=in[12*k+l]/(size* 6*(compCoeffs[l]+coeffs[12*k+l]));
-      result[k]=sum;
+      for(l=0; l <numVars; l++) sum+=in[numVars*k+l]/(size* 6*(compCoeffs[l]+coeffs[numVars*k+l]));
+      result[k]=pow(sum,cFudge);
     }
     double max_val = *max_element(result.begin(),result.end());
     int max_offset = max_element(result.begin(),result.end()) - result.begin();
-    std::cout << "Max result " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset<<" "<<result[0] <<" "<<in[12*max_offset] << " " <<in[12*(max_offset-1)] << " "<< coeffs[max_offset*12]<< " " <<compCoeffs[0] <<std::endl;
+    if(max_val > cThresh) {
+      std::cout << "Match! " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset<<" "<<result[0] <<" "<<in[numVars*max_offset] << " " <<in[numVars*(max_offset-1)] << " "<< coeffs[max_offset*numVars]<< " " <<compCoeffs[0] <<std::endl;
+      match = true;
+	break;
+    }
   }
   std::pair<int,int> key(i,j);
   if(match) result_map[key]+=2;
@@ -368,7 +366,7 @@ void video_utils::compare_traces(std::vector<int> & vid_list) {
     load_trace(vid_list[i]);
     //loop over files after i
     for(int j = i+1; j < vid_list.size(); j++) {
-      //if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;  
+      if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;  
       load_trace(vid_list[j]);
       resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},vid_list[i],vid_list[j]));
     }
