@@ -1,5 +1,6 @@
 #include "QVBrowser.h"
 #include <ConfigDialog.h>
+#include <MetadataDialog.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <QFileDialog>
@@ -15,6 +16,7 @@
 #include <QListView>
 #include <QStandardItem>
 #include <QResizeEvent>
+#include <QModelIndex>
 
 QVBrowser::QVBrowser() : QMainWindow() {
   fTimer = new boost::timer::auto_cpu_timer();
@@ -74,7 +76,6 @@ QVBrowser::QVBrowser() : QMainWindow() {
 }
 
 QVBrowser::~QVBrowser() {
-  std::system("reset");
 }
 
 #ifndef QT_NO_CONTEXTMENU
@@ -97,7 +98,13 @@ void QVBrowser::resizeEvent(QResizeEvent* event)
 }
 
 void QVBrowser::edit_md_clicked() {
-  std::cout << "Edit MD clicked" << std::endl;
+  QModelIndexList sList = fFBox->selectionModel()->selectedIndexes();
+  std::vector<int> selVids;
+  for(int i = 0; i < sList.size(); i++)  {
+    QStandardItem *  selItem = fModel->itemFromIndex(sList[i]);
+    selVids.push_back(selItem->data(Qt::UserRole+4).toInt());
+  }
+  MetadataDialog mDiag(this,selVids,vu);
 }
 
 void QVBrowser::config_clicked() {
@@ -109,7 +116,6 @@ void QVBrowser::closeEvent(QCloseEvent *event) {
   vu->close();
   QMainWindow::closeEvent(event);
 }
-
 
 void QVBrowser::populate_icons(bool clean) {
   if(clean) {

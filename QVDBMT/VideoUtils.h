@@ -71,6 +71,12 @@ class video_utils
 
   std::string metadata_string(int vid);
 
+  std::vector<int> metadataForVid(int vid);
+
+  std::map<int,std::pair<int,std::string> > md_lookup();
+
+  boost::bimap<int,std::string> md_types();
+
  private:
   float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cCutThresh, cStartT;
   int cHeight, cWidth, cImgThresh, cCache, numThreads, cBFrames;

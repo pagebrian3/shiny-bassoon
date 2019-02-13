@@ -1,8 +1,10 @@
 #include <QDialog>
+#include <boost/bimap.hpp>
 
 class QMainWindow;
 class QFormLayout;
 class QLineEdit;
+class video_utils;
 
 class MetadataDialog: public QDialog {
 
@@ -10,12 +12,11 @@ class MetadataDialog: public QDialog {
 
 public:
 
-  MetadataDialog(QMainWindow * parent);
+  MetadataDialog(QMainWindow * parent,std::vector<int> & vids, video_utils * vu);
 
   void on_accept();
 
 private:
+  QFormLayout * formLayout;
 
-  
-  std::map<std::string,boost::variant<int, float, std::string> > config;
 };

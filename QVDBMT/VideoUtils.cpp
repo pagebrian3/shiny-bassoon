@@ -471,6 +471,14 @@ void video_utils::load_metadata(std::vector<int> & vids) {
   dbCon->load_metadata_for_files(vids,fileMetadata);
 }
 
+boost::bimap<int,std::string> video_utils::md_types() {
+  return labelTypes;
+}
+
+std::map<int,std::pair<int,std::string> > video_utils::md_lookup() {
+  return labelData;
+}
+
 void video_utils::load_trace(int vid) {
   std::ifstream dataFile(dbCon->createPath(tracePath,vid,".bin"),std::ios::in|std::ios::binary|std::ios::ate);
   dataFile.seekg (0, dataFile.end);
@@ -495,5 +503,9 @@ std::string video_utils::metadata_string(int vid) {
     ss << std::endl;
   }
   return ss.str();
+}
+
+std::vector<int> video_utils::metadataForVid(int vid) {
+  return fileMetadata[vid];
 }
 

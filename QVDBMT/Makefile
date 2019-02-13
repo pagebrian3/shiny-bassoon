@@ -9,8 +9,8 @@ default: qvbrowser
 debug: CFLAGS =  -I. -std=gnu++14 -g -Wall -fPIC
 debug: qvbrowser
 
-qvbrowser:   VideoUtils.o DbConnector.o ConfigDialog.o QVBrowser.o qmain.o
-	$(CC) $(CFLAGS) $(LDFLAGS)  -o qvbrowser VideoUtils.o DbConnector.o ConfigDialog.o QVBrowser.o qmain.o 
+qvbrowser:   VideoUtils.o DbConnector.o MetadataDialog.o ConfigDialog.o QVBrowser.o qmain.o
+	$(CC) $(CFLAGS) $(LDFLAGS)  -o qvbrowser VideoUtils.o DbConnector.o ConfigDialog.o MetadataDialog.o QVBrowser.o qmain.o 
 
 qmain.o:  qmain.cc
 	$(CC) $(CFLAGS) $(QTGUIFLAGS) -c qmain.cc 
@@ -20,6 +20,9 @@ QVBrowser.o:  QVBrowser.cpp QVBrowser.h
 
 ConfigDialog.o:  ConfigDialog.cpp ConfigDialog.h
 	$(CC) $(CFLAGS) $(QTGUIFLAGS) -c ConfigDialog.cpp
+
+MetadataDialog.o:  MetadataDialog.cpp MetadataDialog.h
+	$(CC) $(CFLAGS) $(QTGUIFLAGS) -c MetadataDialog.cpp
 
 DbConnector.o:  DbConnector.cpp DbConnector.h 
 	$(CC) $(CFLAGS) -c DbConnector.cpp
