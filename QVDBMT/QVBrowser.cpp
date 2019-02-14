@@ -1,6 +1,7 @@
 #include "QVBrowser.h"
 #include <ConfigDialog.h>
 #include <MetadataDialog.h>
+#include <QVBConfig.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <QFileDialog>
@@ -23,6 +24,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
   vu = new video_utils();
   qCfg = vu->get_config();
   qCfg->get("progress_time",fProgTime);
+  qMD = vu->mdInterface();
   int winWidth, winHeight;
   qCfg->get("win_width",winWidth);
   qCfg->get("win_height",winHeight);
@@ -104,7 +106,9 @@ void QVBrowser::edit_md_clicked() {
     QStandardItem *  selItem = fModel->itemFromIndex(sList[i]);
     selVids.push_back(selItem->data(Qt::UserRole+4).toInt());
   }
-  MetadataDialog mDiag(this,selVids,vu);
+  std::cout <<"Blah " << selVids[0] <<std::endl;
+  MetadataDialog * mDiag = new MetadataDialog(this,selVids,qMD);
+  mDiag->open();
 }
 
 void QVBrowser::config_clicked() {
@@ -215,7 +219,7 @@ bool QVBrowser::progress_timeout() {
     else {   //once traces are done, compare.
     update_progress(100,"Traces Complete");
     std::cout << "Traces complete." << std::endl;
-    vu->compare_traces(vid_list);
+    vu->compare_traces();
     progressFlag=3;
     return true;
     }
@@ -261,7 +265,7 @@ void QVBrowser::fdupe_clicked(){
   vid_list.clear();
   for(auto & vFile: vidFiles) 
     vid_list.push_back(vFile->vid);
-  vu->compare_icons(vid_list);
+  vu->compare_icons();
   progressFlag=2;
   p_timer->start(fProgTime);
   vu->start_make_traces(vidFiles);

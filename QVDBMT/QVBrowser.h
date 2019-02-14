@@ -44,6 +44,7 @@ class QVBrowser: public QMainWindow
   QListView * fFBox;
   QStandardItemModel * fModel;
   qvdb_config * qCfg ;
+  qvdb_metadata * qMD;
   std::string sort_by;
   Qt::SortOrder sOrder;
   int progressFlag; //0=none 1=icons 2=traces 3=dupes

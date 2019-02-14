@@ -1,5 +1,7 @@
 #include "Magick++.h"
 #include "VideoUtils.h"
+#include "QVBMetadata.h"
+#include "QVBConfig.h"
 #include <fstream>
 #include <mutex>
 #include "MediaInfo/MediaInfo.h"
@@ -55,6 +57,10 @@ video_utils::video_utils() {
   for(auto &a: tok) extensions.insert(a);
   boost::tokenizer<boost::char_separator<char> > tok1(badChars,sep);
   for(auto &a: tok1) cBadChars.push_back(a);
+}
+
+qvdb_metadata * video_utils::mdInterface() {
+  return new qvdb_metadata(dbCon,fVIDs);
 }
 
 bool video_utils::compare_vids(int i, int j) {
@@ -325,15 +331,15 @@ bool video_utils::compare_images(int vid1, int vid2) {
   return false;
 }
 
-void video_utils::compare_icons(std::vector<int> & vid_list) {
-  for(int i = 0; i +1 < vid_list.size(); i++) { 
-    for(int j = i+1; j < vid_list.size(); j++) {
-      std::pair<int,int> key(vid_list[i],vid_list[j]);
+void video_utils::compare_icons() {
+  for(int i = 0; i +1 < fVIDs.size(); i++) { 
+    for(int j = i+1; j < fVIDs.size(); j++) {
+      std::pair<int,int> key(fVIDs[i],fVIDs[j]);
       if (result_map[key]%2  == 1 || result_map[key] ==4) continue;
-      else if(compare_images(vid_list[i],vid_list[j])) result_map[key]+=1;      
+      else if(compare_images(fVIDs[i],fVIDs[j])) result_map[key]+=1;      
     }
-    delete img_cache[vid_list[i]];
-    img_cache.erase(vid_list[i]);
+    delete img_cache[fVIDs[i]];
+    img_cache.erase(fVIDs[i]);
   }
   return;
 }
@@ -358,17 +364,17 @@ std::vector<std::future_status>  video_utils::get_status() {
   return cxxpool::wait_for(resVec.begin(), resVec.end(),timer);  
 }
 
-void video_utils::compare_traces(std::vector<int> & vid_list) {
+void video_utils::compare_traces() {
   resVec.clear();
   std::map<int,std::vector<uint8_t> > data_holder;
   //loop over files
-  for(int i = 0; i +1 < vid_list.size(); i++) {
-    load_trace(vid_list[i]);
+  for(int i = 0; i +1 < fVIDs.size(); i++) {
+    load_trace(fVIDs[i]);
     //loop over files after i
-    for(int j = i+1; j < vid_list.size(); j++) {
-      if (result_map[std::make_pair(vid_list[i],vid_list[j])]/2 >= 1) continue;  
-      load_trace(vid_list[j]);
-      resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},vid_list[i],vid_list[j]));
+    for(int j = i+1; j < fVIDs.size(); j++) {
+      if (result_map[std::make_pair(fVIDs[i],fVIDs[j])]/2 >= 1) continue;  
+      load_trace(fVIDs[j]);
+      resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},fVIDs[i],fVIDs[j]));
     }
   }
   return;
@@ -378,7 +384,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
   std::vector<std::future<std::vector<VidFile * > > >vFiles;
   std::vector<std::vector<bfs::path> > pathVs(numThreads);
   int counter = 0;
-  std::vector<int> curVIDs;
+  fVIDs.clear();
   for(auto & path: paths){
     std::vector<bfs::path> current_dir_files;
     for(auto & x: bfs::directory_iterator(path)) {
@@ -401,7 +407,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	else {
 	  VidFile * v =dbCon->fetch_video(pathName);
 	  vidFiles.push_back(v);
-	  curVIDs.push_back(v->vid);
+	  fVIDs.push_back(v->vid);
 	  current_dir_files.push_back(pathName);
 	}
       }        
@@ -415,12 +421,11 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
     vidsTemp = a.get();
     for(auto & v: vidsTemp) {
       dbCon->save_video(v);
-      curVIDs.push_back(v->vid);
+      fVIDs.push_back(v->vid);
       vidFiles.push_back(v);      
     }
   }
   for(int i = 0; i < vidFiles.size(); i++) std::cout << vidFiles[i]->vid << " " << vidFiles[i]->fileName << std::endl;
-  //load_metadata(curVIDs);
   return;
 }
 
@@ -466,19 +471,6 @@ std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) 
   return output;
 }
 
-void video_utils::load_metadata(std::vector<int> & vids) {
-  dbCon->load_metadata_labels(labelData, labelTypes);
-  dbCon->load_metadata_for_files(vids,fileMetadata);
-}
-
-boost::bimap<int,std::string> video_utils::md_types() {
-  return labelTypes;
-}
-
-std::map<int,std::pair<int,std::string> > video_utils::md_lookup() {
-  return labelData;
-}
-
 void video_utils::load_trace(int vid) {
   std::ifstream dataFile(dbCon->createPath(tracePath,vid,".bin"),std::ios::in|std::ios::binary|std::ios::ate);
   dataFile.seekg (0, dataFile.end);
@@ -491,21 +483,7 @@ void video_utils::load_trace(int vid) {
   traceData[vid] = temp;
 }
 
-std::string video_utils::metadata_string(int vid) {
-  std::stringstream ss;
-  for(auto & a:labelTypes.left) {
-    int type = a.first;
-    std::string typeLabel = a.second;
-    ss << typeLabel << ": ";
-    for(auto &b: fileMetadata[vid]) {
-      ss << labelData[b].second << ", ";
-    }
-    ss << std::endl;
-  }
-  return ss.str();
-}
 
-std::vector<int> video_utils::metadataForVid(int vid) {
-  return fileMetadata[vid];
-}
+
+
 

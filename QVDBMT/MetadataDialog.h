@@ -4,7 +4,7 @@
 class QMainWindow;
 class QFormLayout;
 class QLineEdit;
-class video_utils;
+class qvdb_metadata;
 
 class MetadataDialog: public QDialog {
 
@@ -12,11 +12,11 @@ class MetadataDialog: public QDialog {
 
 public:
 
-  MetadataDialog(QMainWindow * parent,std::vector<int> & vids, video_utils * vu);
+  MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvdb_metadata *  md);  //vids may be redundant as they are already in md
 
   void on_accept();
 
 private:
   QFormLayout * formLayout;
-
+  qvdb_metadata *  fMD;
 };
