@@ -75,6 +75,8 @@ std::map<int,std::pair<int,std::string> > md_lookup() {
     labelMap[maxID]=std::make_pair(type,label);
     return;
   }
+
+  void attachToFile(int vid,std::
   
  private:
 
