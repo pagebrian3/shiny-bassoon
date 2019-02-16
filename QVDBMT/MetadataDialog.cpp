@@ -73,7 +73,7 @@ MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvd
 }
 
 void MetadataDialog::on_accept() {
-  int i = 0;
+  fMD->saveMetadata();
   return;
 }
 
@@ -128,9 +128,17 @@ void MetadataDialog::onLabelAddClicked() {
 }
 
 void MetadataDialog::onRightArrowClicked() {
-  //need to implement
+  auto list = lList->selectedItems();
+  for(auto & item: list)
+    fMD->attachToFile(fVids[0],item->text().toStdString());
+  return;
+  updateLabels();
 }
 
 void MetadataDialog::onLeftArrowClicked() {
-  //need to implement
+  auto list = flList->selectedItems();
+  for(auto & item: list)
+    fMD->removeFromFile(fVids[0],item->text().toStdString());
+  return;
+  updateLabels();
 }

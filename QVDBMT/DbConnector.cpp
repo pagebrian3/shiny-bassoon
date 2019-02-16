@@ -17,7 +17,7 @@ DbConnector::DbConnector(bfs::path & appPath) {
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table config(cfg_label text primary key,cfg_type integer,cfg_int integer,cfg_float double,cfg_str text)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table md_types(md_type_index integer primary key not null, md_type_label text unique)",NULL,NULL,NULL);
-    sqlite3_exec(db,"create table md_index(md_index integer primary key not null, md_type integer not null, md_label text unique)",NULL,NULL,NULL);
+    sqlite3_exec(db,"create table md_index(md_idx integer primary key not null, md_type integer not null, md_label text unique)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table file_mdx(vid integer primary key, tagids text,FOREIGN KEY(vid) REFERENCES videos(vid))",NULL,NULL,NULL);
   }
 }
@@ -357,7 +357,7 @@ void DbConnector::save_config(std::map<std::string, boost::variant<int,float,std
 
 void DbConnector::load_metadata_labels(std::map<int,std::pair<int,std::string> > & labelLookup, boost::bimap<int, std::string> & typeLookup) {
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db,"SELECT md_index , md_type , md_label from md_index" , -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db,"SELECT md_idx,md_type,md_label from md_index" , -1, &stmt, NULL);
     if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 
     sqlite3_finalize(stmt);            
@@ -389,7 +389,7 @@ void DbConnector::load_metadata_labels(std::map<int,std::pair<int,std::string> >
 void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,std::vector<int > > & fileMetadata) {
   for(auto & vid: vids) {
     sqlite3_stmt *stmt;
-    int rc = sqlite3_prepare_v2(db, "SELECT  tagids FROM file_mdx WHERE vid = ? limit 1)", -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(db, "SELECT tagids FROM file_mdx WHERE vid = ? limit 1)", -1, &stmt, NULL);
     if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
     rc = sqlite3_bind_int(stmt, 1, vid);    
     if (rc != SQLITE_OK) {               
@@ -418,20 +418,73 @@ void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,s
   return;
 }
 
-int DbConnector::add_tag(int type, std::string & label) {
+void DbConnector::save_metadata(std::map<int,std::vector<int > > & file_metadata,std::map<int,std::pair<int,std::string> > & labelLookup, boost::bimap<int, std::string> & typeLookup) {
+  for(auto & a: typeLookup.left) {
     sqlite3_stmt *stmt;
-    int rc = sqlite3_prepare_v2(db, "insert into md_index WHERE (md_type,md_label)  values (?,?)", -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO  md_types(md_type_index, md_type_label) VALUES (?,?) ", -1, &stmt, NULL);
     if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-    sqlite3_bind_int(stmt, 1, type);
-    sqlite3_bind_text(stmt, 2, label.c_str(),-1, NULL);
+    rc = sqlite3_bind_int(stmt, 1, a.first);
+    rc = sqlite3_bind_text(stmt, 2, a.second.c_str(),-1, NULL);
     if (rc != SQLITE_OK) {               
       std::string errmsg(sqlite3_errmsg(db)); 
       sqlite3_finalize(stmt);            
       throw errmsg;                      
     }
-   rc = sqlite3_step(stmt);
-  sqlite3_finalize(stmt);
-  return sqlite3_last_insert_rowid(db);
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+      std::string errmsg(sqlite3_errmsg(db));
+      sqlite3_finalize(stmt);
+      throw errmsg;
+    } 
+    sqlite3_finalize(stmt);
+  }
+  for(auto & a: labelLookup) {
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO  md_index(md_idx, md_type,md_label) VALUES (?,?,?) ", -1, &stmt, NULL);
+    if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+    rc = sqlite3_bind_int(stmt, 1, a.first);
+    rc = sqlite3_bind_int(stmt, 2, a.second.first);
+    rc = sqlite3_bind_text(stmt, 3, a.second.second.c_str(),-1, NULL);
+    if (rc != SQLITE_OK) {               
+      std::string errmsg(sqlite3_errmsg(db)); 
+      sqlite3_finalize(stmt);            
+      throw errmsg;                      
+    }
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+      std::string errmsg(sqlite3_errmsg(db));
+      sqlite3_finalize(stmt);
+      throw errmsg;
+    } 
+    sqlite3_finalize(stmt); 
+  }
+  for(auto & a: file_metadata) {
+    sqlite3_stmt *stmt;
+    std::stringstream ss;
+    int counter=0;    
+    while(counter < a.second.size()-1) {
+      ss << a.second[counter] << ",";
+      counter++;
+    }
+    ss << a.second[counter]<<std::endl;   
+    int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO  file_mdx(vid, tagids) VALUES (?,?) ", -1, &stmt, NULL);
+    if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+    rc = sqlite3_bind_int(stmt, 1, a.first);
+    rc = sqlite3_bind_text(stmt, 2, ss.str().c_str(),-1, NULL);
+    if (rc != SQLITE_OK) {               
+      std::string errmsg(sqlite3_errmsg(db)); 
+      sqlite3_finalize(stmt);            
+      throw errmsg;                      
+    }
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+      std::string errmsg(sqlite3_errmsg(db));
+      sqlite3_finalize(stmt);
+      throw errmsg;
+    } 
+    sqlite3_finalize(stmt); 
+  } 
+  return;
 }
 
 

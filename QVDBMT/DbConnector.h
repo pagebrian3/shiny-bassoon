@@ -46,7 +46,7 @@ class DbConnector {
 
   void load_metadata_for_files(std::vector<int> & vids,std::map<int,std::vector<int > > & file_metdata); 
 
-  int add_tag(int type,std::string &label) ;
+  void save_metadata(std::map<int,std::vector<int >> & file_metdata,std::map<int,std::pair<int,std::string>> & labelLookup, boost::bimap<int,std::string> & typeLookup); 
   
  private:
 
