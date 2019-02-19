@@ -459,9 +459,10 @@ void DbConnector::save_metadata(std::map<int,std::vector<int > > & file_metadata
     sqlite3_finalize(stmt); 
   }
   for(auto & a: file_metadata) {
+    if(a.second.size() == 0)  continue;
     sqlite3_stmt *stmt;
     std::stringstream ss;
-    int counter=0;    
+    int counter=0;
     while(counter < a.second.size()-1) {
       ss << a.second[counter] << ",";
       counter++;

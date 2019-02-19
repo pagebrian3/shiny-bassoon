@@ -68,11 +68,12 @@ public:
     typeMap.insert({maxID,label});
   };
 
-  void newLabel(int type,std::string label) {
+  void newLabel(std::string type,std::string label) {
     int maxID = 0;
     for(auto & a:labelMap) if( a.first > maxID) maxID=a.first;
     maxID++;
-    labelMap[maxID]=std::make_pair(type,label);
+    int tID = typeMap.right.at(type);
+    labelMap[maxID]=std::make_pair(tID,label);
     return;
   };
 
@@ -97,7 +98,9 @@ public:
       }
     }
     auto iter = std::find(fileMap[vid].begin(), fileMap[vid].end(), labelID);
+    std::cout << "Erasing from " << vid << " tagid " << *iter << " " << " size before " << fileMap[vid].size() <<std::endl;
     if(iter != fileMap[vid].end()) fileMap[vid].erase(iter);
+    std::cout<< "size after " <<  fileMap[vid].size() <<std::endl;
     return;
   };
 

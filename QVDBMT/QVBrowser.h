@@ -21,6 +21,7 @@ class QVBrowser: public QMainWindow
   QVBrowser();
   virtual ~QVBrowser();
   void populate_icons(bool clean = false);
+  void onSelChanged();
   void browse_clicked();
   void fdupe_clicked();
   void config_clicked();

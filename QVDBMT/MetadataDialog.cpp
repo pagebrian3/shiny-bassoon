@@ -16,13 +16,9 @@
 MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvdb_metadata * md)  {
   fMD = md;
   fVids = vids;
-  std::cout <<"VIDS[0] "<< vids[0] << std::endl;
+  firstRun = true;
   type_combo = new QComboBox();
-  connect(type_combo, &QComboBox::currentTextChanged,this,&MetadataDialog::updateLabels);
-  updateTypes();
-  type_combo->setCurrentIndex(0);
   QPushButton * addType = new QPushButton("+");
-  connect(addType,&QPushButton::clicked,this,&MetadataDialog::onTypeAddClicked);
   addType->setMaximumWidth(20);
   QGroupBox * typeBox = new QGroupBox;
   QHBoxLayout * typelo = new QHBoxLayout;
@@ -32,16 +28,11 @@ MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvd
   QGroupBox * flob = new QGroupBox;
   QGridLayout *  hlo = new QGridLayout;
   flob->setLayout(hlo);
-  lList = new QListWidget();
-  flList = new QListWidget();
-  clearLabels=false;
-  updateLabels();
+  lList = new QListWidget(this);
+  flList = new QListWidget(this);
   QPushButton * rightArrow = new QPushButton(">");
   QPushButton * addLabel = new QPushButton("+");
   QPushButton * leftArrow = new QPushButton("<");
-  connect(addLabel, &QPushButton::clicked,this,&MetadataDialog::onLabelAddClicked);
-  connect(rightArrow, &QPushButton::clicked,this,&MetadataDialog::onRightArrowClicked);
-  connect(leftArrow, &QPushButton::clicked,this,&MetadataDialog::onLeftArrowClicked);
   addLabel->setMaximumWidth(20);
   rightArrow->setMaximumWidth(20);
   leftArrow->setMaximumWidth(20);
@@ -60,17 +51,24 @@ MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvd
   hlo->addWidget(rightArrow,2,2,1,1);
   hlo->addWidget(leftArrow,6,2,1,1);
   hlo->addWidget(flList,1,4,7,1);
-  QDialogButtonBox * buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
-						      | QDialogButtonBox::Cancel);
+  QDialogButtonBox * buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+  updateTypes();
+  updateLabels();
   connect(buttonBox, &QDialogButtonBox::accepted, this, &MetadataDialog::on_accept);
   connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
   connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+  connect(type_combo, &QComboBox::currentTextChanged,this,&MetadataDialog::updateLabels);
+  connect(addType,&QPushButton::clicked,this,&MetadataDialog::onTypeAddClicked);
+  connect(addLabel, &QPushButton::clicked,this,&MetadataDialog::onLabelAddClicked);
+  connect(rightArrow, &QPushButton::clicked,this,&MetadataDialog::onRightArrowClicked);
+  connect(leftArrow, &QPushButton::clicked,this,&MetadataDialog::onLeftArrowClicked);
   QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addWidget(typeBox);
   mainLayout->addWidget(flob);
   mainLayout->addWidget(buttonBox);
   setLayout(mainLayout);
-  setWindowTitle(tr("Edit Metadata")); 
+  setWindowTitle(tr("Edit Metadata"));
+  firstRun=false;
 }
 
 void MetadataDialog::on_accept() {
@@ -79,7 +77,7 @@ void MetadataDialog::on_accept() {
 }
 
 void MetadataDialog::updateTypes() {
-  if(type_combo->count() > 0) type_combo->clear();
+  if(!firstRun) type_combo->clear();
   for(auto &a: fMD->md_types().left) {
     std::cout <<"type: " ;
     std::cout << a.second.c_str() << std::endl;
@@ -89,17 +87,24 @@ void MetadataDialog::updateTypes() {
 }
 
 void MetadataDialog::updateLabels() {
-  lList->clear();
-  flList->clear();
+  if(!firstRun) {
+    lList->clear();
+    flList->clear();
+  }
   std::vector<int>mdIDs = fMD->mdForFile(fVids[0]);   //right now just one file
-  std::cout << fMD->md_lookup().size() <<" "<<type_combo->currentIndex() << std::endl;
+  std::cout << fMD->md_lookup().size() <<" "<<type_combo->currentText() .toStdString()<< std::endl;
   for(int i = 0; i < mdIDs.size(); i++) std::cout << mdIDs[i] <<std::endl;
-  for(auto &b: fMD->md_lookup()) {
-    if(b.second.first == type_combo->currentIndex()+1) {
+  for(auto &b: fMD->md_lookup()) { //loop over all metadata
+    int tID = fMD->md_types().right.at(type_combo->currentText().toStdString());
+    if(b.second.first == tID) {
+      std::cout << "HERE " << b.first << " " << b.second .second<< std::endl;
       auto p = std::find(mdIDs.begin(),mdIDs.end(),b.first);
-      if( p != mdIDs.end()) flList->addItem(b.second.second.c_str());
-      
-      else lList->addItem(b.second.second.c_str());
+      if(p != mdIDs.end()) flList->addItem(b.second.second.c_str());    
+      else {
+	std::cout << "adding item:  ";
+	std::cout <<b.second.second.c_str() << std::endl;
+	lList->addItem(b.second.second.c_str());
+      }
     }
   }
   return;
@@ -107,8 +112,7 @@ void MetadataDialog::updateLabels() {
 
 void MetadataDialog::onTypeAddClicked() {
   bool ok;
-  std::string text = QInputDialog::getText(this, "New Type Entry",
-					   "New Metadata Type:",QLineEdit::Normal, "",&ok).toStdString();
+  std::string text = QInputDialog::getText(this, "New Type Entry", "New Metadata Type:",QLineEdit::Normal, "",&ok).toStdString();
   if (ok && !text.empty())  {
     fMD->newType(text);
     updateTypes();
@@ -118,13 +122,11 @@ void MetadataDialog::onTypeAddClicked() {
 
 void MetadataDialog::onLabelAddClicked() {
   bool ok;
-  std::string text = QInputDialog::getText(this, "New Label Entry",
-					   "New Metadata Label:",QLineEdit::Normal, "",&ok).toStdString();
+  std::string text = QInputDialog::getText(this, "New Label Entry", "New Metadata Label:",QLineEdit::Normal, "",&ok).toStdString();
   if (ok && !text.empty())  {
-    fMD->newLabel(type_combo->currentIndex(),text);
+    fMD->newLabel(type_combo->currentText().toStdString(),text);
     updateLabels();
   }
-  clearLabels=true;
   return;
 }
 
@@ -132,16 +134,13 @@ void MetadataDialog::onRightArrowClicked() {
   auto list = lList->selectedItems();
   for(auto & item: list)
     fMD->attachToFile(fVids[0],item->text().toStdString());
-  clearLabels=true;
   updateLabels();
   return;
 }
 
 void MetadataDialog::onLeftArrowClicked() {
   auto list = flList->selectedItems();
-  for(auto & item: list)
-    fMD->removeFromFile(fVids[0],item->text().toStdString());
+  for(auto & item: list) fMD->removeFromFile(fVids[0],item->text().toStdString());
   updateLabels();
   return;
-
 }

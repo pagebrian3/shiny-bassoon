@@ -30,7 +30,7 @@ public:
   
 private:
 
-  bool clearLabels;
+  bool firstRun;
   qvdb_metadata *  fMD;
   QComboBox * type_combo;
   QListWidget * lList;

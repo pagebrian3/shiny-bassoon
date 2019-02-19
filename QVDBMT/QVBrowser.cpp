@@ -63,10 +63,11 @@ QVBrowser::QVBrowser() : QMainWindow() {
   hbox->addWidget(config_button); 
   sort_opt->setLayout(hbox);
   setMenuWidget(sort_opt);
-  fFBox = new QListView(this);
+  fFBox = new QListView(this); 
   fFBox->setResizeMode(QListView::Adjust);
   fFBox->setViewMode(QListView::IconMode);
   fFBox->setMovement(QListView::Static);
+  fFBox->setSelectionMode(QListView::ExtendedSelection);
   mDAct = new QAction( ("&Edit Metadata"), this);
   mDAct->setShortcuts(QKeySequence::New);
   connect(mDAct, &QAction::triggered, this, &QVBrowser::edit_md_clicked);
@@ -78,6 +79,19 @@ QVBrowser::QVBrowser() : QMainWindow() {
 }
 
 QVBrowser::~QVBrowser() {
+}
+
+void QVBrowser::onSelChanged() {
+  QModelIndexList sList = fFBox->selectionModel()->selectedIndexes();
+  std::cout << "N Selected Vids: " << sList.size() << std::endl;
+  QStandardItem *  selItem; 
+    for(auto & item: (*iconVec) )  item->setText("");
+  for(int i = 0; i < sList.size(); i++)  {
+    selItem = fModel->itemFromIndex(sList[i]);
+    selItem->setText("SELECTED");
+  }
+  update();
+  return;
 }
 
 #ifndef QT_NO_CONTEXTMENU
@@ -101,6 +115,7 @@ void QVBrowser::resizeEvent(QResizeEvent* event)
 
 void QVBrowser::edit_md_clicked() {
   QModelIndexList sList = fFBox->selectionModel()->selectedIndexes();
+  std::cout << "N Selected Vids: " << sList.size() << std::endl;
   std::vector<int> selVids;
   for(int i = 0; i < sList.size(); i++)  {
     QStandardItem *  selItem = fModel->itemFromIndex(sList[i]);
@@ -167,6 +182,8 @@ void QVBrowser::populate_icons(bool clean) {
     j++;
   }
   fFBox->setModel(fModel);
+  QItemSelectionModel * selModel = fFBox->selectionModel();
+  connect(selModel,&QItemSelectionModel::selectionChanged,this,&QVBrowser::onSelChanged);
   p_timer->start(fProgTime);
   progressFlag = 1;
   fFBox->show();
@@ -189,7 +206,6 @@ bool QVBrowser::progress_timeout() {
       if(b == std::future_status::ready && vid_list[i] > 0){
 	std::string icon_file = vu->save_icon(vid_list[i]);
 	QImage img(QString(icon_file.c_str()));
-	(*iconVec)[i]->setIcon(QIcon());
 	(*iconVec)[i]->setSizeHint(img.size());
 	(*iconVec)[i]->setBackground(QBrush(img));
 	std::system((boost::format("rm %s") %icon_file).str().c_str());
