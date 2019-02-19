@@ -16,13 +16,13 @@
 MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvdb_metadata * md)  {
   fMD = md;
   fVids = vids;
-  std::cout << vids[0] << std::endl;
+  std::cout <<"VIDS[0] "<< vids[0] << std::endl;
   type_combo = new QComboBox();
   connect(type_combo, &QComboBox::currentTextChanged,this,&MetadataDialog::updateLabels);
   updateTypes();
   type_combo->setCurrentIndex(0);
   QPushButton * addType = new QPushButton("+");
-  connect(addType, &QPushButton::clicked,this,&MetadataDialog::onTypeAddClicked);
+  connect(addType,&QPushButton::clicked,this,&MetadataDialog::onTypeAddClicked);
   addType->setMaximumWidth(20);
   QGroupBox * typeBox = new QGroupBox;
   QHBoxLayout * typelo = new QHBoxLayout;
@@ -34,6 +34,7 @@ MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvd
   flob->setLayout(hlo);
   lList = new QListWidget();
   flList = new QListWidget();
+  clearLabels=false;
   updateLabels();
   QPushButton * rightArrow = new QPushButton(">");
   QPushButton * addLabel = new QPushButton("+");
@@ -78,28 +79,27 @@ void MetadataDialog::on_accept() {
 }
 
 void MetadataDialog::updateTypes() {
-  type_combo->clear();
-  for(auto &a: fMD->md_types().left) type_combo->addItem(a.second.c_str());
+  if(type_combo->count() > 0) type_combo->clear();
+  for(auto &a: fMD->md_types().left) {
+    std::cout <<"type: " ;
+    std::cout << a.second.c_str() << std::endl;
+    type_combo->addItem(a.second.c_str());
+  }
   return;
 }
 
 void MetadataDialog::updateLabels() {
   lList->clear();
   flList->clear();
-  int lrow = 1;
-  int flrow = 1;
   std::vector<int>mdIDs = fMD->mdForFile(fVids[0]);   //right now just one file
+  std::cout << fMD->md_lookup().size() <<" "<<type_combo->currentIndex() << std::endl;
+  for(int i = 0; i < mdIDs.size(); i++) std::cout << mdIDs[i] <<std::endl;
   for(auto &b: fMD->md_lookup()) {
-    if(b.second.first == type_combo->currentIndex()) {
+    if(b.second.first == type_combo->currentIndex()+1) {
       auto p = std::find(mdIDs.begin(),mdIDs.end(),b.first);
-      if( p != mdIDs.end() ) {
-        flList->insertItem(flrow,b.second.second.c_str());
-	flrow++;
-      }
-      else {
-	lList->insertItem(lrow,b.second.second.c_str());
-	lrow++;
-      }
+      if( p != mdIDs.end()) flList->addItem(b.second.second.c_str());
+      
+      else lList->addItem(b.second.second.c_str());
     }
   }
   return;
@@ -124,6 +124,7 @@ void MetadataDialog::onLabelAddClicked() {
     fMD->newLabel(type_combo->currentIndex(),text);
     updateLabels();
   }
+  clearLabels=true;
   return;
 }
 
@@ -131,14 +132,16 @@ void MetadataDialog::onRightArrowClicked() {
   auto list = lList->selectedItems();
   for(auto & item: list)
     fMD->attachToFile(fVids[0],item->text().toStdString());
-  return;
+  clearLabels=true;
   updateLabels();
+  return;
 }
 
 void MetadataDialog::onLeftArrowClicked() {
   auto list = flList->selectedItems();
   for(auto & item: list)
     fMD->removeFromFile(fVids[0],item->text().toStdString());
-  return;
   updateLabels();
+  return;
+
 }

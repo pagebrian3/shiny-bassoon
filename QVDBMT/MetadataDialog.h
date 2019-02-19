@@ -29,7 +29,8 @@ public:
   void updateLabels();
   
 private:
-  
+
+  bool clearLabels;
   qvdb_metadata *  fMD;
   QComboBox * type_combo;
   QListWidget * lList;

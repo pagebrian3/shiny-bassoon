@@ -51,7 +51,6 @@ public:
   std::string metadata_string(int vid) {
     std::stringstream ss;
     for(auto & a:typeMap.left) {
-      int type = a.first;
       std::string typeLabel = a.second;
       ss << typeLabel << ": ";
       for(auto &b: fileMap[vid]) {
