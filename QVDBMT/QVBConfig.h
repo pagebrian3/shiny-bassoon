@@ -43,7 +43,7 @@ public:
   
   bool  load_config(std::vector<std::pair<std::string,boost::variant<int, float, std::string>> >input) {
     if(input.size() == 0) {
-      std::vector<std::string> defaults={"win_height,i,600","win_width,i,800","thumb_height,i,135","thumb_width,i,240","progress_time,i,100","thumb_time,f,25.0","fudge,f,4.0","image_thresh,i,10000","threads,i,1","trace_time,f,10.0","trace_fps,f,30.0","border_frames,i,6","cut_thresh,f,3.0","comp_time,f,10.0","slice_spacing,f,60.0","thresh,f,0.98","cache_size,i,10","extensions,s,.3gp .avi .flv .m4v .mkv .mov .mp4 .mpeg .mpg .mpv .qt .rm .webm .wmv","bad_chars,s,&"};
+      std::vector<std::string> defaults={"win_height,i,600","win_width,i,800","thumb_height,i,135","thumb_width,i,240","progress_time,i,100","thumb_time,f,25.0","fudge,f,4.0","image_thresh,i,10000","threads,i,7","trace_time,f,10.0","trace_fps,f,30.0","border_frames,i,6","cut_thresh,f,3.0","comp_time,f,10.0","slice_spacing,f,60.0","thresh,f,0.98","cache_size,i,10","extensions,s,.3gp .avi .flv .m4v .mkv .mov .mp4 .mpeg .mpg .mpv .qt .rm .webm .wmv","bad_chars,s,&"};
       boost::char_separator<char> sep(",");
       for( auto &a: defaults) {
 	boost::tokenizer<boost::char_separator<char> > tok(a,sep);
