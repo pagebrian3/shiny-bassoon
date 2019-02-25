@@ -56,8 +56,6 @@ class video_utils
 
   std::vector<std::future_status> get_status();
 
-  std::map<std::pair<int,int>,int> result_map;
-
   std::set<std::string> get_extensions();
 
   void set_paths(std::vector<std::string> & paths);
@@ -79,8 +77,10 @@ class video_utils
   std::vector<bfs::path> paths;
   DbConnector * dbCon;
   qvdb_config * appConfig;
+  qvdb_metadata * metaData;
   std::map<int,Magick::Image *> img_cache;
   std::map<int,std::vector<uint8_t> > traceData;
+    std::map<std::pair<int,int>,int> result_map;
   std::vector<std::future<bool> > resVec;
   cxxpool::thread_pool * TPool;
   std::set<std::string> extensions;

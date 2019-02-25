@@ -2,6 +2,7 @@
 #include <ConfigDialog.h>
 #include <MetadataDialog.h>
 #include <QVBConfig.h>
+#include <QVBMetadata.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <QFileDialog>
@@ -20,7 +21,6 @@
 #include <QModelIndex>
 
 QVBrowser::QVBrowser() : QMainWindow() {
-  fTimer = new boost::timer::auto_cpu_timer();
   vu = new video_utils();
   qCfg = vu->get_config();
   qCfg->get("progress_time",fProgTime);
@@ -83,9 +83,8 @@ QVBrowser::~QVBrowser() {
 
 void QVBrowser::onSelChanged() {
   QModelIndexList sList = fFBox->selectionModel()->selectedIndexes();
-  std::cout << "N Selected Vids: " << sList.size() << std::endl;
   QStandardItem *  selItem; 
-    for(auto & item: (*iconVec) )  item->setText("");
+  for(auto & item: (*iconVec) )  item->setText("");
   for(int i = 0; i < sList.size(); i++)  {
     selItem = fModel->itemFromIndex(sList[i]);
     selItem->setText("SELECTED");
@@ -115,15 +114,15 @@ void QVBrowser::resizeEvent(QResizeEvent* event)
 
 void QVBrowser::edit_md_clicked() {
   QModelIndexList sList = fFBox->selectionModel()->selectedIndexes();
-  std::cout << "N Selected Vids: " << sList.size() << std::endl;
   std::vector<int> selVids;
   for(int i = 0; i < sList.size(); i++)  {
     QStandardItem *  selItem = fModel->itemFromIndex(sList[i]);
     selVids.push_back(selItem->data(Qt::UserRole+4).toInt());
   }
-  std::cout <<"Blah " << selVids[0] <<std::endl;
   MetadataDialog * mDiag = new MetadataDialog(this,selVids,qMD);
-  mDiag->open();
+  if(mDiag->exec())
+    for(auto & a: selVids) update_tooltip(a);
+  return;
 }
 
 void QVBrowser::config_clicked() {
@@ -149,35 +148,17 @@ void QVBrowser::populate_icons(bool clean) {
   int j = 0;
   for(auto &a: vidFiles) {
     QStandardItem * b = new QStandardItem();
-    float size = a->size;
-    std::string sizeLabel = "B";
-    float factor=1.0/1024.0;
-    if(factor*size >= 1.0) {
-      size*=factor;
-      if(factor*size >= 1.0) {
-	size*=factor;
-	if(factor*size >= 1.0) {
-	  size*=factor;
-	  sizeLabel = "GB";
-	}
-	else sizeLabel = "MB";
-      }
-      else sizeLabel = "KB";
-    }
-    int h = a->length/3600.0;
-    int m = ((int)(a->length-h*3600))/60;
-    float s = a->length-m*60.0-h*3600.0;
     b->setIcon(QIcon::fromTheme("image-missing"));
     b->setSizeHint(QSize(fIH,fIW));
-    QString toolTip((boost::format("Filename: %s\nSize: %3.2f%s\nLength: %i:%02i:%02.1f") % a->fileName %  size % sizeLabel % h % m % s).str().c_str());
-    b->setToolTip(toolTip);
     (*iconVec)[j]=b;
+    iconLookup[a->vid]=j;
     video_files.push_back(a->fileName);
     vid_list.push_back(a->vid);
     b->setData(a->size,Qt::UserRole+1);
     b->setData(a->length,Qt::UserRole+2);
     b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
     b->setData(a->vid,Qt::UserRole+4);
+    update_tooltip(a->vid);
     fModel->appendRow(b);
     j++;
   }
@@ -208,6 +189,7 @@ bool QVBrowser::progress_timeout() {
 	QImage img(QString(icon_file.c_str()));
 	(*iconVec)[i]->setSizeHint(img.size());
 	(*iconVec)[i]->setBackground(QBrush(img));
+	(*iconVec)[i]->setIcon(QIcon());
 	std::system((boost::format("rm %s") %icon_file).str().c_str());
 	vid_list[i]=0;
       }
@@ -322,6 +304,33 @@ void QVBrowser::update_progress(int fraction, std::string label) {
   //progress_bar->set_text(label);
   progress_bar->setValue(fraction);
   return;
+}
+
+void QVBrowser::update_tooltip(int vid) {
+  QStandardItem * currItem = (*iconVec)[iconLookup[vid]];
+  VidFile * a = vidFiles[iconLookup[vid]];
+  float size = a->size;
+  float length = a->length;
+  std::string sizeLabel = "B";
+    float factor=1.0/1024.0;
+    if(factor*size >= 1.0) {
+      size*=factor;
+      if(factor*size >= 1.0) {
+	size*=factor;
+	if(factor*size >= 1.0) {
+	  size*=factor;
+	  sizeLabel = "GB";
+	}
+	else sizeLabel = "MB";
+      }
+      else sizeLabel = "KB";
+    }
+    int h = length/3600.0;
+    int m = ((int)(length-h*3600))/60;
+    float s = length-m*60.0-h*3600.0;
+     std::string mdString = qMD->metadata_string(a->vid);
+    QString toolTip((boost::format("Filename: %s\nSize: %3.2f%s\nLength: %i:%02i:%02.1f\n%s") % a->fileName %  size % sizeLabel % h % m % s % mdString).str().c_str());
+    currItem->setToolTip(toolTip);
 }
 
 

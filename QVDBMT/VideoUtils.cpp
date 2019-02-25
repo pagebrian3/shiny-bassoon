@@ -30,6 +30,7 @@ video_utils::video_utils() {
   bfs::create_directory(tracePath);
   dbCon->fetch_results(result_map);
   appConfig = new qvdb_config();
+  metaData = new qvdb_metadata(dbCon);
   if(appConfig->load_config(dbCon->fetch_config())) dbCon->save_config(appConfig->get_data());
   Magick::InitializeMagick("");
   paths.push_back(homeP);
@@ -60,7 +61,7 @@ video_utils::video_utils() {
 }
 
 qvdb_metadata * video_utils::mdInterface() {
-  return new qvdb_metadata(dbCon,fVIDs);
+  return metaData;
 }
 
 bool video_utils::compare_vids(int i, int j) {
@@ -403,6 +404,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	}	
 	if(!dbCon->video_exists(pathName))  {
 	  pathVs[counter%numThreads].push_back(pathName);
+	  counter++;
 	}
 	else {
 	  VidFile * v =dbCon->fetch_video(pathName);
@@ -424,7 +426,9 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
       fVIDs.push_back(v->vid);
       vidFiles.push_back(v);      
     }
+    metaData->load_file_md(fVIDs);
   }
+  
   for(int i = 0; i < vidFiles.size(); i++) std::cout << vidFiles[i]->vid << " " << vidFiles[i]->fileName << std::endl;
   return;
 }
@@ -462,7 +466,10 @@ std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) 
     MI.Open(zFile);
     MI.Option(__T("Inform"),__T("Video;%Duration%"));
     float length = 0.001*ZenLib::Ztring(MI.Inform()).To_float32();
-    if(length < 1 ) std::cout << "Length failed for " << files[i].string() << std::endl; 
+    if(length < 0 ) {
+      std::cout << "Length failed for " << files[i].string() << std::endl;
+      length = 0.0;
+    }
     MI.Option(__T("Inform"),__T("Video;%Rotation%"));
     int rotate = ZenLib::Ztring(MI.Inform()).To_float32();
     MI.Close();
@@ -482,6 +489,7 @@ void video_utils::load_trace(int vid) {
   for(int i = 0; i < length; i++) temp[i] =(uint8_t) buffer[i];
   traceData[vid] = temp;
 }
+
 
 
 

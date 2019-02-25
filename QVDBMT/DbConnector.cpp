@@ -388,8 +388,9 @@ void DbConnector::load_metadata_labels(std::map<int,std::pair<int,std::string> >
 
 void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,std::vector<int > > & fileMetadata) {
   for(auto & vid: vids) {
+    if(!video_has_md(vid)) continue;
     sqlite3_stmt *stmt;
-    int rc = sqlite3_prepare_v2(db, "SELECT tagids FROM file_mdx WHERE vid = ? limit 1)", -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(db, "SELECT tagids FROM file_mdx WHERE vid=? limit 1", -1, &stmt, NULL);
     if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
     rc = sqlite3_bind_int(stmt, 1, vid);    
     if (rc != SQLITE_OK) {               
@@ -402,10 +403,6 @@ void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,s
       std::string errmsg(sqlite3_errmsg(db));
       sqlite3_finalize(stmt);
       throw errmsg;
-    }
-    if (rc == SQLITE_DONE) {
-      sqlite3_finalize(stmt);
-      throw std::string("video not found");
     }
     std::string tag_str(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
     std::vector<std::string> split_vec;
@@ -488,4 +485,28 @@ void DbConnector::save_metadata(std::map<int,std::vector<int > > & file_metadata
   return;
 }
 
+bool DbConnector::video_has_md(int vid){
+  sqlite3_stmt *stmt;
+  int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM file_mdx WHERE vid=? limit 1)", -1, &stmt, NULL);
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+  rc = sqlite3_bind_int(stmt, 1, vid);    
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
+  }
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+    std::string errmsg(sqlite3_errmsg(db));
+    sqlite3_finalize(stmt);
+    throw errmsg;
+  }
+  if (rc == SQLITE_DONE) {
+    sqlite3_finalize(stmt);
+    throw std::string("video not found");
+  }
+  bool result = sqlite3_column_int(stmt, 0);
+  sqlite3_finalize(stmt);
+  return result;
+}
 

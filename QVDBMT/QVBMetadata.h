@@ -12,13 +12,16 @@ class qvdb_metadata
 
 public:
 
-  qvdb_metadata(DbConnector * dbCon, std::vector<int> & vids) {
-    db=dbCon;
+  qvdb_metadata(DbConnector * dbCon)  : db(dbCon) {
     db->load_metadata_labels(labelMap, typeMap);
-    db->load_metadata_for_files(vids,fileMap);
   };
 
   ~qvdb_metadata(){};
+  
+  void load_file_md(std::vector<int> & vids) {
+    db->load_metadata_for_files(vids,fileMap);
+    return;
+  };
   
   std::vector<int> mdForFile(int vid) {
     return fileMap[vid];
@@ -52,10 +55,11 @@ public:
     std::stringstream ss;
     for(auto & a:typeMap.left) {
       std::string typeLabel = a.second;
-      ss << typeLabel << ": ";
-      for(auto &b: fileMap[vid]) {
-	ss << labelMap[b].second << ", ";
-      }
+      int typeIndex = a.first;
+      ss <<"\n"<< typeLabel << ": ";
+      uint i = 0;
+      for( ; i +1 < fileMap[vid].size(); i++)  if(labelMap[fileMap[vid][i]].first == typeIndex)  ss << labelMap[fileMap[vid][i]].second << ", ";
+      if(fileMap[vid].size() > 0 && labelMap[fileMap[vid][i]].first == typeIndex)  ss << labelMap[fileMap[vid][i]].second ;
       ss << std::endl;
     }
     return ss.str();

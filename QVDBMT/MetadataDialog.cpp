@@ -13,9 +13,7 @@
 #include <QGridLayout>
 #include <QLabel>
 
-MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvdb_metadata * md)  {
-  fMD = md;
-  fVids = vids;
+MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvdb_metadata * md)  : fMD(md),fVids(vids) {
   firstRun = true;
   type_combo = new QComboBox();
   QPushButton * addType = new QPushButton("+");
@@ -79,8 +77,6 @@ void MetadataDialog::on_accept() {
 void MetadataDialog::updateTypes() {
   if(!firstRun) type_combo->clear();
   for(auto &a: fMD->md_types().left) {
-    std::cout <<"type: " ;
-    std::cout << a.second.c_str() << std::endl;
     type_combo->addItem(a.second.c_str());
   }
   return;
@@ -92,19 +88,12 @@ void MetadataDialog::updateLabels() {
     flList->clear();
   }
   std::vector<int>mdIDs = fMD->mdForFile(fVids[0]);   //right now just one file
-  std::cout << fMD->md_lookup().size() <<" "<<type_combo->currentText() .toStdString()<< std::endl;
-  for(int i = 0; i < mdIDs.size(); i++) std::cout << mdIDs[i] <<std::endl;
   for(auto &b: fMD->md_lookup()) { //loop over all metadata
     int tID = fMD->md_types().right.at(type_combo->currentText().toStdString());
     if(b.second.first == tID) {
-      std::cout << "HERE " << b.first << " " << b.second .second<< std::endl;
       auto p = std::find(mdIDs.begin(),mdIDs.end(),b.first);
       if(p != mdIDs.end()) flList->addItem(b.second.second.c_str());    
-      else {
-	std::cout << "adding item:  ";
-	std::cout <<b.second.second.c_str() << std::endl;
-	lList->addItem(b.second.second.c_str());
-      }
+      else lList->addItem(b.second.second.c_str());
     }
   }
   return;

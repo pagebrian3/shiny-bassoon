@@ -34,6 +34,7 @@ class QVBrowser: public QMainWindow
   void set_sort(std::string sort);
   void update_sort();
   void update_progress(int percent, std::string label);
+  void update_tooltip(int vid);
 
   protected:
 #ifndef QT_NO_CONTEXTMENU
@@ -54,13 +55,12 @@ class QVBrowser: public QMainWindow
   QPushButton * asc_button;
   QAction *mDAct;
   std::vector<int> vid_list;
+  std::map<int,int> iconLookup;
   std::vector<VidFile *> vidFiles;
   std::vector<QStandardItem *> * iconVec;
   QTimer * p_timer;
   std::vector<bfs::path> video_files;
   video_utils * vu;
-  boost::timer::auto_cpu_timer * fTimer;
-
 };
 
 #endif //QVBROWSER_H
