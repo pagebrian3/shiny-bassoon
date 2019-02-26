@@ -89,7 +89,9 @@ public:
 	break;
       }
     }
-    if(labelID != -1) fileMap[vid].push_back(labelID);
+    auto iter = std::find(fileMap[vid].begin(), fileMap[vid].end(), labelID);
+    if(iter != fileMap[vid].end()) return;
+    else if(labelID != -1) fileMap[vid].push_back(labelID);
     return;
   };
 
@@ -102,9 +104,7 @@ public:
       }
     }
     auto iter = std::find(fileMap[vid].begin(), fileMap[vid].end(), labelID);
-    std::cout << "Erasing from " << vid << " tagid " << *iter << " " << " size before " << fileMap[vid].size() <<std::endl;
     if(iter != fileMap[vid].end()) fileMap[vid].erase(iter);
-    std::cout<< "size after " <<  fileMap[vid].size() <<std::endl;
     return;
   };
 

@@ -87,12 +87,22 @@ void MetadataDialog::updateLabels() {
     lList->clear();
     flList->clear();
   }
-  std::vector<int>mdIDs = fMD->mdForFile(fVids[0]);   //right now just one file
+  std::vector<int>mdIDs1 = fMD->mdForFile(fVids[0]);
+  std::vector<int> mdIsx(mdIDs1.size());
+  std::sort(mdIDs1.begin(),mdIDs1.end());
+  for(int i = 1; i < fVids.size(); i++) {
+    std::vector<int> mdIDs2 = fMD->mdForFile(fVids[i]);
+    std::sort(mdIDs2.begin(),mdIDs2.end());  
+    auto it = std::set_intersection(mdIDs1.begin(), mdIDs1.end(),mdIDs2.begin(),mdIDs2.end(),mdIsx.begin());
+    mdIsx.resize(it-mdIsx.begin());
+    mdIDs1 = mdIsx;
+  }
+  //right now just one file
   for(auto &b: fMD->md_lookup()) { //loop over all metadata
     int tID = fMD->md_types().right.at(type_combo->currentText().toStdString());
     if(b.second.first == tID) {
-      auto p = std::find(mdIDs.begin(),mdIDs.end(),b.first);
-      if(p != mdIDs.end()) flList->addItem(b.second.second.c_str());    
+      auto p = std::find(mdIDs1.begin(),mdIDs1.end(),b.first);
+      if(p != mdIDs1.end()) flList->addItem(b.second.second.c_str());    
       else lList->addItem(b.second.second.c_str());
     }
   }
@@ -121,15 +131,15 @@ void MetadataDialog::onLabelAddClicked() {
 
 void MetadataDialog::onRightArrowClicked() {
   auto list = lList->selectedItems();
-  for(auto & item: list)
-    fMD->attachToFile(fVids[0],item->text().toStdString());
+  for(int i = 0; i < fVids.size(); i++) for(auto & item: list)
+    fMD->attachToFile(fVids[i],item->text().toStdString());
   updateLabels();
   return;
 }
 
 void MetadataDialog::onLeftArrowClicked() {
   auto list = flList->selectedItems();
-  for(auto & item: list) fMD->removeFromFile(fVids[0],item->text().toStdString());
+  for(int i = 0; i < fVids.size(); i++) for(auto & item: list) fMD->removeFromFile(fVids[i],item->text().toStdString());
   updateLabels();
   return;
 }
