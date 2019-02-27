@@ -6,6 +6,7 @@
 #include <string>
 #include "DbConnector.h"
 #include <boost/bimap.hpp>
+#include <iostream>
 
 class qvdb_metadata
 {
@@ -70,6 +71,8 @@ public:
     for(auto & a:typeMap.left) if( a.first > maxID) maxID=a.first;
     maxID++;
     typeMap.insert({maxID,label});
+    for(auto & a: typeMap.left) std::cout << "TMAP " << a.first << " " << a.second << std::endl;
+    return;
   };
 
   void newLabel(std::string type,std::string label) {

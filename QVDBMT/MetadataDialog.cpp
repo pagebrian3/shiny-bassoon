@@ -12,10 +12,12 @@
 #include <QInputDialog>
 #include <QGridLayout>
 #include <QLabel>
+#include <iostream>
 
 MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvdb_metadata * md)  : fMD(md),fVids(vids) {
   firstRun = true;
   type_combo = new QComboBox();
+  type_combo->setInsertPolicy(QComboBox::InsertAtCurrent);
   QPushButton * addType = new QPushButton("+");
   addType->setMaximumWidth(20);
   QGroupBox * typeBox = new QGroupBox;
@@ -99,6 +101,7 @@ void MetadataDialog::updateLabels() {
   }
   //right now just one file
   for(auto &b: fMD->md_lookup()) { //loop over all metadata
+    std::cout << "Entered: " <<type_combo->currentText().toStdString() << std::endl;
     int tID = fMD->md_types().right.at(type_combo->currentText().toStdString());
     if(b.second.first == tID) {
       auto p = std::find(mdIDs1.begin(),mdIDs1.end(),b.first);
@@ -114,6 +117,7 @@ void MetadataDialog::onTypeAddClicked() {
   std::string text = QInputDialog::getText(this, "New Type Entry", "New Metadata Type:",QLineEdit::Normal, "",&ok).toStdString();
   if (ok && !text.empty())  {
     fMD->newType(text);
+    std::cout <<"New Type: " << text << std::endl;
     updateTypes();
   }
   return;
