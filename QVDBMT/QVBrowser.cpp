@@ -1,4 +1,5 @@
 #include "QVBrowser.h"
+#include <iostream>
 #include <ConfigDialog.h>
 #include <MetadataDialog.h>
 #include <QVBConfig.h>

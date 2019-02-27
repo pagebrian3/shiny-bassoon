@@ -24,16 +24,15 @@ ConfigDialog::ConfigDialog(QMainWindow * parent,qvdb_config * cfg)  {
     formLayout->addRow(a.first.c_str(),tempEdit);
   }
   flob->setLayout(formLayout);
-  QDialogButtonBox * buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
-                                     | QDialogButtonBox::Cancel);
-  connect(buttonBox, &QDialogButtonBox::accepted, this, &ConfigDialog::on_accept);
-    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    QVBoxLayout *mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(flob);
-    mainLayout->addWidget(buttonBox);
-    setLayout(mainLayout);
-    setWindowTitle(tr("Video Browser Configuration")); 
+  QDialogButtonBox * buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+  connect(buttonBox,&QDialogButtonBox::accepted,this,&ConfigDialog::on_accept);
+  connect(buttonBox,&QDialogButtonBox::accepted,this,&QDialog::accept);
+  connect(buttonBox,&QDialogButtonBox::rejected,this,&QDialog::reject);
+  QVBoxLayout *mainLayout = new QVBoxLayout;
+  mainLayout->addWidget(flob);
+  mainLayout->addWidget(buttonBox);
+  setLayout(mainLayout);
+  setWindowTitle(tr("Video Browser Configuration")); 
 }
 
 void ConfigDialog::on_accept() {
@@ -43,7 +42,7 @@ void ConfigDialog::on_accept() {
     QLineEdit * leHolder = editPtrs[i];
     i++;
     if(leHolder->isModified()) {
-	int index = cfg.second.which();
+      int index = cfg.second.which();
       if(index == 0) {
 	cfgPtr->set(key,leHolder->text().toInt());
       }

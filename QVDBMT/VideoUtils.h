@@ -3,7 +3,6 @@
 
 #include <set>
 #include "cxxpool.h"
-#include "VidFile.h"
 #include "DbConnector.h"
 #if defined(_WIN32)
  #define PLATFORM_NAME "windows" // Windows
@@ -17,6 +16,7 @@ namespace Magick {
    class Image;
 }
 
+class VidFile;
 class qvdb_metadata;
 class qvdb_config;
 

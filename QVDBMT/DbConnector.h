@@ -2,9 +2,8 @@
 #define DBCONNECTOR_H
 
 #include <sqlite3.h>
-#include <VidFile.h>
 #include <map>
-#include <iostream>
+#include <VidFile.h>
 #include <boost/variant.hpp>
 #include <boost/bimap.hpp>
 

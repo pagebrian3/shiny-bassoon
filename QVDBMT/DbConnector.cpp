@@ -1,4 +1,5 @@
 #include <DbConnector.h>
+#include <iostream>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>

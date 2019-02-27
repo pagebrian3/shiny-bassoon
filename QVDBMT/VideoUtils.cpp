@@ -2,7 +2,9 @@
 #include "VideoUtils.h"
 #include "QVBMetadata.h"
 #include "QVBConfig.h"
+#include "VidFile.h"
 #include <fstream>
+#include <iostream>
 #include <mutex>
 #include "MediaInfo/MediaInfo.h"
 #include "ZenLib/Ztring.h"
