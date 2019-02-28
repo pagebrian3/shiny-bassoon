@@ -1,5 +1,4 @@
-#include "QVBrowser.h"
-#include <iostream>
+#include <QVBrowser.h>
 #include <ConfigDialog.h>
 #include <MetadataDialog.h>
 #include <QVBConfig.h>
@@ -200,7 +199,7 @@ bool QVBrowser::progress_timeout() {
     fFBox->resize(fFBox->size()+QSize(0,1));
     fFBox->resize(fFBox->size()-QSize(0,1));
     percent = 100.0*counter/total;
-    update_progress(percent,(boost::format("Creating Icons %i/%i: %d%% Complete") % counter % total %  percent).str());
+    update_progress(percent,(boost::format("Creating Icons: %i/%i: %%p%% Complete") % counter % total).str());
     if(counter == total) {
       update_progress(100,"Icons Complete");
       update_sort();
@@ -212,12 +211,11 @@ bool QVBrowser::progress_timeout() {
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
     percent = 100.0*counter/total;
     if(percent < 100) {
-      update_progress(percent,(boost::format("Creating Traces %i/%i: %d%% Complete") % counter % total %  percent).str());
+      update_progress(percent,(boost::format("Creating Traces %i/%i: %%p%% Complete") % counter % total).str());
       return true;
     }
     else {   //once traces are done, compare.
     update_progress(100,"Traces Complete");
-    std::cout << "Traces complete." << std::endl;
     vu->compare_traces();
     progressFlag=3;
     return true;
@@ -227,7 +225,7 @@ bool QVBrowser::progress_timeout() {
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
     percent = 100.0*counter/total;
     if(percent < 100)  {
-      update_progress(percent,(boost::format("Comparing Videos: %d%% Complete") %  percent).str());
+      update_progress(percent,"Comparing Videos: %p% Complete");
       return true;
     }
     else {
@@ -302,7 +300,7 @@ void QVBrowser::update_sort() {
 }
 
 void QVBrowser::update_progress(int fraction, std::string label) {
-  //progress_bar->set_text(label);
+  progress_bar->setFormat(label.c_str());
   progress_bar->setValue(fraction);
   return;
 }

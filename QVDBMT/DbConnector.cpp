@@ -1,8 +1,8 @@
 #include <DbConnector.h>
-#include <iostream>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
+#include <iostream>
 
 DbConnector::DbConnector(bfs::path & appPath) {
   std::string db_path(appPath.c_str());

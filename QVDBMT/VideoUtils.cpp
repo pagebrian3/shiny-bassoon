@@ -4,7 +4,6 @@
 #include "QVBConfig.h"
 #include "VidFile.h"
 #include <fstream>
-#include <iostream>
 #include <mutex>
 #include "MediaInfo/MediaInfo.h"
 #include "ZenLib/Ztring.h"
@@ -12,6 +11,7 @@
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <fftw3.h>
+#include <iostream>
 
 std::mutex mtx;
 
@@ -179,7 +179,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
     double max_val = *max_element(result.begin(),result.end());
     int max_offset = max_element(result.begin(),result.end()) - result.begin();
     if(max_val > cThresh) {
-      std::cout << "Match! " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset<<" "<<result[0] <<" "<<in[numVars*max_offset] << " " <<in[numVars*(max_offset-1)] << " "<< coeffs[max_offset*numVars]<< " " <<compCoeffs[0] <<std::endl;
+      std::cout << "Match! " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset << std::endl;
       match = true;
 	break;
     }
@@ -290,6 +290,7 @@ void video_utils::create_image(bfs::path & fileName, float start_time, std::vect
   dataFile.seekg (0, dataFile.beg);
   char buffer[length];
   dataFile.read(buffer,length);
+  dataFile.close();
   for(int i = 0; i < length; i++) (*imgDat)[i] = buffer[i];
   bfs::remove(temp);
   return;
@@ -487,6 +488,7 @@ void video_utils::load_trace(int vid) {
   dataFile.seekg (0, dataFile.beg);
   char buffer[length];
   dataFile.read(buffer,length);
+  dataFile.close();
   std::vector<uint8_t> temp(length);
   for(int i = 0; i < length; i++) temp[i] =(uint8_t) buffer[i];
   traceData[vid] = temp;
