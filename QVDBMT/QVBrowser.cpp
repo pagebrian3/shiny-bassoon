@@ -1,6 +1,7 @@
 #include <QVBrowser.h>
 #include <ConfigDialog.h>
 #include <MetadataDialog.h>
+#include <Miniplayer.h>
 #include <QVBConfig.h>
 #include <QVBMetadata.h>
 #include <boost/format.hpp>
@@ -68,6 +69,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
   fFBox->setViewMode(QListView::IconMode);
   fFBox->setMovement(QListView::Static);
   fFBox->setSelectionMode(QListView::ExtendedSelection);
+  connect(fFBox,&QListView::doubleClicked,this,&QVBrowser::on_double_click);
   mDAct = new QAction( ("&Edit Metadata"), this);
   mDAct->setShortcuts(QKeySequence::New);
   connect(mDAct, &QAction::triggered, this, &QVBrowser::edit_md_clicked);
@@ -90,6 +92,14 @@ void QVBrowser::onSelChanged() {
     selItem->setText("SELECTED");
   }
   update();
+  return;
+}
+
+void QVBrowser::on_double_click(const QModelIndex & index) {
+  QStandardItem * selItem = fModel->itemFromIndex(index);
+  std::string vid_file = selItem->data(Qt::UserRole+3).toString().toStdString();
+  Miniplayer player(this,vid_file);
+  player.exec();
   return;
 }
 
@@ -128,11 +138,13 @@ void QVBrowser::edit_md_clicked() {
 void QVBrowser::config_clicked() {
   ConfigDialog * cfgd = new ConfigDialog(this,qCfg);
   cfgd->open();
+  return;
 }
 
 void QVBrowser::closeEvent(QCloseEvent *event) {
   vu->close();
   QMainWindow::closeEvent(event);
+  return;
 }
 
 void QVBrowser::populate_icons(bool clean) {

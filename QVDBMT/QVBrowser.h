@@ -22,6 +22,7 @@ class QVBrowser: public QMainWindow
   virtual ~QVBrowser();
   void populate_icons(bool clean = false);
   void onSelChanged();
+  void on_double_click(const QModelIndex & index); 
   void browse_clicked();
   void fdupe_clicked();
   void config_clicked();
