@@ -330,7 +330,7 @@ void QVBrowser::update_tooltip(int vid) {
     int m = ((int)(length-h*3600))/60;
     float s = length-m*60.0-h*3600.0;
      std::string mdString = qMD->metadata_string(a->vid);
-    QString toolTip((boost::format("Filename: %s\nSize: %3.2f%s\nLength: %i:%02i:%02.1f\n%s") % a->fileName %  size % sizeLabel % h % m % s % mdString).str().c_str());
+    QString toolTip((boost::format("Filename: %s\nVID: %i\nSize: %3.2f%s\nLength: %i:%02i:%02.1f%s") % a->fileName % a->vid %  size % sizeLabel % h % m % s % mdString).str().c_str());
     currItem->setToolTip(toolTip);
 }
 

@@ -12,7 +12,6 @@
 #include <QInputDialog>
 #include <QGridLayout>
 #include <QLabel>
-#include <iostream>
 
 MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvdb_metadata * md)  : fMD(md),fVids(vids) {
   firstRun = true;
@@ -89,6 +88,7 @@ void MetadataDialog::updateLabels() {
     lList->clear();
     flList->clear();
   }
+  if(type_combo->currentText().isEmpty()) return;
   std::vector<int>mdIDs1 = fMD->mdForFile(fVids[0]);
   std::vector<int> mdIsx(mdIDs1.size());
   std::sort(mdIDs1.begin(),mdIDs1.end());
@@ -100,8 +100,7 @@ void MetadataDialog::updateLabels() {
     mdIDs1 = mdIsx;
   }
   //right now just one file
-  for(auto &b: fMD->md_lookup()) { //loop over all metadata
-    std::cout << "Entered: " <<type_combo->currentText().toStdString() << std::endl;
+  for(auto &b: fMD->md_lookup()) { 
     int tID = fMD->md_types().right.at(type_combo->currentText().toStdString());
     if(b.second.first == tID) {
       auto p = std::find(mdIDs1.begin(),mdIDs1.end(),b.first);
@@ -117,7 +116,6 @@ void MetadataDialog::onTypeAddClicked() {
   std::string text = QInputDialog::getText(this, "New Type Entry", "New Metadata Type:",QLineEdit::Normal, "",&ok).toStdString();
   if (ok && !text.empty())  {
     fMD->newType(text);
-    std::cout <<"New Type: " << text << std::endl;
     updateTypes();
   }
   return;

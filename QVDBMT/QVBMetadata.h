@@ -6,7 +6,6 @@
 #include <string>
 #include "DbConnector.h"
 #include <boost/bimap.hpp>
-#include <iostream>
 
 class qvdb_metadata
 {
@@ -58,10 +57,11 @@ public:
       std::string typeLabel = a.second;
       int typeIndex = a.first;
       ss <<"\n"<< typeLabel << ": ";
-      uint i = 0;
-      for( ; i +1 < fileMap[vid].size(); i++)  if(labelMap[fileMap[vid][i]].first == typeIndex)  ss << labelMap[fileMap[vid][i]].second << ", ";
-      if(fileMap[vid].size() > 0 && labelMap[fileMap[vid][i]].first == typeIndex)  ss << labelMap[fileMap[vid][i]].second ;
-      ss << std::endl;
+      std::vector<std::string> tags;
+      int i = 0;
+      for( ; i < fileMap[vid].size(); i++)  if(labelMap[fileMap[vid][i]].first == typeIndex) tags.push_back(labelMap[fileMap[vid][i]].second);
+      for(i=0 ; i +1 < tags.size(); i++)  ss << tags[i] << ", ";
+      if(tags.size() > 0)  ss << tags[i] ;
     }
     return ss.str();
   };
@@ -71,7 +71,6 @@ public:
     for(auto & a:typeMap.left) if( a.first > maxID) maxID=a.first;
     maxID++;
     typeMap.insert({maxID,label});
-    for(auto & a: typeMap.left) std::cout << "TMAP " << a.first << " " << a.second << std::endl;
     return;
   };
 
