@@ -1,4 +1,3 @@
-#include "Magick++.h"
 #include "VideoUtils.h"
 #include "QVBMetadata.h"
 #include "QVBConfig.h"
@@ -6,6 +5,7 @@
 #include <fstream>
 #include <mutex>
 #include "MediaInfo/MediaInfo.h"
+#include "Magick++.h"
 #include "ZenLib/Ztring.h"
 #include <boost/process.hpp>
 #include <boost/format.hpp>
@@ -121,7 +121,6 @@ bool video_utils::compare_vids_fft(int i, int j) {
   fftw_plan fPlan = fftw_plan_many_dft_r2c(1,dims,numVars, in,dims, numVars,1,out, dims,numVars,1,FFTW_ESTIMATE);
   fftw_plan rPlan = fftw_plan_many_dft_c2r(1,dims,numVars, out,dims, numVars,1,in, dims,numVars,1,FFTW_ESTIMATE);
   mtx.unlock();
-  std::cout << "starting " << i << " " << j <<" "<<size<< " "<<length2 <<std::endl;
   uint t_s;  //current slice position
   int offset = 0;
   uint l = 0;
@@ -429,9 +428,8 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
       fVIDs.push_back(v->vid);
       vidFiles.push_back(v);      
     }
-    metaData->load_file_md(fVIDs);
   }
-  
+   metaData->load_file_md(fVIDs);
   for(int i = 0; i < vidFiles.size(); i++) std::cout << vidFiles[i]->vid << " " << vidFiles[i]->fileName << std::endl;
   return;
 }
@@ -493,9 +491,4 @@ void video_utils::load_trace(int vid) {
   for(int i = 0; i < length; i++) temp[i] =(uint8_t) buffer[i];
   traceData[vid] = temp;
 }
-
-
-
-
-
 
