@@ -8,4 +8,4 @@ asp -f export extra/imagemagick
 cp fix_pkgbuild.sh imagemagick/
 cd imagemagick
 ./fix_pkgbuild.sh
-makepkg -sf --skippgpcheck
+makepkg -sf --skippgpcheck --skipinteg
