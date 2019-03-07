@@ -30,7 +30,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
   qCfg->get("win_width",winWidth);
   qCfg->get("win_height",winHeight);
   resize(winWidth,winHeight);
-   qCfg->get("thumb_height",fIH);
+  qCfg->get("thumb_height",fIH);
   qCfg->get("thumb_width",fIW);
   sort_by="size"; //size, name, length  TODO: make it remember last selection
   sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder TODO: TODO: make it remember last selection
@@ -98,7 +98,9 @@ void QVBrowser::onSelChanged() {
 void QVBrowser::on_double_click(const QModelIndex & index) {
   QStandardItem * selItem = fModel->itemFromIndex(index);
   std::string vid_file = selItem->data(Qt::UserRole+3).toString().toStdString();
-  Miniplayer player(this,vid_file);
+  int viewHeight = 0;
+  qCfg->get("preview_height",viewHeight);
+  Miniplayer player(this,vid_file,viewHeight);
   player.exec();
   return;
 }
