@@ -24,14 +24,8 @@
 QVBrowser::QVBrowser() : QMainWindow() {
   vu = new video_utils();
   qCfg = vu->get_config();
-  qCfg->get("progress_time",fProgTime);
   qMD = vu->mdInterface();
-  int winWidth, winHeight;
-  qCfg->get("win_width",winWidth);
-  qCfg->get("win_height",winHeight);
-  resize(winWidth,winHeight);
-  qCfg->get("thumb_height",fIH);
-  qCfg->get("thumb_width",fIW);
+  resize(qCfg->get_int("win_width"),qCfg->get_int("win_height"));
   sort_by="size"; //size, name, length  TODO: make it remember last selection
   sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder TODO: TODO: make it remember last selection
   QPushButton *browse_button = new QPushButton("...");
@@ -98,9 +92,7 @@ void QVBrowser::onSelChanged() {
 void QVBrowser::on_double_click(const QModelIndex & index) {
   QStandardItem * selItem = fModel->itemFromIndex(index);
   std::string vid_file = selItem->data(Qt::UserRole+3).toString().toStdString();
-  int viewHeight = 0;
-  qCfg->get("preview_height",viewHeight);
-  Miniplayer player(this,vid_file,viewHeight);
+  Miniplayer player(this,vid_file,qCfg->get_int("preview_height"),qCfg->get_int("preview_width"));
   player.exec();
   return;
 }
@@ -163,7 +155,7 @@ void QVBrowser::populate_icons(bool clean) {
   for(auto &a: vidFiles) {
     QStandardItem * b = new QStandardItem();
     b->setIcon(QIcon::fromTheme("image-missing"));
-    b->setSizeHint(QSize(fIH,fIW));
+    b->setSizeHint(QSize(qCfg->get_int("thumb_height"),qCfg->get_int("thumb_width")));
     (*iconVec)[j]=b;
     iconLookup[a->vid]=j;
     video_files.push_back(a->fileName);
@@ -179,7 +171,7 @@ void QVBrowser::populate_icons(bool clean) {
   fFBox->setModel(fModel);
   QItemSelectionModel * selModel = fFBox->selectionModel();
   connect(selModel,&QItemSelectionModel::selectionChanged,this,&QVBrowser::onSelChanged);
-  p_timer->start(fProgTime);
+  p_timer->start(qCfg->get_int("progress_time"));
   progressFlag = 1;
   fFBox->show();
   if(j > 0) vu->start_thumbs(vidFiles); 
@@ -247,7 +239,7 @@ bool QVBrowser::progress_timeout() {
       return false;    
     }
   }
-  p_timer->start(fProgTime);
+  p_timer->start(qCfg->get_int("progress_time"));
   return true;
 }
 
@@ -278,7 +270,7 @@ void QVBrowser::fdupe_clicked(){
     vid_list.push_back(vFile->vid);
   vu->compare_icons();
   progressFlag=2;
-  p_timer->start(fProgTime);
+  p_timer->start(qCfg->get_int("progress_time"));
   vu->start_make_traces(vidFiles);
   return;
 }

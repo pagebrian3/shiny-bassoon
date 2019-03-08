@@ -11,12 +11,13 @@ class Miniplayer: public QDialog {
 
  public:
   
-  Miniplayer(QMainWindow * parent,std::string & vidFile, int height) {
+  Miniplayer(QMainWindow * parent,std::string & vidFile, int height, int width) {
     player = new QMediaPlayer;
     QVBoxLayout * mainLayout = new QVBoxLayout;
     player->setMedia(QUrl::fromLocalFile(vidFile.c_str()));
     QVideoWidget * videoWidget = new QVideoWidget;
     videoWidget->setMinimumHeight(height);
+    videoWidget->setMinimumWidth(width);
     player->setVideoOutput(videoWidget);
     mainLayout->addWidget(videoWidget);
     setLayout(mainLayout);

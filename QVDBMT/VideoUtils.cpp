@@ -36,25 +36,11 @@ video_utils::video_utils() {
   if(appConfig->load_config(dbCon->fetch_config())) dbCon->save_config(appConfig->get_data());
   Magick::InitializeMagick("");
   paths.push_back(homeP);
-  appConfig->get("threads",numThreads);
-  TPool = new cxxpool::thread_pool(numThreads);
-  appConfig->get("trace_fps",cTraceFPS);
-  appConfig->get("trace_time",cStartT);
-  appConfig->get("comp_time",cCompTime);
-  appConfig->get("slice_spacing",cSliceSpacing);
-  appConfig->get("thresh",cThresh);
-  appConfig->get("fudge",cFudge);
-  appConfig->get("thumb_time",cThumbT);
-  appConfig->get("thumb_height",cHeight);
-  appConfig->get("thumb_width",cWidth);
-  appConfig->get("cache_size",cCache);
-  appConfig->get("border_frames",cBFrames);
-  appConfig->get("cut_thresh",cCutThresh);
-  appConfig->get("image_thresh",cImgThresh);
+   TPool = new cxxpool::thread_pool(appConfig->get_int("threads"));
   std::string badChars;
-  appConfig->get("bad_chars",badChars);
+  badChars = appConfig->get_string("bad_chars");
   std::string extStrin;
-  appConfig->get("extensions",extStrin);
+  extStrin = appConfig->get_string("extensions");
   boost::char_separator<char> sep(" \"");
   boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
   for(auto &a: tok) extensions.insert(a);
@@ -70,6 +56,11 @@ bool video_utils::compare_vids(int i, int j) {
   bool match=false;
   int counter=0;
   uint t_s,t_x, t_o, t_d;
+  float cTraceFPS = appConfig->get_float("trace_fps");
+  float cCompTime = appConfig->get_float("comp_time");
+  float cSliceSpacing = appConfig->get_float("slice_spacing");
+  float cThresh = appConfig->get_float("thresh");
+  float cFudge = appConfig->get_float("fudge");
   //loop over slices
   for(t_s =0; t_s < traceData[i].size()-12*cTraceFPS*cCompTime; t_s+= 12*cTraceFPS*cSliceSpacing){
     if(match) break;
@@ -105,7 +96,11 @@ bool video_utils::compare_vids(int i, int j) {
 bool video_utils::compare_vids_fft(int i, int j) {
   bool match=false;
   int numVars=12;
-  int trT = cTraceFPS*cCompTime;
+  float cTraceFPS = appConfig->get_float("trace_fps");
+  float cSliceSpacing = appConfig->get_float("slice_spacing");
+  float cThresh = appConfig->get_float("thresh");
+  float cFudge = appConfig->get_float("fudge");
+  int trT = cTraceFPS*appConfig->get_float("comp_time");
   int size = 2;  //size of 1 transform  must be a power of 2
   uint length1 = traceData[i].size()/numVars;
   uint length2 = traceData[j].size()/numVars;
@@ -193,7 +188,8 @@ bool video_utils::compare_vids_fft(int i, int j) {
 }
 
 bool video_utils::calculate_trace(VidFile * obj) {
-  float start_time = cStartT;
+  cTraceFPS = appConfig->get_float("trace_fps");
+  float start_time = appConfig->get_float("trace_time");
   if(obj->length <= start_time) start_time=0.0;
   std::string outPath = dbCon->createPath(tracePath,obj->vid,".bin");
   boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % cTraceFPS % obj->crop %outPath ).str());
@@ -205,11 +201,13 @@ bool video_utils::create_thumb(VidFile * vidFile) {
     dbCon->fetch_icon(vidFile->vid);
     return true;
   }
+  int cHeight = appConfig->get_int("thumb_height");
+  int cWidth = appConfig->get_int("thumb_width");
   std::string crop(find_border(vidFile->fileName, vidFile->length));
   vidFile->crop=crop;
   dbCon->save_crop(vidFile);
-  float thumb_t = cThumbT;
-  if(vidFile->length < cThumbT) thumb_t = vidFile->length/2.0;
+  float thumb_t = appConfig->get_float("thumb_time");
+  if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
   std::string icon_file(dbCon->createPath(tempPath,vidFile->vid,".jpg"));
   std::string command((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
   boost::process::system(command);
@@ -218,6 +216,8 @@ bool video_utils::create_thumb(VidFile * vidFile) {
 
 std::string video_utils::find_border(bfs::path & fileName,float length) {
   std::string crop("");
+  int cBFrames = appConfig->get_int("border_frames");
+  float cCutThresh = appConfig->get_float("cut_thresh");
   float frame_time = 0.5*length/(cBFrames+1.0);
   float frame_spacing = length/(cBFrames+1.0);
   boost::process::ipstream is;
@@ -300,7 +300,7 @@ Magick::Image *video_utils::get_image(int vid) {
   std::string image_file(dbCon->fetch_icon(vid));
   Magick::Image * img = new Magick::Image(image_file);
   std::system((boost::format("rm %s") % image_file).str().c_str());
-  if(img_cache.size() < cCache) img_cache[vid] = img;  
+  if(img_cache.size() < appConfig->get_int("cache_size")) img_cache[vid] = img;  
   return img;
 }
 
@@ -309,6 +309,7 @@ bool video_utils::compare_images(int vid1, int vid2) {
   Magick::Image * img2 = get_image(vid2);
   float width1 = img1->size().width();
   float width2 = img2->size().width();
+  int cImgThresh = appConfig->get_int("image_thresh");
   if(fabs(width1 - width2) <= 20) {  //20 is untuned parameter, allowable difference in width
     float width = width1;
     if(width1 > width2) width = width2;
@@ -385,7 +386,7 @@ void video_utils::compare_traces() {
 
 void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
   std::vector<std::future<std::vector<VidFile * > > >vFiles;
-  std::vector<std::vector<bfs::path> > pathVs(numThreads);
+  std::vector<std::vector<bfs::path> > pathVs(appConfig->get_int("threads"));
   int counter = 0;
   fVIDs.clear();
   for(auto & path: paths){
@@ -405,7 +406,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	  }
 	}	
 	if(!dbCon->video_exists(pathName))  {
-	  pathVs[counter%numThreads].push_back(pathName);
+	  pathVs[counter%appConfig->get_int("threads")].push_back(pathName);
 	  counter++;
 	}
 	else {
