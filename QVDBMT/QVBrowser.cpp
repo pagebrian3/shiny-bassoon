@@ -64,13 +64,13 @@ QVBrowser::QVBrowser() : QMainWindow() {
   fFBox->setMovement(QListView::Static);
   fFBox->setSelectionMode(QListView::ExtendedSelection);
   connect(fFBox,&QListView::doubleClicked,this,&QVBrowser::on_double_click);
+  setCentralWidget(fFBox);
   mDAct = new QAction( ("&Edit Metadata"), this);
   mDAct->setShortcuts(QKeySequence::New);
   connect(mDAct, &QAction::triggered, this, &QVBrowser::edit_md_clicked);
   p_timer = new QTimer(this);
   connect(p_timer, &QTimer::timeout, this, &QVBrowser::progress_timeout);
   populate_icons();
-  update();
   show();
 }
 
@@ -144,18 +144,19 @@ void QVBrowser::closeEvent(QCloseEvent *event) {
 void QVBrowser::populate_icons(bool clean) {
   if(clean) {
     vid_list.clear();
-    delete fModel;
     video_files.clear();
+    delete fModel;
+    delete iconVec;
   }
-  setCentralWidget(fFBox);
-  vu->make_vids(vidFiles);
+  vu->make_vids(vidFiles);  
   iconVec =  new std::vector<QStandardItem *> (vidFiles.size());
   fModel = new QStandardItemModel(vidFiles.size(),1,fFBox);
   int j = 0;
+  QIcon initIcon = QIcon::fromTheme("image-missing");
+  QSize size_hint = QSize(qCfg->get_int("thumb_height"),qCfg->get_int("thumb_width"));
   for(auto &a: vidFiles) {
-    QStandardItem * b = new QStandardItem();
-    b->setIcon(QIcon::fromTheme("image-missing"));
-    b->setSizeHint(QSize(qCfg->get_int("thumb_height"),qCfg->get_int("thumb_width")));
+    QStandardItem * b = new QStandardItem(initIcon,"");
+    b->setSizeHint(size_hint);
     (*iconVec)[j]=b;
     iconLookup[a->vid]=j;
     video_files.push_back(a->fileName);
@@ -202,7 +203,7 @@ bool QVBrowser::progress_timeout() {
       else if(b == std::future_status::ready && vid_list[i]==0) counter+=1.0;
       i++;	
     }
-    fFBox->resize(fFBox->size()+QSize(0,1));
+    fFBox->resize(fFBox->size()+QSize(0,1));  //This is a hack I hope to remove.
     fFBox->resize(fFBox->size()-QSize(0,1));
     percent = 100.0*counter/total;
     update_progress(percent,(boost::format("Creating Icons: %i/%i: %%p%% Complete") % counter % total).str());

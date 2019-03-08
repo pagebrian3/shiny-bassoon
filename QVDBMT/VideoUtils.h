@@ -71,8 +71,7 @@ class video_utils
   std::vector<VidFile *> vid_factory(std::vector<bfs::path> & paths);
 
  private:
-  float cTraceFPS, cCompTime, cSliceSpacing, cThresh, cFudge, cStartTime, cThumbT, cCutThresh, cStartT;
-  int cHeight, cWidth, cImgThresh, cCache, numThreads, cBFrames;
+  
   bfs::path tempPath, tracePath;
   std::vector<bfs::path> paths;
   DbConnector * dbCon;

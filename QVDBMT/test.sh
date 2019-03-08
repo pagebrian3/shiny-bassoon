@@ -1,4 +1,5 @@
 #!/bin/bash
-make
+make clean
+make -j5
 rm -rf ~/.video_proj/*
-./vbrowser
+./run,sh

@@ -28,6 +28,7 @@ void DbConnector::save_db_file() {
 }
 
 VidFile * DbConnector::fetch_video(bfs::path & filename){
+  std::cout << "Loading : " << filename.string() << std::endl;
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT crop, length, size, okflag, rotate, vid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
@@ -47,7 +48,12 @@ VidFile * DbConnector::fetch_video(bfs::path & filename){
     sqlite3_finalize(stmt);
     throw std::string("video not found");
   }
-  std::string crop(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
+  std::string crop;
+  try {
+    crop.assign(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
+  } catch(const std::exception& e) {
+    std::cout << "Something happened for : " << filename.string() << std::endl;
+  }
   float length = sqlite3_column_double(stmt,1);
   int size = sqlite3_column_int(stmt,2);
   int flag = sqlite3_column_int(stmt,3);
@@ -85,14 +91,16 @@ std::string DbConnector::fetch_icon(int vid){
 
 void DbConnector::save_video(VidFile* a) {
   a->okflag=1;
+  std::string crop_holder("");
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,length,size,okflag,rotate) VALUES (?,?,?,?,?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,crop,length,size,okflag,rotate) VALUES (?,?,?,?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   sqlite3_bind_text(stmt, 1, a->fileName.c_str(), -1, NULL);
-  sqlite3_bind_double(stmt, 2, a->length);
-  sqlite3_bind_int(stmt, 3, a->size);
-  sqlite3_bind_int(stmt, 4, a->okflag);
-  sqlite3_bind_int(stmt, 5, a->rotate);
+  sqlite3_bind_text(stmt, 2, crop_holder.c_str(), -1, NULL);
+  sqlite3_bind_double(stmt, 3, a->length);
+  sqlite3_bind_int(stmt, 4, a->size);
+  sqlite3_bind_int(stmt, 5, a->okflag);
+  sqlite3_bind_int(stmt, 6, a->rotate);
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
     std::string errmsg(sqlite3_errmsg(db));

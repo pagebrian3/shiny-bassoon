@@ -3,4 +3,5 @@ List of future enhancements/fixes:
 -Seek further on blank/solid/stationary frames.  Should also remove these sections from trace.  Perhaps part of the border detection.  Some intros have animation, so perhaps it would be better to just set a later start time for traces.
 -Save/restore previous sort options/directories
 -Implement search/sort system
+-Improve preview feature with controls/dynamic window size.  Perhaps no decoration.
 

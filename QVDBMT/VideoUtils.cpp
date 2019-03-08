@@ -36,7 +36,7 @@ video_utils::video_utils() {
   if(appConfig->load_config(dbCon->fetch_config())) dbCon->save_config(appConfig->get_data());
   Magick::InitializeMagick("");
   paths.push_back(homeP);
-   TPool = new cxxpool::thread_pool(appConfig->get_int("threads"));
+  TPool = new cxxpool::thread_pool(appConfig->get_int("threads"));
   std::string badChars;
   badChars = appConfig->get_string("bad_chars");
   std::string extStrin;
@@ -95,13 +95,13 @@ bool video_utils::compare_vids(int i, int j) {
 
 bool video_utils::compare_vids_fft(int i, int j) {
   bool match=false;
-  int numVars=12;
+  uint numVars=12;
   float cTraceFPS = appConfig->get_float("trace_fps");
   float cSliceSpacing = appConfig->get_float("slice_spacing");
   float cThresh = appConfig->get_float("thresh");
   float cFudge = appConfig->get_float("fudge");
   int trT = cTraceFPS*appConfig->get_float("comp_time");
-  int size = 2;  //size of 1 transform  must be a power of 2
+  uint size = 2;  //size of 1 transform  must be a power of 2
   uint length1 = traceData[i].size()/numVars;
   uint length2 = traceData[j].size()/numVars;
   while(size < length2) size*=2;    
@@ -117,7 +117,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
   fftw_plan rPlan = fftw_plan_many_dft_c2r(1,dims,numVars, out,dims, numVars,1,in, dims,numVars,1,FFTW_ESTIMATE);
   mtx.unlock();
   uint t_s;  //current slice position
-  int offset = 0;
+  uint offset = 0;
   uint l = 0;
   uint k ;
   std::vector<double> compCoeffs(numVars);
@@ -188,11 +188,11 @@ bool video_utils::compare_vids_fft(int i, int j) {
 }
 
 bool video_utils::calculate_trace(VidFile * obj) {
-  cTraceFPS = appConfig->get_float("trace_fps");
+  float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("trace_time");
   if(obj->length <= start_time) start_time=0.0;
   std::string outPath = dbCon->createPath(tracePath,obj->vid,".bin");
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % cTraceFPS % obj->crop %outPath ).str());
+  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % fps % obj->crop %outPath ).str());
   return true; 
 }
 
@@ -204,8 +204,11 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   int cHeight = appConfig->get_int("thumb_height");
   int cWidth = appConfig->get_int("thumb_width");
   std::string crop(find_border(vidFile->fileName, vidFile->length));
-  vidFile->crop=crop;
-  dbCon->save_crop(vidFile);
+  if(crop.length() > 0) {
+    vidFile->crop=crop;
+    dbCon->save_crop(vidFile);
+  }
+  //else crop.assign("");  //in case it is null
   float thumb_t = appConfig->get_float("thumb_time");
   if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
   std::string icon_file(dbCon->createPath(tempPath,vidFile->vid,".jpg"));
@@ -336,8 +339,8 @@ bool video_utils::compare_images(int vid1, int vid2) {
 }
 
 void video_utils::compare_icons() {
-  for(int i = 0; i +1 < fVIDs.size(); i++) { 
-    for(int j = i+1; j < fVIDs.size(); j++) {
+  for(uint i = 0; i +1 < fVIDs.size(); i++) { 
+    for(uint j = i+1; j < fVIDs.size(); j++) {
       std::pair<int,int> key(fVIDs[i],fVIDs[j]);
       if (result_map[key]%2  == 1 || result_map[key] ==4) continue;
       else if(compare_images(fVIDs[i],fVIDs[j])) result_map[key]+=1;      
@@ -372,10 +375,10 @@ void video_utils::compare_traces() {
   resVec.clear();
   std::map<int,std::vector<uint8_t> > data_holder;
   //loop over files
-  for(int i = 0; i +1 < fVIDs.size(); i++) {
+  for(uint i = 0; i +1 < fVIDs.size(); i++) {
     load_trace(fVIDs[i]);
     //loop over files after i
-    for(int j = i+1; j < fVIDs.size(); j++) {
+    for(uint j = i+1; j < fVIDs.size(); j++) {
       if (result_map[std::make_pair(fVIDs[i],fVIDs[j])]/2 >= 1) continue;  
       load_trace(fVIDs[j]);
       resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},fVIDs[i],fVIDs[j]));
@@ -431,7 +434,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
     }
   }
    metaData->load_file_md(fVIDs);
-  for(int i = 0; i < vidFiles.size(); i++) std::cout << vidFiles[i]->vid << " " << vidFiles[i]->fileName << std::endl;
+  for(uint i = 0; i < vidFiles.size(); i++) std::cout << vidFiles[i]->vid << " " << vidFiles[i]->fileName << std::endl;
   return;
 }
 
@@ -460,15 +463,19 @@ qvdb_config * video_utils::get_config(){
 std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) {
   MediaInfoLib::MediaInfo MI;
   std::vector<VidFile *> output(files.size());
-  for(int i = 0; i < files.size(); i++) {
+  for(uint i = 0; i < files.size(); i++) {
     ZenLib::Ztring zFile;
     auto fileName = files[i];
     zFile += fileName.wstring();
-    int size = bfs::file_size(fileName); 
+    int size = 0;
+    if(bfs::is_symlink(fileName)) {
+      size = bfs::file_size(bfs::read_symlink(fileName));
+    }
+    else size = bfs::file_size(fileName); 
     MI.Open(zFile);
     MI.Option(__T("Inform"),__T("Video;%Duration%"));
     float length = 0.001*ZenLib::Ztring(MI.Inform()).To_float32();
-    if(length < 0 ) {
+    if(length <= 0) {
       std::cout << "Length failed for " << files[i].string() << std::endl;
       length = 0.0;
     }
