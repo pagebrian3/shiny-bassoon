@@ -101,27 +101,28 @@ bool video_utils::compare_vids_fft(int i, int j) {
   float cThresh = appConfig->get_float("thresh");
   float cFudge = appConfig->get_float("fudge");
   int trT = cTraceFPS*appConfig->get_float("comp_time");
-  uint size = 2;  //size of 1 transform  must be a power of 2
+  int size = 2;  //size of 1 transform  must be a power of 2
   uint length1 = traceData[i].size()/numVars;
   uint length2 = traceData[j].size()/numVars;
   while(size < length2) size*=2;    
   int dims[]={size};
-  double * in=(double *) fftw_malloc(sizeof(double)*numVars*size);
-  fftw_complex * out =(fftw_complex*) fftw_malloc(sizeof(fftw_complex)*numVars*(size/2+1));
-  std::vector<double>holder(numVars*size);
-  std::vector<fftw_complex> cHolder(numVars*(size/2+1));
-  std::vector<double> result(length2-trT);
-  std::vector<double> coeffs(numVars*(length2-trT));
+  float * in=(float *) fftwf_malloc(sizeof(float)*numVars*size);
+  fftwf_complex * out =(fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex)*numVars*(size/2+1));
+  std::vector<float>holder(numVars*size);
+  std::vector<fftwf_complex> cHolder(numVars*(size/2+1));
+  std::vector<float> result(length2-trT);
+  std::vector<float> coeffs(numVars*(length2-trT));
   mtx.lock();
-  fftw_plan fPlan = fftw_plan_many_dft_r2c(1,dims,numVars, in,dims, numVars,1,out, dims,numVars,1,FFTW_ESTIMATE);
-  fftw_plan rPlan = fftw_plan_many_dft_c2r(1,dims,numVars, out,dims, numVars,1,in, dims,numVars,1,FFTW_ESTIMATE);
+  fftwf_plan fPlan = fftwf_plan_many_dft_r2c(1,dims,numVars, in,dims, numVars,1,out, dims,numVars,1,FFTW_ESTIMATE);
+  fftwf_plan rPlan = fftwf_plan_many_dft_c2r(1,dims,numVars, out,dims, numVars,1,in, dims,numVars,1,FFTW_ESTIMATE);
   mtx.unlock();
   uint t_s;  //current slice position
   uint offset = 0;
   uint l = 0;
-  uint k ;
-  std::vector<double> compCoeffs(numVars);
-  std::vector<double> coeff_temp(numVars);
+  uint k;
+  uint uSize = size;
+  std::vector<float> compCoeffs(numVars);
+  std::vector<float> coeff_temp(numVars);
   //calculate normalization for 2nd trace
   for(offset=0; offset < numVars*trT; offset+=numVars) for(l = 0; l < numVars; l++) coeff_temp[l]+=pow(traceData[j][offset+l],2);
   while(offset < numVars*length2)  {
@@ -132,12 +133,12 @@ bool video_utils::compare_vids_fft(int i, int j) {
     offset+=numVars;
   }
   for(k=0; k < numVars*length2; k++)  in[k]=traceData[j][k];
-    while(k<numVars*size) {
+    while(k<numVars*uSize) {
       in[k]=0.0;
       k++;
     }
-    fftw_execute(fPlan);
-      for(k=0; k < (size/2+1)*numVars; k++)  {
+    fftwf_execute(fPlan);
+      for(k=0; k < (uSize/2+1)*numVars; k++)  {
       cHolder[k][0]=out[k][0];
       cHolder[k][1]=out[k][1];
     }
@@ -146,16 +147,16 @@ bool video_utils::compare_vids_fft(int i, int j) {
     k=0;
     //load and pad data for slice
     for(k = 0; k < numVars*trT; k++)  in[k]=traceData[i][k+t_s];
-    while(k<numVars*size) {
+    while(k<numVars*uSize) {
       in[k]=0.0;
       k++;
     }
     std::fill(compCoeffs.begin(),compCoeffs.end(),0.0);
     //calculate normalization for slice
     for(uint deltaT=0; deltaT < numVars*trT; deltaT+=numVars) for(l = 0; l < numVars; l++)  compCoeffs[l]+=pow(traceData[i][deltaT+t_s+l],2);
-    fftw_execute(fPlan);
-    for(k=0;k<numVars*(size/2+1); k++) {
-      double a,b,c,d;
+    fftwf_execute(fPlan);
+    for(k=0;k<numVars*(uSize/2+1); k++) {
+      float a,b,c,d;
       c = out[k][0];
       d = out[k][1];
       a =cHolder[k][0];
@@ -163,14 +164,14 @@ bool video_utils::compare_vids_fft(int i, int j) {
       out[k][0]=a*c+b*d;
       out[k][1]=b*c-a*d;
     }
-    fftw_execute(rPlan);
-    double sum;
+    fftwf_execute(rPlan);
+    float sum;
     for(k = 0; k < length2-trT; k++)  {
       sum=0.0;
-      for(l=0; l <numVars; l++) sum+=in[numVars*k+l]/(size* 6*(compCoeffs[l]+coeffs[numVars*k+l]));
+      for(l=0; l <numVars; l++) sum+=in[numVars*k+l]/(uSize* 6*(compCoeffs[l]+coeffs[numVars*k+l]));
       result[k]=pow(sum,cFudge);
     }
-    double max_val = *max_element(result.begin(),result.end());
+    float max_val = *max_element(result.begin(),result.end());
     int max_offset = max_element(result.begin(),result.end()) - result.begin();
     if(max_val > cThresh) {
       std::cout << "Match! " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset << std::endl;
@@ -182,8 +183,8 @@ bool video_utils::compare_vids_fft(int i, int j) {
   if(match) result_map[key]+=2;
   else if(result_map[key]==0) result_map[key]=4;
   dbCon->update_results(i,j,result_map[key]);
-  fftw_free(in);
-  fftw_free(out);
+  fftwf_free(in);
+  fftwf_free(out);
   return true;
 }
 
@@ -234,10 +235,10 @@ std::string video_utils::find_border(bfs::path & fileName,float length) {
   std::vector<uint8_t> * imgDat0 = new std::vector<uint8_t>(width*height*3);
   std::vector<uint8_t> * imgDat1 = new std::vector<uint8_t>(width*height*3);
   create_image(fileName, frame_time, imgDat0);
-  std::vector<double> rowSums(height);
-  std::vector<double> colSums(width);
-  double corrFactorCol = 1.0/(double)(cBFrames*height);
-  double corrFactorRow = 1.0/(double)(cBFrames*width);
+  std::vector<float> rowSums(height);
+  std::vector<float> colSums(width);
+  float corrFactorCol = 1.0/(float)(cBFrames*height);
+  float corrFactorRow = 1.0/(float)(cBFrames*width);
   bool skipBorder = false;
   std::vector<uint8_t> * ptrHolder;
   for(int i = 0; i < cBFrames; i++) {
@@ -248,7 +249,7 @@ std::string video_utils::find_border(bfs::path & fileName,float length) {
 	int rpos=3*(y*width+x);
 	int gpos=rpos+1;
 	int bpos=gpos+1;
-	double value =sqrt(1.0/3.0*(pow((*imgDat1)[rpos]-(*imgDat0)[rpos],2.0)+pow((*imgDat1)[gpos]-(*imgDat0)[gpos],2.0)+pow((*imgDat1)[bpos]-(*imgDat0)[bpos],2.0)));
+	float value =sqrt(1.0/3.0*(pow((*imgDat1)[rpos]-(*imgDat0)[rpos],2.0)+pow((*imgDat1)[gpos]-(*imgDat0)[gpos],2.0)+pow((*imgDat1)[bpos]-(*imgDat0)[bpos],2.0)));
 	rowSums[y]+=corrFactorRow*value;
 	colSums[x]+=corrFactorCol*value;      
       }
@@ -298,18 +299,19 @@ void video_utils::create_image(bfs::path & fileName, float start_time, std::vect
   return;
 }
   
-Magick::Image *video_utils::get_image(int vid) {
-  if(img_cache[vid]) return img_cache[vid];
+Magick::Image *video_utils::get_image(int vid, bool firstImg) {
+  if(img_cache.first == vid) return img_cache.second;
   std::string image_file(dbCon->fetch_icon(vid));
+  if(firstImg) delete img_cache.second;
   Magick::Image * img = new Magick::Image(image_file);
   std::system((boost::format("rm %s") % image_file).str().c_str());
-  if(img_cache.size() < appConfig->get_int("cache_size")) img_cache[vid] = img;  
+  if(firstImg) img_cache = std::make_pair(vid,img);  
   return img;
 }
 
 bool video_utils::compare_images(int vid1, int vid2) {
-  Magick::Image * img1 = get_image(vid1);
-  Magick::Image * img2 = get_image(vid2);
+  Magick::Image * img1 = get_image(vid1,true);
+  Magick::Image * img2 = get_image(vid2,false);
   float width1 = img1->size().width();
   float width2 = img2->size().width();
   int cImgThresh = appConfig->get_int("image_thresh");
@@ -327,13 +329,15 @@ bool video_utils::compare_images(int vid1, int vid2) {
       difference+=pow(*pixels,2.0);
       pixels++;
     }
+    delete img2;
     difference = sqrt(coeff*difference);
     if(difference < cImgThresh) {
       std::cout << "IMG MATCH " << vid1 << " " << vid2 << std::endl;
       return true;
     }
-    if(!img_cache[vid2]) delete img2;
-    else return false;
+  }
+  else {
+    delete img2;
   }
   return false;
 }
@@ -345,8 +349,6 @@ void video_utils::compare_icons() {
       if (result_map[key]%2  == 1 || result_map[key] ==4) continue;
       else if(compare_images(fVIDs[i],fVIDs[j])) result_map[key]+=1;      
     }
-    delete img_cache[fVIDs[i]];
-    img_cache.erase(fVIDs[i]);
   }
   return;
 }
@@ -389,8 +391,7 @@ void video_utils::compare_traces() {
 
 void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
   std::vector<std::future<std::vector<VidFile * > > >vFiles;
-  std::vector<std::vector<bfs::path> > pathVs(appConfig->get_int("threads"));
-  int counter = 0;
+  std::vector<bfs::path> pathVs;
   fVIDs.clear();
   for(auto & path: paths){
     std::vector<bfs::path> current_dir_files;
@@ -409,8 +410,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	  }
 	}	
 	if(!dbCon->video_exists(pathName))  {
-	  pathVs[counter%appConfig->get_int("threads")].push_back(pathName);
-	  counter++;
+	  pathVs.push_back(pathName);
 	}
 	else {
 	  VidFile * v =dbCon->fetch_video(pathName);
@@ -418,11 +418,11 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	  fVIDs.push_back(v->vid);
 	  current_dir_files.push_back(pathName);
 	}
-      }        
-    }
-    for(auto & y: pathVs) vFiles.push_back(TPool->push([this](std::vector<bfs::path> pathvs) {return vid_factory(pathvs);},y));
+      }       
+    }    
     //if(!new_db) dbCon->cleanup(path,current_dir_files);  //Bring back
   }
+  vFiles.push_back(TPool->push([this](std::vector<bfs::path> pathvs) {return vid_factory(pathvs);},pathVs));
   cxxpool::wait(vFiles.begin(),vFiles.end());
   std::vector<VidFile *> vidsTemp;
   for(auto &a: vFiles) {
@@ -433,7 +433,7 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
       vidFiles.push_back(v);      
     }
   }
-   metaData->load_file_md(fVIDs);
+  metaData->load_file_md(fVIDs);
   for(uint i = 0; i < vidFiles.size(); i++) std::cout << vidFiles[i]->vid << " " << vidFiles[i]->fileName << std::endl;
   return;
 }

@@ -146,7 +146,8 @@ void DbConnector::save_icon(int vid) {
     length = sizeof(unsigned char)*size;
   }
   else {
-    std::cout << "File empty/not there. vid: " <<vid<< std::endl;
+    std::cout << "File empty/not there. vid: " <<vid<< " error: " <<strerror(errno) << std::endl;
+    exit(EXIT_FAILURE);
     return;
   }
   rc = sqlite3_bind_blob(stmt, 2, memblock,length, SQLITE_STATIC);

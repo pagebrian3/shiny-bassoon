@@ -193,7 +193,7 @@ bool QVBrowser::progress_timeout() {
     for(auto &b: res) {
       if(b == std::future_status::ready && vid_list[i] > 0){
 	std::string icon_file = vu->save_icon(vid_list[i]);
-	QImage img(QString(icon_file.c_str()));
+        QPixmap img(QString(icon_file.c_str()));
 	(*iconVec)[i]->setSizeHint(img.size());
 	(*iconVec)[i]->setBackground(QBrush(img));
 	(*iconVec)[i]->setIcon(QIcon());

@@ -42,7 +42,7 @@ class video_utils
 
   std::string find_border(bfs::path & fileName,float length);
 
-  Magick::Image * get_image(int vid);
+  Magick::Image * get_image(int vid, bool firstImg);
 
   void start_thumbs(std::vector<VidFile *> & vFile);
   
@@ -77,9 +77,9 @@ class video_utils
   DbConnector * dbCon;
   qvdb_config * appConfig;
   qvdb_metadata * metaData;
-  std::map<int,Magick::Image *> img_cache;
+  std::pair<int,Magick::Image *> img_cache;
   std::map<int,std::vector<uint8_t> > traceData;
-    std::map<std::pair<int,int>,int> result_map;
+  std::map<std::pair<int,int>,int> result_map;
   std::vector<std::future<bool> > resVec;
   cxxpool::thread_pool * TPool;
   std::set<std::string> extensions;
