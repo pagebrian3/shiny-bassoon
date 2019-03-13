@@ -7,7 +7,6 @@
 #include "MediaInfo/MediaInfo.h"
 #include "Magick++.h"
 #include "ZenLib/Ztring.h"
-#include <boost/process.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <fftw3.h>
@@ -193,7 +192,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   float start_time = appConfig->get_float("trace_time");
   if(obj->length <= start_time) start_time=0.0;
   std::string outPath = dbCon->createPath(tracePath,obj->vid,".bin");
-  boost::process::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % fps % obj->crop %outPath ).str());
+  std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % fps % obj->crop %outPath ).str().c_str());
   return true; 
 }
 
@@ -204,7 +203,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   }
   int cHeight = appConfig->get_int("thumb_height");
   int cWidth = appConfig->get_int("thumb_width");
-  std::string crop(find_border(vidFile->fileName, vidFile->length));
+  std::string crop(find_border(vidFile->fileName, vidFile->length, vidFile->height, vidFile->width));
   if(crop.length() > 0) {
     vidFile->crop=crop;
     dbCon->save_crop(vidFile);
@@ -214,24 +213,16 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
   std::string icon_file(dbCon->createPath(tempPath,vidFile->vid,".jpg"));
   std::string command((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
-  boost::process::system(command);
+  std::system(command.c_str());
   return true;
 };
 
-std::string video_utils::find_border(bfs::path & fileName,float length) {
+std::string video_utils::find_border(bfs::path & fileName, float length, int height, int width) {
   std::string crop("");
   int cBFrames = appConfig->get_int("border_frames");
   float cCutThresh = appConfig->get_float("cut_thresh");
   float frame_time = 0.5*length/(cBFrames+1.0);
   float frame_spacing = length/(cBFrames+1.0);
-  boost::process::ipstream is;
-  boost::process::system((boost::format("ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 %s") % fileName).str(),boost::process::std_out > is);
-  std::string output;
-  std::vector<std::string> split_string;
-  std::getline(is,output);
-  boost::split(split_string,output,boost::is_any_of(","));
-  int width=std::stoi(split_string[0]);
-  int height=std::stoi(split_string[1]);
   std::vector<uint8_t> * imgDat0 = new std::vector<uint8_t>(width*height*3);
   std::vector<uint8_t> * imgDat1 = new std::vector<uint8_t>(width*height*3);
   create_image(fileName, frame_time, imgDat0);
@@ -434,7 +425,6 @@ void video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
     }
   }
   metaData->load_file_md(fVIDs);
-  for(uint i = 0; i < vidFiles.size(); i++) std::cout << vidFiles[i]->vid << " " << vidFiles[i]->fileName << std::endl;
   return;
 }
 
@@ -481,8 +471,12 @@ std::vector<VidFile *> video_utils::vid_factory(std::vector<bfs::path> & files) 
     }
     MI.Option(__T("Inform"),__T("Video;%Rotation%"));
     int rotate = ZenLib::Ztring(MI.Inform()).To_float32();
+    MI.Option(__T("Inform"),__T("Video;%Height%"));
+    int height = ZenLib::Ztring(MI.Inform()).To_int32s();
+    MI.Option(__T("Inform"),__T("Video;%Width%"));
+    int width = ZenLib::Ztring(MI.Inform()).To_int32s();
     MI.Close();
-    output[i] = new VidFile(fileName,length,size,0,-1,"",rotate);
+    output[i] = new VidFile(fileName, length, size, 0, -1, "", rotate, height, width);
   }
   return output;
 }

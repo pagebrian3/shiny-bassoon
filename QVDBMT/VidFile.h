@@ -7,11 +7,10 @@
 namespace bfs = boost::filesystem;
 
 class VidFile {
- public:
 
-  VidFile(bfs::path fileName);
+  public:
 
- VidFile(bfs::path file, float length, int size, int flag, int vid, std::string crop, int rot): fileName(file), length(length), size(size), okflag(flag), vid(vid), crop(crop), rotate(rot) {};
+  VidFile(bfs::path file, float length, int size, int flag, int vid, std::string crop, int rot, int height, int width): fileName(file), length(length), size(size), okflag(flag), vid(vid), crop(crop), rotate(rot), height(height), width(width) {};
 
   bfs::path fileName;
   float length;
@@ -20,6 +19,9 @@ class VidFile {
   int vid;
   std::string crop;  
   int rotate;
+  int height;
+  int width;
+  
 };
 
 #endif // VIDFILE_H

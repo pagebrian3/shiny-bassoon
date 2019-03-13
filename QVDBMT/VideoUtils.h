@@ -40,7 +40,7 @@ class video_utils
 
   void compare_icons();
 
-  std::string find_border(bfs::path & fileName,float length);
+  std::string find_border(bfs::path & fileName, float length, int height, int width);
 
   Magick::Image * get_image(int vid, bool firstImg);
 

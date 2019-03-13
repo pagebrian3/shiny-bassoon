@@ -4,4 +4,5 @@ List of future enhancements/fixes:
 -Save/restore previous sort options/directories
 -Implement search/sort system
 -Improve preview feature with controls/dynamic window size.  Perhaps no decoration.
+-Improve interactivity during icon creation.
 
