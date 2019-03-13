@@ -1,10 +1,15 @@
 #ifndef QVBROWSER_H
 #define QVBROWSER_H
 
-#include "VideoUtils.h"
-#include <boost/timer/timer.hpp>
 #include <QMainWindow>
+#include <boost/filesystem.hpp>
 
+namespace bfs=boost::filesystem;
+
+class qvdb_metadata;
+class qvdb_config;
+class video_utils;
+class VidFile;
 class QPushButton;
 class QProgressBar;
 class QTimer;

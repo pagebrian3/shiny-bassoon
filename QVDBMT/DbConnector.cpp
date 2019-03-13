@@ -1,4 +1,5 @@
 #include <DbConnector.h>
+#include <VidFile.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -28,7 +29,6 @@ void DbConnector::save_db_file() {
 }
 
 VidFile * DbConnector::fetch_video(bfs::path & filename){
-  std::cout << "Loading : " << filename.string() << std::endl;
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT crop, length, size, okflag, rotate, vid, height, width FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));

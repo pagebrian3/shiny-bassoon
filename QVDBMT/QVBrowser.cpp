@@ -1,4 +1,6 @@
 #include <QVBrowser.h>
+#include <VidFile.h>
+#include <VideoUtils.h>
 #include <ConfigDialog.h>
 #include <MetadataDialog.h>
 #include <Miniplayer.h>

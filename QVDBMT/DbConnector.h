@@ -3,9 +3,13 @@
 
 #include <sqlite3.h>
 #include <map>
-#include <VidFile.h>
 #include <boost/variant.hpp>
 #include <boost/bimap.hpp>
+#include <boost/filesystem.hpp>
+
+class VidFile;
+
+namespace bfs = boost::filesystem;
 
 class DbConnector {
 

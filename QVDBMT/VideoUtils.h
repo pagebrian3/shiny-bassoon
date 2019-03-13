@@ -2,8 +2,8 @@
 #define VIDEOUTILS_H
 
 #include <set>
-#include "cxxpool.h"
-#include "DbConnector.h"
+#include <cxxpool.h>
+#include <boost/filesystem.hpp>
 #if defined(_WIN32)
  #define PLATFORM_NAME "windows" // Windows
 #elif defined(_WIN64)
@@ -12,10 +12,13 @@
 #define PLATFORM_NAME "linux"
 #endif
 
+namespace bfs=boost::filesystem;
+
 namespace Magick {
    class Image;
 }
 
+class DbConnector;
 class VidFile;
 class qvdb_metadata;
 class qvdb_config;
