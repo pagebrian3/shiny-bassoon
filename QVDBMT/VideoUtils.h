@@ -55,7 +55,9 @@ class video_utils
 
   void compare_traces();
 
-  void make_vids(std::vector<VidFile *> & vidFiles);
+  int make_vids(std::vector<VidFile *> & vidFiles);
+
+  std::string fetch_icon(int vid);
 
   std::vector<std::future_status> get_status();
 
@@ -69,9 +71,13 @@ class video_utils
 
   qvdb_config * get_config();
 
-  qvdb_metadata * mdInterface(); 
+  qvdb_metadata * mdInterface();
 
-  std::vector<VidFile *> vid_factory(std::vector<bfs::path> & paths);
+  bool vid_factory(std::vector<bfs::path> & paths);
+
+  bool getVidBatch(std::vector<VidFile*> & batch);
+
+  bool thumb_exists(int vid);
 
  private:
   
@@ -83,6 +89,7 @@ class video_utils
   std::pair<int,Magick::Image *> img_cache;
   std::map<int,std::vector<uint8_t> > traceData;
   std::map<std::pair<int,int>,int> result_map;
+  std::list<std::vector<VidFile *> > completedVFs;
   std::vector<std::future<bool> > resVec;
   cxxpool::thread_pool * TPool;
   std::set<std::string> extensions;

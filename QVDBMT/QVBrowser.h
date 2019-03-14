@@ -48,6 +48,7 @@ class QVBrowser: public QMainWindow
 #endif // QT_NO_CONTEXTMENU
     
  private:
+  bool loadVidFiles;
   QProgressBar * progress_bar;
   QListView * fFBox;
   QStandardItemModel * fModel;

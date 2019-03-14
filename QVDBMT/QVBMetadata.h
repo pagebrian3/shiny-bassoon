@@ -4,7 +4,7 @@
 #include <vector>
 #include <map>
 #include <string>
-#include "DbConnector.h"
+#include <DbConnector.h>
 #include <boost/bimap.hpp>
 
 class qvdb_metadata

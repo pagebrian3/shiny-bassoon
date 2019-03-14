@@ -150,34 +150,17 @@ void QVBrowser::populate_icons(bool clean) {
     delete fModel;
     delete iconVec;
   }
-  vu->make_vids(vidFiles);  
-  iconVec =  new std::vector<QStandardItem *> (vidFiles.size());
-  fModel = new QStandardItemModel(vidFiles.size(),1,fFBox);
-  int j = 0;
-  QIcon initIcon = QIcon::fromTheme("image-missing");
-  QSize size_hint = QSize(qCfg->get_int("thumb_height"),qCfg->get_int("thumb_width"));
-  for(auto &a: vidFiles) {
-    QStandardItem * b = new QStandardItem(initIcon,"");
-    b->setSizeHint(size_hint);
-    (*iconVec)[j]=b;
-    iconLookup[a->vid]=j;
-    video_files.push_back(a->fileName);
-    vid_list.push_back(a->vid);
-    b->setData(a->size,Qt::UserRole+1);
-    b->setData(a->length,Qt::UserRole+2);
-    b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
-    b->setData(a->vid,Qt::UserRole+4);
-    update_tooltip(a->vid);
-    fModel->appendRow(b);
-    j++;
-  }
+  iconVec =  new std::vector<QStandardItem *>;
+  int nItems = vu->make_vids(vidFiles);
+  loadVidFiles=false;
+  if(vidFiles.size() > 0) loadVidFiles = true;
+  fModel = new QStandardItemModel(nItems,1,fFBox);
   fFBox->setModel(fModel);
   QItemSelectionModel * selModel = fFBox->selectionModel();
   connect(selModel,&QItemSelectionModel::selectionChanged,this,&QVBrowser::onSelChanged);
   p_timer->start(qCfg->get_int("progress_time"));
   progressFlag = 1;
-  fFBox->show();
-  if(j > 0) vu->start_thumbs(vidFiles); 
+  fFBox->show(); 
   return;
 }
 
@@ -191,6 +174,51 @@ bool QVBrowser::progress_timeout() {
   auto res = vu->get_status();
   total = res.size();
   if(progressFlag==1) {
+    std::vector<VidFile*> batch;
+    if(vu->getVidBatch(batch)  || loadVidFiles) {
+      if(loadVidFiles) {
+	loadVidFiles=false;
+	batch.insert(batch.end(),vidFiles.begin(), vidFiles.end());
+      }
+      QIcon initIcon = QIcon::fromTheme("image-missing");
+      QSize size_hint = QSize(qCfg->get_int("thumb_height"),qCfg->get_int("thumb_width"));
+      std::vector<VidFile*> needIcons;
+      for(auto &a: batch) {
+	int position=(*iconVec).size();
+	int vid = a->vid;
+	bool iExists = vu->thumb_exists(vid);
+	vidFiles.push_back(a);
+	QStandardItem * b;
+	if(iExists) {
+	  b = new QStandardItem();
+	  (*iconVec).push_back(b);
+	  std::string icon_file(vu->fetch_icon(vid));
+	  QPixmap img(QString(icon_file.c_str()));
+	  (*iconVec)[position]->setSizeHint(img.size());
+	  (*iconVec)[position]->setBackground(QBrush(img));
+	  (*iconVec)[position]->setIcon(QIcon());
+	  std::system((boost::format("rm %s") %icon_file).str().c_str());
+	  vid_list.push_back(0);
+	}
+	else {
+	  b = new QStandardItem(initIcon,"");
+	  (*iconVec).push_back(b);
+	  b->setSizeHint(size_hint);
+	  vid_list.push_back(vid);
+	  needIcons.push_back(a);
+	}
+	
+	iconLookup[vid]=position;
+	video_files.push_back(a->fileName);
+	b->setData(a->size,Qt::UserRole+1);
+	b->setData(a->length,Qt::UserRole+2);
+	b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
+	b->setData(vid,Qt::UserRole+4);
+	update_tooltip(vid);
+	fModel->appendRow(b);
+      }
+      vu->start_thumbs(needIcons);
+    }
     int i=0;
     for(auto &b: res) {
       if(b == std::future_status::ready && vid_list[i] > 0){
@@ -320,25 +348,25 @@ void QVBrowser::update_tooltip(int vid) {
   float size = a->size;
   float length = a->length;
   std::string sizeLabel = "B";
-    float factor=1.0/1024.0;
+  float factor=1.0/1024.0;
+  if(factor*size >= 1.0) {
+    size*=factor;
     if(factor*size >= 1.0) {
       size*=factor;
       if(factor*size >= 1.0) {
 	size*=factor;
-	if(factor*size >= 1.0) {
-	  size*=factor;
-	  sizeLabel = "GB";
-	}
-	else sizeLabel = "MB";
+	sizeLabel = "GB";
       }
-      else sizeLabel = "KB";
+      else sizeLabel = "MB";
     }
-    int h = length/3600.0;
-    int m = ((int)(length-h*3600))/60;
-    float s = length-m*60.0-h*3600.0;
-     std::string mdString = qMD->metadata_string(a->vid);
-    QString toolTip((boost::format("Filename: %s\nVID: %i\nSize: %3.2f%s\nLength: %i:%02i:%02.1f%s") % a->fileName % a->vid %  size % sizeLabel % h % m % s % mdString).str().c_str());
-    currItem->setToolTip(toolTip);
+    else sizeLabel = "KB";
+  }
+  int h = length/3600.0;
+  int m = ((int)(length-h*3600))/60;
+  float s = length-m*60.0-h*3600.0;
+  std::string mdString = qMD->metadata_string(a->vid);
+  QString toolTip((boost::format("Filename: %s\nVID: %i\nSize: %3.2f%s\nLength: %i:%02i:%02.1f%s") % a->fileName % a->vid %  size % sizeLabel % h % m % s % mdString).str().c_str());
+  currItem->setToolTip(toolTip);
 }
 
 

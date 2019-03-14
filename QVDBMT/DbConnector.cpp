@@ -418,7 +418,7 @@ void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,s
     }
     std::string tag_str(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
     std::vector<std::string> split_vec;
-    boost::algorithm::split( split_vec, tag_str, boost::is_any_of(","));
+    boost::algorithm::split(split_vec, tag_str, boost::is_any_of(","));
     std::vector<int> tag_ids;
     for(auto & s: split_vec) tag_ids.push_back(std::atoi(s.c_str()));
     fileMetadata[vid]=tag_ids;
