@@ -6,10 +6,10 @@
 #include <iostream>
 
 DbConnector::DbConnector(bfs::path & appPath) {
-  std::string db_path(appPath.c_str());
+  bfs::path db_path(appPath);
   icon_path = appPath;
   if(!bfs::exists(appPath)) bfs::create_directory(appPath);
-  db_path.append("vdb.db");
+  db_path+="vdb.db";
   bool newFile = true;
   if (bfs::exists(db_path)) newFile=false;
    sqlite3_open(db_path.c_str(),&db);
@@ -66,7 +66,7 @@ VidFile * DbConnector::fetch_video(bfs::path & filename){
   return result;
 }
 
-std::string DbConnector::fetch_icon(int vid){
+bfs::path DbConnector::fetch_icon(int vid){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT img_dat FROM icon_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
@@ -82,20 +82,20 @@ std::string DbConnector::fetch_icon(int vid){
     sqlite3_finalize(stmt);
     throw errmsg;
   }
-  std::string out_path = createPath(icon_path,vid,".jpg");
-  std::ofstream output(out_path, std::ios::out|std::ios::binary|std::ios::ate);
+  bfs::path out_path = createPath(icon_path,vid,".jpg");
+  std::ofstream output(out_path.string(), std::ios::out|std::ios::binary|std::ios::ate);
   int size = sqlite3_column_bytes(stmt,0);
   output.write((char*)sqlite3_column_blob(stmt,0),size);
   sqlite3_finalize(stmt);
   output.close();
-  return out_path;
+  return bfs::path(out_path);
 }
 
 void DbConnector::save_video(VidFile* a) {
   a->okflag=1;
   std::string crop_holder("");
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,crop,length,size,okflag,rotate) VALUES (?,?,?,?,?,?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,crop,length,size,okflag,rotate,width,height) VALUES (?,?,?,?,?,?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   sqlite3_bind_text(stmt, 1, a->fileName.c_str(), -1, NULL);
   sqlite3_bind_text(stmt, 2, crop_holder.c_str(), -1, NULL);
@@ -103,6 +103,8 @@ void DbConnector::save_video(VidFile* a) {
   sqlite3_bind_int(stmt, 4, a->size);
   sqlite3_bind_int(stmt, 5, a->okflag);
   sqlite3_bind_int(stmt, 6, a->rotate);
+  sqlite3_bind_int(stmt, 7, a->width);
+  sqlite3_bind_int(stmt, 8, a->height);
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
     std::string errmsg(sqlite3_errmsg(db));
@@ -130,13 +132,13 @@ void DbConnector::save_crop(VidFile* a) {
   return;
 }
 
-void DbConnector::save_icon(int vid) {  
+bfs::path DbConnector::save_icon(int vid) {  
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,img_dat) VALUES (? , ?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);
-  std::string in_path = createPath(icon_path,vid,".jpg");
-  std::ifstream input (in_path, std::ios::in|std::ios::binary|std::ios::ate);
+  bfs::path in_path = createPath(icon_path,vid,".jpg");
+  std::ifstream input(in_path.string(), std::ios::in|std::ios::binary|std::ios::ate);
   unsigned char * memblock;
   int length;
   if (input.is_open()) {
@@ -148,9 +150,8 @@ void DbConnector::save_icon(int vid) {
     length = sizeof(unsigned char)*size;
   }
   else {
-    std::cout << "File empty/not there. vid: " <<vid<< " error: " <<strerror(errno) << std::endl;
+    std::cout << "File empty/not there. vid: " << vid << " path: " << in_path << " error: " << strerror(errno) << std::endl;
     exit(EXIT_FAILURE);
-    return;
   }
   rc = sqlite3_bind_blob(stmt, 2, memblock,length, SQLITE_STATIC);
   if (rc != SQLITE_OK) {               
@@ -161,7 +162,7 @@ void DbConnector::save_icon(int vid) {
   rc = sqlite3_step(stmt); 
   sqlite3_finalize(stmt);
   delete[] memblock;
-  return;
+  return in_path;
 }
 
 bool DbConnector::video_exists(bfs::path & filename){
@@ -265,8 +266,8 @@ void DbConnector::update_results(int  i, int  j, int  k) {
   return;
 }
 
-std::string DbConnector::createPath(bfs::path & path, int vid, std::string extension) {
-  return (boost::format("%s%i%s") % path.string() % vid % extension).str();
+bfs::path DbConnector::createPath(bfs::path & path, int vid, std::string extension) {
+  return bfs::path((boost::format("%s%i%s") % path.string() % vid % extension).str());
 }
 
 void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){

@@ -49,23 +49,23 @@ class video_utils
 
   void start_thumbs(std::vector<VidFile *> & vFile);
   
-  void start_make_traces(std::vector<VidFile *> & vFile);
+  int start_make_traces(std::vector<VidFile *> & vFile);
 
   void load_trace(int vid);
 
-  void compare_traces();
+  int compare_traces();
 
   int make_vids(std::vector<VidFile *> & vidFiles);
 
-  std::string fetch_icon(int vid);
+  bfs::path fetch_icon(int vid);
 
   std::vector<std::future_status> get_status();
 
   std::set<std::string> get_extensions();
 
-  void set_paths(std::vector<std::string> & paths);
+  void set_paths(std::vector<bfs::path> & paths);
 
-  std::string save_icon(int vid);
+  bfs::path save_icon(int vid);
 
   void close();
 
@@ -81,8 +81,8 @@ class video_utils
 
  private:
   
+  cxxpool::thread_pool * TPool;
   bfs::path tempPath, tracePath;
-  std::vector<bfs::path> paths;
   DbConnector * dbCon;
   qvdb_config * appConfig;
   qvdb_metadata * metaData;
@@ -91,10 +91,11 @@ class video_utils
   std::map<std::pair<int,int>,int> result_map;
   std::list<std::vector<VidFile *> > completedVFs;
   std::vector<std::future<bool> > resVec;
-  cxxpool::thread_pool * TPool;
-  std::set<std::string> extensions;
   std::vector<std::string> cBadChars;
   std::vector<int> fVIDs;
+  std::vector<bfs::path> paths;
+  std::set<std::string> extensions;
+  
 };
 
 #endif // VIDEOUTILS_H

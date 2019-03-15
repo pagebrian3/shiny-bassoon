@@ -192,12 +192,12 @@ bool video_utils::calculate_trace(VidFile * obj) {
   float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("trace_time");
   if(obj->length <= start_time) start_time=0.0;
-  std::string outPath = dbCon->createPath(tracePath,obj->vid,".bin");
+  bfs::path outPath = dbCon->createPath(tracePath,obj->vid,".bin");
   std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % fps % obj->crop %outPath ).str().c_str());
   return true; 
 }
 
-std::string video_utils::fetch_icon(int vid) {
+bfs::path video_utils::fetch_icon(int vid) {
   return dbCon->fetch_icon(vid);
 }
 
@@ -212,7 +212,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   //else crop.assign("");  //in case it is null
   float thumb_t = appConfig->get_float("thumb_time");
   if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
-  std::string icon_file(dbCon->createPath(tempPath,vidFile->vid,".jpg"));
+  bfs::path icon_file(dbCon->createPath(tempPath,vidFile->vid,".jpg"));
   std::string command((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
   std::system(command.c_str());
   return true;
@@ -298,10 +298,10 @@ bool video_utils::thumb_exists(int vid) {
 
 Magick::Image *video_utils::get_image(int vid, bool firstImg) {
   if(img_cache.first == vid) return img_cache.second;
-  std::string image_file(dbCon->fetch_icon(vid));
+  bfs::path image_file(dbCon->fetch_icon(vid));
   if(firstImg) delete img_cache.second;
-  Magick::Image * img = new Magick::Image(image_file);
-  std::system((boost::format("rm %s") % image_file).str().c_str());
+  Magick::Image * img = new Magick::Image(image_file.string());
+  bfs::remove(image_file);
   if(firstImg) img_cache = std::make_pair(vid,img);  
   return img;
 }
@@ -355,13 +355,13 @@ void video_utils::start_thumbs(std::vector<VidFile *> & vFile) {
   return;
 }
 
-void video_utils::start_make_traces(std::vector<VidFile *> & vFile) {
+int video_utils::start_make_traces(std::vector<VidFile *> & vFile) {
   resVec.clear();
   for(auto & b: vFile) {
     bfs::path tPath(dbCon->createPath(tracePath,b->vid,".bin"));
    if(!bfs::exists(tPath))resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
   }
-  return;
+  return resVec.size();
 }
 
 std::vector<std::future_status>  video_utils::get_status() {
@@ -369,7 +369,7 @@ std::vector<std::future_status>  video_utils::get_status() {
   return cxxpool::wait_for(resVec.begin(), resVec.end(),timer);  
 }
 
-void video_utils::compare_traces() {
+int video_utils::compare_traces() {
   resVec.clear();
   std::map<int,std::vector<uint8_t> > data_holder;
   //loop over files
@@ -382,7 +382,7 @@ void video_utils::compare_traces() {
       resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},fVIDs[i],fVIDs[j]));
     }
   }
-  return;
+  return resVec.size();
 }
 
 int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
@@ -421,24 +421,24 @@ int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
   }
   std::cout << "starting vid factory for " << pathVs.size() << std::endl; 
   TPool->push([this](std::vector<bfs::path> pathvs) {return vid_factory(pathvs);},pathVs);
+  resVec.clear();  //need to do it here because start_thumbs is called multiple times.
   return counter;
 }
 
-void video_utils::set_paths(std::vector<std::string> & folders) {
+void video_utils::set_paths(std::vector<bfs::path> & folders) {
   paths.clear();
-  for(auto & a: folders) paths.push_back(bfs::path(a));
+  for(auto & a: folders) paths.push_back(a);
   return;
 }
 
-std::string video_utils::save_icon(int vid) {
-  std::string icon_file = dbCon->createPath(tempPath,vid,".jpg");  
-  dbCon->save_icon(vid);
-  return icon_file;
+bfs::path video_utils::save_icon(int vid) {
+  return dbCon->save_icon(vid);
 }
 
 void video_utils::close() {
   dbCon->save_config(appConfig->get_data());
   dbCon->save_db_file();
+  std::system("reset");
   return;
 }
 
@@ -453,7 +453,7 @@ bool video_utils::vid_factory(std::vector<bfs::path> & files) {
     std::vector<VidFile *> batch;   
     for(uint i = 0; i < nThreads && i+h*nThreads < files.size(); i++) {
       ZenLib::Ztring zFile;
-      auto fileName = files[i];
+      auto fileName = files[i+h*nThreads];
       zFile += fileName.wstring();
       int size = 0;
       if(bfs::is_symlink(fileName)) {
@@ -502,7 +502,7 @@ bool video_utils::getVidBatch(std::vector<VidFile*> & batch) {
 
 
 void video_utils::load_trace(int vid) {
-  std::ifstream dataFile(dbCon->createPath(tracePath,vid,".bin"),std::ios::in|std::ios::binary|std::ios::ate);
+  std::ifstream dataFile(dbCon->createPath(tracePath,vid,".bin").string(),std::ios::in|std::ios::binary|std::ios::ate);
   dataFile.seekg (0, dataFile.end);
   int length = dataFile.tellg();
   dataFile.seekg (0, dataFile.beg);

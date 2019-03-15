@@ -49,23 +49,23 @@ class QVBrowser: public QMainWindow
     
  private:
   bool loadVidFiles;
-  QProgressBar * progress_bar;
-  QListView * fFBox;
-  QStandardItemModel * fModel;
-  qvdb_config * qCfg ;
-  qvdb_metadata * qMD;
-  std::string sort_by;
-  Qt::SortOrder sOrder;
   int progressFlag; //0=none 1=icons 2=traces 3=dupes
-  QPushButton * asc_button;
-  QAction *mDAct;
+  float totalJobs;
+  std::string sort_by;
   std::vector<int> vid_list;
   std::map<int,int> iconLookup;
   std::vector<VidFile *> vidFiles;
   std::vector<QStandardItem *> * iconVec;
-  QTimer * p_timer;
-  std::vector<bfs::path> video_files;
+  qvdb_config * qCfg ;
+  qvdb_metadata * qMD;
   video_utils * vu;
+  QProgressBar * progress_bar;
+  QListView * fFBox;
+  QStandardItemModel * fModel;
+  Qt::SortOrder sOrder;
+  QPushButton * asc_button;
+  QAction *mDAct;
+  QTimer * p_timer;
 };
 
 #endif //QVBROWSER_H

@@ -17,7 +17,7 @@ class DbConnector {
 
   DbConnector(bfs::path & path);
 
-  std::string createPath(bfs::path & path, int vid, std::string extension);
+  bfs::path createPath(bfs::path & path, int vid, std::string extension);
 
   bool video_exists(bfs::path & filename);
 
@@ -27,9 +27,9 @@ class DbConnector {
 
   void save_video(VidFile *a);
 
-  std::string fetch_icon(int vid);
+  bfs::path fetch_icon(int vid);
 
-  void save_icon(int vid);
+  bfs::path save_icon(int vid);
 
   void save_crop(VidFile *a);
 

@@ -146,12 +146,13 @@ void QVBrowser::closeEvent(QCloseEvent *event) {
 void QVBrowser::populate_icons(bool clean) {
   if(clean) {
     vid_list.clear();
-    video_files.clear();
+    vidFiles.clear();
     delete fModel;
     delete iconVec;
   }
   iconVec =  new std::vector<QStandardItem *>;
-  int nItems = vu->make_vids(vidFiles);
+  int nItems = vu->make_vids(vidFiles);  //vidFiles contains those we already have in db, nItems is total icons.
+  totalJobs = nItems - vidFiles.size();  //So, this is the number left to do.
   loadVidFiles=false;
   if(vidFiles.size() > 0) loadVidFiles = true;
   fModel = new QStandardItemModel(nItems,1,fFBox);
@@ -168,11 +169,9 @@ bool QVBrowser::progress_timeout() {
   if(progressFlag==0) return true;
   update();
   float counter=0.0;
-  float total=0.0;
   float percent=0.0;
   std::chrono::milliseconds timer(1);
   auto res = vu->get_status();
-  total = res.size();
   if(progressFlag==1) {
     std::vector<VidFile*> batch;
     if(vu->getVidBatch(batch)  || loadVidFiles) {
@@ -192,12 +191,12 @@ bool QVBrowser::progress_timeout() {
 	if(iExists) {
 	  b = new QStandardItem();
 	  (*iconVec).push_back(b);
-	  std::string icon_file(vu->fetch_icon(vid));
+	  bfs::path icon_file(vu->fetch_icon(vid));
 	  QPixmap img(QString(icon_file.c_str()));
 	  (*iconVec)[position]->setSizeHint(img.size());
 	  (*iconVec)[position]->setBackground(QBrush(img));
 	  (*iconVec)[position]->setIcon(QIcon());
-	  std::system((boost::format("rm %s") %icon_file).str().c_str());
+	  bfs::remove(icon_file);
 	  vid_list.push_back(0);
 	}
 	else {
@@ -206,10 +205,8 @@ bool QVBrowser::progress_timeout() {
 	  b->setSizeHint(size_hint);
 	  vid_list.push_back(vid);
 	  needIcons.push_back(a);
-	}
-	
+	}	
 	iconLookup[vid]=position;
-	video_files.push_back(a->fileName);
 	b->setData(a->size,Qt::UserRole+1);
 	b->setData(a->length,Qt::UserRole+2);
 	b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
@@ -220,57 +217,60 @@ bool QVBrowser::progress_timeout() {
       vu->start_thumbs(needIcons);
     }
     int i=0;
-    for(auto &b: res) {
-      if(b == std::future_status::ready && vid_list[i] > 0){
-	std::string icon_file = vu->save_icon(vid_list[i]);
+    for(auto &b: res) {  //this leads to alot of redundant looping, perhaps we can remove completed elements from res and and vid_list, or remember the position of the first job which was not completed from the last loop.
+      if(b == std::future_status::ready && vid_list[i] > 0){  //Job is done, icon needs to be added
+	bfs::path icon_file = vu->save_icon(vid_list[i]);
         QPixmap img(QString(icon_file.c_str()));
 	(*iconVec)[i]->setSizeHint(img.size());
 	(*iconVec)[i]->setBackground(QBrush(img));
 	(*iconVec)[i]->setIcon(QIcon());
-	std::system((boost::format("rm %s") %icon_file).str().c_str());
+	bfs::remove(icon_file);
 	vid_list[i]=0;
       }
-      else if(b == std::future_status::ready && vid_list[i]==0) counter+=1.0;
+      else if(b == std::future_status::ready && vid_list[i]==0) counter+=1.0;  //Job is done and icon already added
       i++;	
     }
     fFBox->resize(fFBox->size()+QSize(0,1));  //This is a hack I hope to remove.
     fFBox->resize(fFBox->size()-QSize(0,1));
-    percent = 100.0*counter/total;
-    update_progress(percent,(boost::format("Creating Icons: %i/%i: %%p%% Complete") % counter % total).str());
-    if(counter == total) {
+    percent = 100.0*counter/totalJobs;
+    if(counter < totalJobs) {
+      update_progress(percent,(boost::format("Creating Icons: %i/%i: %%p%% Complete") % counter % totalJobs).str());
+    }
+    else if(counter == totalJobs) {
       update_progress(100,"Icons Complete");
       update_sort();
+      p_timer->stop();
       return false;
     }
     else return true;
   }
   else if(progressFlag==2) { 
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
-    percent = 100.0*counter/total;
+    percent = 100.0*counter/totalJobs;
     if(percent < 100) {
-      update_progress(percent,(boost::format("Creating Traces %i/%i: %%p%% Complete") % counter % total).str());
+      update_progress(percent,(boost::format("Creating Traces %i/%i: %%p%% Complete") % counter % totalJobs).str());
       return true;
     }
     else {   //once traces are done, compare.
     update_progress(100,"Traces Complete");
-    vu->compare_traces();
+    totalJobs = vu->compare_traces();
     progressFlag=3;
     return true;
     }
   }
-  else if(progressFlag==3 && total > 0) {  
+  else if(progressFlag==3 && totalJobs > 0) {  
     for(auto &a: res) if(a == std::future_status::ready) counter+=1.0;
-    percent = 100.0*counter/total;
+    percent = 100.0*counter/totalJobs;
     if(percent < 100)  {
       update_progress(percent,"Comparing Videos: %p% Complete");
       return true;
     }
     else {
       update_progress(100,"Done Dupe Hunting");
+      p_timer->stop();
       return false;    
     }
   }
-  p_timer->start(qCfg->get_int("progress_time"));
   return true;
 }
 
@@ -286,8 +286,8 @@ void QVBrowser::browse_clicked() {
   QStringList fileNames;
   if(dialog.exec()) {
     fileNames = dialog.selectedFiles();
-    std::vector<std::string> files;
-    for(auto &a: fileNames) files.push_back(a.toStdString());
+    std::vector<bfs::path> files;
+    for(auto &a: fileNames) files.push_back(bfs::path(a.toStdString()));
     vu->set_paths(files);
     populate_icons(true);
   }
@@ -302,7 +302,7 @@ void QVBrowser::fdupe_clicked(){
   vu->compare_icons();
   progressFlag=2;
   p_timer->start(qCfg->get_int("progress_time"));
-  vu->start_make_traces(vidFiles);
+  totalJobs = vu->start_make_traces(vidFiles);
   return;
 }
 
