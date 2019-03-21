@@ -4,6 +4,7 @@
 #include <set>
 #include <cxxpool.h>
 #include <boost/filesystem.hpp>
+#include <mutex>
 #if defined(_WIN32)
  #define PLATFORM_NAME "windows" // Windows
 #elif defined(_WIN64)
@@ -95,6 +96,7 @@ class video_utils
   std::vector<int> fVIDs;
   std::vector<bfs::path> paths;
   std::set<std::string> extensions;
+  std::mutex mtx;
   
 };
 

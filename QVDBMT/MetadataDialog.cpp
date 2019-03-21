@@ -1,6 +1,6 @@
 #include "MetadataDialog.h"
 #include "QVBMetadata.h"
-#include <QMainWindow>
+#include <QWidget>
 #include <QDialogButtonBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -13,7 +13,7 @@
 #include <QGridLayout>
 #include <QLabel>
 
-MetadataDialog::MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvdb_metadata * md)  : fMD(md),fVids(vids) {
+MetadataDialog::MetadataDialog(QWidget * parent,std::vector<int> & vids, qvdb_metadata * md)  : fMD(md),fVids(vids) {
   firstRun = true;
   type_combo = new QComboBox();
   type_combo->setInsertPolicy(QComboBox::InsertAtCurrent);

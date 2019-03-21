@@ -1,7 +1,7 @@
 #include <QDialog>
-#include<boost/variant.hpp>
+#include <boost/variant.hpp>  //can't fwd declare  its a templated type
 
-class QMainWindow;
+class QWidget;
 class QFormLayout;
 class QLineEdit;
 class qvdb_config;
@@ -12,7 +12,7 @@ class ConfigDialog: public QDialog {
 
 public:
 
-  ConfigDialog(QMainWindow * parent, qvdb_config * cfg);
+  ConfigDialog(QWidget * parent, qvdb_config * cfg);
 
   void on_accept();
 

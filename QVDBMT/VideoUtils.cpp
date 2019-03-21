@@ -4,7 +4,6 @@
 #include <QVBConfig.h>
 #include <VidFile.h>
 #include <fstream>
-#include <mutex>
 #include <MediaInfo/MediaInfo.h>
 #include <Magick++.h>
 #include <ZenLib/Ztring.h>
@@ -12,8 +11,6 @@
 #include <boost/algorithm/string.hpp>
 #include <fftw3.h>
 #include <iostream>
-
-std::mutex mtx;
 
 video_utils::video_utils() {
   if(PLATFORM_NAME == "linux") {
@@ -419,7 +416,6 @@ int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
     }    
     //if(!new_db) dbCon->cleanup(path,current_dir_files);  //Bring back
   }
-  std::cout << "starting vid factory for " << pathVs.size() << std::endl; 
   TPool->push([this](std::vector<bfs::path> pathvs) {return vid_factory(pathvs);},pathVs);
   resVec.clear();  //need to do it here because start_thumbs is called multiple times.
   return counter;

@@ -1,13 +1,13 @@
 #include "ConfigDialog.h"
 #include "QVBConfig.h"
-#include <QMainWindow>
+#include <QWidget>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QVBoxLayout>
 #include <QGroupBox>
 #include <QLineEdit>
 
-ConfigDialog::ConfigDialog(QMainWindow * parent,qvdb_config * cfg)  {
+ConfigDialog::ConfigDialog(QWidget * parent, qvdb_config * cfg)  {
   cfgPtr = cfg;
   config = cfg->get_data();
   QGroupBox * flob = new QGroupBox;

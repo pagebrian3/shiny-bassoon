@@ -1,7 +1,7 @@
 #include <QDialog>
 #include <boost/bimap.hpp>
 
-class QMainWindow;
+class QWidget;
 class QComboBox;
 class QListWidget;
 class qvdb_metadata;
@@ -12,7 +12,7 @@ class MetadataDialog: public QDialog {
 
 public:
 
-  MetadataDialog(QMainWindow * parent,std::vector<int> & vids, qvdb_metadata *  md);  //vids may be redundant as they are already in md
+  MetadataDialog(QWidget * parent,std::vector<int> & vids, qvdb_metadata *  md);  //vids may be redundant as they are already in md
 
   void on_accept();
 
