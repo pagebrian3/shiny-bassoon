@@ -13,7 +13,7 @@ sed -i 's/--with-wmf/--with-wmf=no/' PKGBUILD
 #sed -i 's/--with-perl/--with-perl=no/' PKGBUILD
 #sed -i '/--with-perl-options/d' PKGBUILD
 sed -i 's/--with-gslib/--with-gslib=no/' PKGBUILD
-#sed -i 's/--with-xml/--with-xml=no/' PKGBUILD
+sed -i 's/--with-xml/--with-xml=no/' PKGBUILD
 sed -i 's/--with-openexr/--with-openexr=no/' PKGBUILD
 sed -i '/install -Dt/d' PKGBUILD
 sed -i '/^makedepends/ {s/openexr//;s/libwmf//;s/librsvg//;s/libwebp//;s/libraw//;}' PKGBUILD
