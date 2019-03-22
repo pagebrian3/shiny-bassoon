@@ -15,7 +15,7 @@ class DbConnector {
 
  public:
 
-  DbConnector(bfs::path & path);
+  DbConnector(bfs::path & path, bfs::path & tempPath);
 
   bfs::path createPath(bfs::path & path, int vid, std::string extension);
 
@@ -57,7 +57,11 @@ class DbConnector {
 
   sqlite3 * db;
 
-  bfs::path icon_path;
+  bfs::path tmpPath;
+
+  bfs::path db_path;
+
+  bfs::path db_tmp;
 
 };
 

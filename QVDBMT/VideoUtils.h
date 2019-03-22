@@ -54,6 +54,8 @@ class video_utils
 
   void load_trace(int vid);
 
+  void move_traces();
+
   int compare_traces();
 
   int make_vids(std::vector<VidFile *> & vidFiles);
@@ -83,7 +85,7 @@ class video_utils
  private:
   
   cxxpool::thread_pool * TPool;
-  bfs::path tempPath, tracePath;
+  bfs::path tempPath, tracePath, savePath;
   DbConnector * dbCon;
   qvdb_config * appConfig;
   qvdb_metadata * metaData;

@@ -253,6 +253,7 @@ bool QVBrowser::progress_timeout() {
     }
     else {   //once traces are done, compare.
     update_progress(100,"Traces Complete");
+    vu->move_traces();
     totalJobs = vu->compare_traces();
     progressFlag=3;
     return true;

@@ -14,19 +14,22 @@
 
 video_utils::video_utils() {
   if(PLATFORM_NAME == "linux") {
-    tempPath = getenv("HOME");
+    savePath = getenv("HOME");
   }
   else if(PLATFORM_NAME == "windows") {
     std::string temp(getenv("USERPROFILE"));
-    tempPath =temp.substr(temp.find("="));
+    savePath =temp.substr(temp.find("="));
   }
   else std::cout << "Unsupported platform" << std::endl;
-  bfs::path homeP(tempPath);
-  tempPath+="/.video_proj/"; 
-  dbCon = new DbConnector(tempPath);
+  bfs::path homeP(savePath);
+  savePath+="/.video_proj/";
+  tempPath = "/tmp/qvdbtmp/";
+  if(!bfs::exists(tempPath))bfs::create_directory(tempPath);
   tracePath=tempPath;
   tracePath+="traces/";
-  bfs::create_directory(tracePath);
+  if(!bfs::exists(tracePath))bfs::create_directory(tracePath);
+  if(!bfs::exists(savePath)) bfs::create_directory(savePath);
+  dbCon = new DbConnector(savePath,tempPath);
   dbCon->fetch_results(result_map);
   appConfig = new qvdb_config();
   metaData = new qvdb_metadata(dbCon);
@@ -354,11 +357,30 @@ void video_utils::start_thumbs(std::vector<VidFile *> & vFile) {
 
 int video_utils::start_make_traces(std::vector<VidFile *> & vFile) {
   resVec.clear();
+  bfs::path traceDir = savePath;
+  traceDir+="traces/";
   for(auto & b: vFile) {
-    bfs::path tPath(dbCon->createPath(tracePath,b->vid,".bin"));
-   if(!bfs::exists(tPath))resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
+    bfs::path tPath(dbCon->createPath(traceDir,b->vid,".bin"));
+    if(!bfs::exists(tPath)) resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
   }
   return resVec.size();
+}
+
+void video_utils::move_traces() {
+  bfs::path traceSave = savePath;
+  traceSave+="traces/";
+  if(!bfs::exists(traceSave)) bfs::create_directory(traceSave);
+  for(auto & x: bfs::directory_iterator(tracePath)) {
+    auto extension = x.path().extension().c_str();
+    if(strcmp(extension,".bin") == 0) {
+      bfs::path source = x.path();
+      bfs::path destination = traceSave;
+      destination+=relative(source,tracePath);
+      bfs::copy(source,destination);
+    }
+  }
+  bfs::remove_all(tracePath);
+  return;
 }
 
 std::vector<std::future_status>  video_utils::get_status() {
@@ -498,7 +520,9 @@ bool video_utils::getVidBatch(std::vector<VidFile*> & batch) {
 
 
 void video_utils::load_trace(int vid) {
-  std::ifstream dataFile(dbCon->createPath(tracePath,vid,".bin").string(),std::ios::in|std::ios::binary|std::ios::ate);
+  bfs::path traceSave = savePath;
+  traceSave+="traces/";
+  std::ifstream dataFile(dbCon->createPath(traceSave,vid,".bin").string(),std::ios::in|std::ios::binary|std::ios::ate);
   dataFile.seekg (0, dataFile.end);
   int length = dataFile.tellg();
   dataFile.seekg (0, dataFile.beg);

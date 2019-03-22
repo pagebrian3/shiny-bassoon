@@ -5,14 +5,18 @@
 #include <boost/algorithm/string/split.hpp>
 #include <iostream>
 
-DbConnector::DbConnector(bfs::path & appPath) {
-  bfs::path db_path(appPath);
-  icon_path = appPath;
-  if(!bfs::exists(appPath)) bfs::create_directory(appPath);
+DbConnector::DbConnector(bfs::path & appPath,bfs::path & tempPath) {
+  db_path = appPath;
+  tmpPath = tempPath;
   db_path+="vdb.db";
+  db_tmp = tmpPath;
+  db_tmp+="vdb.db";
   bool newFile = true;
-  if (bfs::exists(db_path)) newFile=false;
-   sqlite3_open(db_path.c_str(),&db);
+  if (bfs::exists(db_path)) {
+    newFile=false;
+    bfs::copy(db_path,db_tmp);
+  }  
+  sqlite3_open(db_tmp.c_str(),&db);
   if (newFile) {
     sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob, FOREIGN KEY(vid) REFERENCES videos(vid))",NULL, NULL, NULL);
@@ -26,6 +30,8 @@ DbConnector::DbConnector(bfs::path & appPath) {
 
 void DbConnector::save_db_file() {
   sqlite3_close(db);
+  bfs::copy(db_tmp,db_path);
+  bfs::remove(db_tmp);
 }
 
 VidFile * DbConnector::fetch_video(bfs::path & filename){
@@ -82,7 +88,7 @@ bfs::path DbConnector::fetch_icon(int vid){
     sqlite3_finalize(stmt);
     throw errmsg;
   }
-  bfs::path out_path = createPath(icon_path,vid,".jpg");
+  bfs::path out_path = createPath(tmpPath,vid,".jpg");
   std::ofstream output(out_path.string(), std::ios::out|std::ios::binary|std::ios::ate);
   int size = sqlite3_column_bytes(stmt,0);
   output.write((char*)sqlite3_column_blob(stmt,0),size);
@@ -137,7 +143,7 @@ bfs::path DbConnector::save_icon(int vid) {
   int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,img_dat) VALUES (? , ?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, vid);
-  bfs::path in_path = createPath(icon_path,vid,".jpg");
+  bfs::path in_path = createPath(tmpPath,vid,".jpg");
   std::ifstream input(in_path.string(), std::ios::in|std::ios::binary|std::ios::ate);
   unsigned char * memblock;
   int length;
