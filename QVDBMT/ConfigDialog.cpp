@@ -6,11 +6,15 @@
 #include <QVBoxLayout>
 #include <QGroupBox>
 #include <QLineEdit>
+#include <QScrollArea>
 
 ConfigDialog::ConfigDialog(QWidget * parent, qvdb_config * cfg)  {
   cfgPtr = cfg;
   config = cfg->get_data();
+  setMaximumHeight(cfgPtr->get_int("window_height"));
   QGroupBox * flob = new QGroupBox;
+  QScrollArea * scrollArea = new QScrollArea;
+  scrollArea->setWidget(flob);
   formLayout = new QFormLayout;
   for(auto & a: config) {
     int type = a.second.which();

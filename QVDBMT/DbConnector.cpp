@@ -14,7 +14,7 @@ DbConnector::DbConnector(bfs::path & appPath,bfs::path & tempPath) {
   bool newFile = true;
   if (bfs::exists(db_path)) {
     newFile=false;
-    bfs::copy(db_path,db_tmp);
+    bfs::copy_file(db_path,db_tmp,bfs::copy_option::overwrite_if_exists);
   }  
   sqlite3_open(db_tmp.c_str(),&db);
   if (newFile) {
@@ -30,7 +30,7 @@ DbConnector::DbConnector(bfs::path & appPath,bfs::path & tempPath) {
 
 void DbConnector::save_db_file() {
   sqlite3_close(db);
-  bfs::copy(db_tmp,db_path);
+  bfs::copy_file(db_tmp,db_path,bfs::copy_option::overwrite_if_exists);
   bfs::remove(db_tmp);
 }
 

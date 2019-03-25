@@ -300,7 +300,7 @@ void QVBrowser::fdupe_clicked(){
   vid_list.clear();
   for(auto & vFile: vidFiles) 
     vid_list.push_back(vFile->vid);
-  vu->compare_icons();
+  vu->img_comp_thread();
   progressFlag=2;
   p_timer->start(qCfg->get_int("progress_time"));
   totalJobs = vu->start_make_traces(vidFiles);
