@@ -42,6 +42,8 @@ class video_utils
 
   bool compare_images(int vid1, int vid2);
 
+  void img_comp_thread();
+
   void compare_icons();
 
   std::string find_border(bfs::path & fileName, float length, int height, int width);

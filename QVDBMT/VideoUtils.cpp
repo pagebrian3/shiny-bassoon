@@ -339,6 +339,11 @@ bool video_utils::compare_images(int vid1, int vid2) {
   return false;
 }
 
+void video_utils::img_comp_thread() {
+  TPool->push([&]() {return compare_icons();});
+  return;
+}
+
 void video_utils::compare_icons() {
   for(uint i = 0; i +1 < fVIDs.size(); i++) { 
     for(uint j = i+1; j < fVIDs.size(); j++) {
