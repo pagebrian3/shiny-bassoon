@@ -7,15 +7,19 @@ sed -i 's/--enable-hdri/--enable-hdri=no/' PKGBUILD
 sed -i "/--with-xml/a \\ \\ \\  --without-tiff \\\\" PKGBUILD
 sed -i "/--with-xml/a \\ \\ \\  --without-jbig \\\\" PKGBUILD
 sed -i "/--with-xml/a \\ \\ \\  --without-heic \\\\" PKGBUILD
-sed -i 's/--with-webp/--with-webp=no/' PKGBUILD
-sed -i 's/--with-rsvg/--with-rsvg=no/' PKGBUILD
-sed -i 's/--with-wmf/--with-wmf=no/' PKGBUILD
-#sed -i 's/--with-perl/--with-perl=no/' PKGBUILD
-#sed -i '/--with-perl-options/d' PKGBUILD
-sed -i 's/--with-gslib/--with-gslib=no/' PKGBUILD
-sed -i 's/--with-xml/--with-xml=no/' PKGBUILD
-sed -i 's/--with-openexr/--with-openexr=no/' PKGBUILD
+sed -i "/--with-xml/a \\ \\ \\  --without-raqm \\\\" PKGBUILD
+sed -i "/--with-xml/a \\ \\ \\  --without-fontconfig \\\\" PKGBUILD
+sed -i "/--with-xml/a \\ \\ \\  --without-freetype \\\\" PKGBUILD
+sed -i "/--with-xml/a \\ \\ \\  --without-lcms \\\\" PKGBUILD
+sed -i "/--with-xml/a \\ \\ \\  --without-pango \\\\" PKGBUILD
+sed -i 's/--with-webp/--without-webp/' PKGBUILD
+sed -i 's/--with-rsvg/--without-rsvg/' PKGBUILD
+sed -i 's/--with-wmf/--without-wmf/' PKGBUILD
+sed -i 's/--with-xml/--without-xml/' PKGBUILD
+sed -i 's/--with-openexr/--without-openexr/' PKGBUILD
+sed -i 's/--with-lqr/--without-lqr/' PKGBUILD
 sed -i '/install -Dt/d' PKGBUILD
+sed -i '/make\ check/d' PKGBUILD
 sed -i '/^makedepends/ {s/openexr//;s/libwmf//;s/librsvg//;s/libwebp//;s/libraw//;}' PKGBUILD
 sed -i '/chrpath ocl-icd/ {s/libheif//;s/jbigkit//;}' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/etc' PKGBUILD
