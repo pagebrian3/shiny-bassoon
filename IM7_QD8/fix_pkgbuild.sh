@@ -2,24 +2,22 @@
 
 sed -i 's/libmagick\ imagemagick/libmagick-qd8\ imagemagick/' PKGBUILD
 sed -i 's/libmagick()/libmagick-qd8()/g' PKGBUILD
+sed -i '/\.\/configure/a \ \ \  --disable-docs \\' PKGBUILD
 sed -i '/\.\/configure/a \ \ \  --with-quantum-depth=8 \\' PKGBUILD
 sed -i 's/--enable-hdri/--enable-hdri=no/' PKGBUILD
-sed -i "/--with-xml/a \\ \\ \\  --without-tiff \\\\" PKGBUILD
-sed -i "/--with-xml/a \\ \\ \\  --without-jbig \\\\" PKGBUILD
-sed -i "/--with-xml/a \\ \\ \\  --without-heic \\\\" PKGBUILD
-sed -i "/--with-xml/a \\ \\ \\  --without-raqm \\\\" PKGBUILD
-sed -i "/--with-xml/a \\ \\ \\  --without-fontconfig \\\\" PKGBUILD
-sed -i "/--with-xml/a \\ \\ \\  --without-freetype \\\\" PKGBUILD
-sed -i "/--with-xml/a \\ \\ \\  --without-lcms \\\\" PKGBUILD
-sed -i "/--with-xml/a \\ \\ \\  --without-pango \\\\" PKGBUILD
-sed -i 's/--with-webp/--without-webp/' PKGBUILD
-sed -i 's/--with-rsvg/--without-rsvg/' PKGBUILD
-sed -i 's/--with-wmf/--without-wmf/' PKGBUILD
-sed -i 's/--with-xml/--without-xml/' PKGBUILD
-sed -i 's/--with-openexr/--without-openexr/' PKGBUILD
-sed -i 's/--with-lqr/--without-lqr/' PKGBUILD
+cfg_list="tiff jbig heic raqm fontconfig freetype lcms pango lzma x zlib zstd"
+for config in $cfg_list
+do
+    sed -i "/--with-xml/a \\ \\ \\  --without-$config \\\\" PKGBUILD
+done
+cfg_list2="webp rsvg wmf xml openexr lqr openjp2"
+for config2 in $cfg_list2
+do
+    sed -i "s/--with-$config2/--without-$config2/" PKGBUILD
+done
 sed -i '/install -Dt/d' PKGBUILD
 sed -i '/make\ check/d' PKGBUILD
+sed -i '/pkgdir\/usr\/share\/doc/d' PKGBUILD
 sed -i '/^makedepends/ {s/openexr//;s/libwmf//;s/librsvg//;s/libwebp//;s/libraw//;}' PKGBUILD
 sed -i '/chrpath ocl-icd/ {s/libheif//;s/jbigkit//;}' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/etc' PKGBUILD
