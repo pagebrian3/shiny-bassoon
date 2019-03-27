@@ -10,13 +10,17 @@ for config in $cfg_list
 do
     sed -i "/--with-xml/a \\ \\ \\  --without-$config \\\\" PKGBUILD
 done
-cfg_list2="webp rsvg wmf xml openexr lqr openjp2"
+cfg_list2="webp rsvg wmf xml openexr lqr openjp2 perl"
 for config2 in $cfg_list2
 do
     sed -i "s/--with-$config2/--without-$config2/" PKGBUILD
 done
+sed -i '/perl-options/d' PKGBUILD
 sed -i '/install -Dt/d' PKGBUILD
 sed -i '/make\ check/d' PKGBUILD
+sed -i '/\"$pkgdir\/usr\/lib\/perl5\"\ usr\/lib\//d' PKGBUILD
+sed -i '/\"$pkgdir\/usr\/share\/man\"\ usr\/share\//d' PKGBUILD
+sed -i '/find \"$pkgdir\/usr\/lib\/perl5\"\ -name/d' PKGBUILD
 sed -i '/^makedepends/ {s/openexr//;s/libwmf//;s/librsvg//;s/libwebp//;s/libraw//;}' PKGBUILD
 sed -i '/chrpath ocl-icd/ {s/libheif//;s/jbigkit//;}' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/etc' PKGBUILD
