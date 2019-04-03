@@ -1,0 +1,247 @@
+% LaTeX resume using res.cls
+\documentclass{res}
+%\usepackage{helvetica} % uses helvetica postscript font (download helvetica.sty)
+%\usepackage{newcent}   % uses new century schoolbook postscript font  
+\setlength{\topmargin}{-0.6in}  % Start text higher on the page 
+\setlength{\textheight}{9.8in}  % increase textheight to fit more on a page
+\setlength{\headsep}{0.2in}     % space between header and text
+\setlength{\headheight}{12pt}   % make room for header
+\usepackage{fancyhdr}  % use fancyhdr package to get 2-line header
+\renewcommand{\headrulewidth}{0pt} % suppress line drawn by default by fancyhdr
+\lhead{\hspace*{-\sectionwidth}Brian Page} % force lhead all the way left
+\rhead{Page \thepage}  % put page number at right
+\cfoot{}  % the footer is empty
+\pagestyle{fancy} % set pagestyle for the document
+
+\begin{document} 
+\thispagestyle{empty} % this page does not have a header
+\name{Brian Page}
+\address{5227 Witherspoon Way\\
+Holt, MI 48842\\
+(517) 449 - 3129}
+
+
+\begin{resume}
+\vspace{0.1in}
+
+\section{EDUCATION}
+\vspace{0.1in}  
+    
+    Michigan State University, East Lansing, MI, M.S., Physics, 2008 
+ 
+    Grand Valley State University, Allendale, MI, B.S., Physics, 2006 
+ 
+\section{WORK EXPERIENCE}
+\vspace{0.1in}
+
+	State of Michigan, Department of Technology Management and Budget, Agency Services supporting the Michigan Department of Corrections, March 2015 to present.  System Architect.  Responsibilities include design, implementation, and support of computer systems used by the Michigan Department of Corrections.  Additional responsibilities include web administration and release management.
+	
+\section{RESEARCH EXPERIENCE}
+	\vspace{0.1in}
+	
+	NOvA, Numi Off-axis Neutrino Appearance experiment.  Fermi National Accelerator Laboratory, Batavia, IL. Development of wavelength-shifting fiber scanner for NOvA experiment.  Wrote software for motion control and data acquisition system.
+	
+	ArgoNeuT(T962) liquid argon time projection chamber. Fermi National Accelerator Laboratory, Batavia, IL.  Detector simulation and reconstruction software (C++ code).  Particular areas of interest: digital signal processing, hit-finding, track-finding, other pattern-recognition software. Data analysis.  Design and implementation of DAQ systems.  Work on detector installation and commissioning. 
+	
+\section{SKILLS}
+\vspace{0.1in}
+
+	\begin{itemize}
+	  \item Web Administration (IIS, JBoss, Tomcat, Apache)  
+	  \item TFS Administration (Release Management, Branching/Merging, Builds) 
+	  \item Programming Languages(C/C++, python, bash)
+	  \item Server Administration (Windows and Linux)
+	  \item Network Design and Diagramming
+	  \item Very Familiar with State of Michigan Systems, Procedures, and Regulations
+	  \item Technical Writing and Presentations
+	\end{itemize} 
+    
+\section{PUBLICATIONS}
+\vspace{0.3in}
+%\title{PUBLICATIONS}
+\author{}
+\date{}
+%\maketitle
+\begin{enumerate} \topsep10pt \itemsep10pt
+
+
+%%   LIST OF PAPERS
+%%   Please comment out anything between here and the
+%%   first \item
+%%   Please send any updates or corrections to the list to
+%%   admin@inspirehep.net
+%\cite{Acciarri:2014eit}
+\item%{Acciarri:2014eit}
+{\bf ``First Measurement of Neutrino and Antineutrino Coherent Charged Pion Production on Argon''}
+  \\{}R.~Acciarri {\it et al.}  [ArgoNeuT Collaboration].
+  \\{}arXiv:1408.0598 [hep-ex]
+  
+ %(Aug 4, 2014)
+%\href{http://inspirehep.net/record/1309590}{HEP entry}
+
+
+
+%\cite{Acciarri:2014gev}
+\item%{Acciarri:2014gev}
+{\bf ``The detection of back-to-back proton pairs in Charged-Current neutrino interactions with the ArgoNeuT detector in the NuMI low energy beam line''}
+  \\{}R.~Acciarri {\it et al.}  [ArgoNeuT Collaboration].
+  \\{}arXiv:1405.4261 [nucl-ex]
+    \\{}10.1103/PhysRevD.90.012008
+\\{}Phys.\ Rev.\ D {\bf 90}, 012008 (2014) %(May 16, 2014)
+%\href{http://inspirehep.net/record/1296836}{HEP entry}
+
+
+
+%\cite{Adams:2013vca}
+\item%{Adams:2013vca}
+{\bf ``Scientific Opportunities with the Long-Baseline Neutrino Experiment''}
+  \\{}C.~Adams {\it et al.}  [LBNE Collaboration].
+  
+ %(Jul 28, 2013)
+%\href{http://inspirehep.net/record/1294613}{HEP entry}
+%2 citations counted in INSPIRE as of 10 Sep 2014
+
+
+%\cite{Acciarri:2014isz}
+\item%{Acciarri:2014isz}
+{\bf ``Measurements of Inclusive Muon Neutrino and Antineutrino Charged Current Differential Cross Sections on Argon in the NuMI Antineutrino Beam''}
+  \\{}R.~Acciarri {\it et al.}  [ArgoNeuT Collaboration].
+  \\{}arXiv:1404.4809 [hep-ex]
+    \\{}10.1103/PhysRevD.89.112003
+\\{}Phys.\ Rev.\ D {\bf 89}, 112003 (2014) %(Apr 18, 2014)
+%\href{http://inspirehep.net/record/1291281}{HEP entry}
+%3 citations counted in INSPIRE as of 10 Sep 2014
+
+
+%\cite{Adams:2013qkq}
+\item%{Adams:2013qkq}
+{\bf ``The Long-Baseline Neutrino Experiment: Exploring Fundamental Symmetries of the Universe''}
+  \\{}C.~Adams {\it et al.}  [LBNE Collaboration].
+  \\{}arXiv:1307.7335 [hep-ex]
+  
+ %(Jul 28, 2013)
+%\href{http://inspirehep.net/record/1245018}{HEP entry}
+%79 citations counted in INSPIRE as of 10 Sep 2014
+
+
+%\cite{Acciarri:2013met}
+\item%{Acciarri:2013met}
+{\bf ``A study of electron recombination using highly ionizing particles in the ArgoNeuT Liquid Argon TPC''}
+  \\{}R.~Acciarri {\it et al.}  [ArgoNeuT Collaboration].
+  \\{}arXiv:1306.1712 [physics.ins-det]
+    \\{}10.1088/1748-0221/8/08/P08005
+\\{}JINST {\bf 8}, P08005 (2013) %(Jun 7, 2013)
+%\href{http://inspirehep.net/record/1237673}{HEP entry}
+%4 citations counted in INSPIRE as of 10 Sep 2014
+
+
+%\cite{Anderson:2012vc}
+\item%{Anderson:2012vc}
+{\bf ``The ArgoNeuT Detector in the NuMI Low-Energy beam line at Fermilab''}
+  \\{}C.~Anderson, M.~Antonello, B.~Baller, T.~Bolton, C.~Bromberg, F.~Cavanna, E.~Church and D.~Edmunds {\it et al.}.
+  \\{}arXiv:1205.6747 [physics.ins-det]
+    \\{}10.1088/1748-0221/7/10/P10019
+\\{}JINST {\bf 7}, P10019 (2012) %(May 2012)
+%\href{http://inspirehep.net/record/1116533}{HEP entry}
+%19 citations counted in INSPIRE as of 10 Sep 2014
+
+
+%\cite{Anderson:2012mra}
+\item%{Anderson:2012mra}
+{\bf ``Analysis of a Large Sample of Neutrino-Induced Muons with the ArgoNeuT Detector''}
+  \\{}C.~Anderson {\it et al.}  [ArgoNeuT Collaboration].
+  \\{}arXiv:1205.6702 [physics.ins-det]
+    \\{}10.1088/1748-0221/7/10/P10020
+\\{}JINST {\bf 7}, P10020 (2012) %(May 2012)
+%\href{http://inspirehep.net/record/1116530}{HEP entry}
+%5 citations counted in INSPIRE as of 10 Sep 2014
+
+
+%\cite{Anderson:2011ce}
+\item%{Anderson:2011ce}
+{\bf ``First Measurements of Inclusive Muon Neutrino Charged Current Differential Cross Sections on Argon''}
+  \\{}C.~Anderson {\it et al.}  [ArgoNeuT Collaboration].
+  \\{}arXiv:1111.0103 [hep-ex]
+    \\{}10.1103/PhysRevLett.108.161802
+\\{}Phys.\ Rev.\ Lett.\  {\bf 108}, 161802 (2012) %(Nov 2011)
+%\href{http://inspirehep.net/record/943972}{HEP entry}
+%33 citations counted in INSPIRE as of 10 Sep 2014
+
+
+%\cite{Akiri:2011dv}
+\item%{Akiri:2011dv}
+{\bf ``The 2010 Interim Report of the Long-Baseline Neutrino Experiment Collaboration Physics Working Groups''}
+  \\{}T.~Akiri {\it et al.}  [LBNE Collaboration].
+  \\{}arXiv:1110.6249 [hep-ex]
+  
+ %(Oct 2011)
+%\href{http://inspirehep.net/record/943406}{HEP entry}
+%110 citations counted in INSPIRE as of 10 Sep 2014
+
+%\cite{Ayres:2007tu}
+\item%{Ayres:2007tu}
+{\bf ``The NOvA Technical Design Report''}
+  \\{}D.~S.~Ayres {\it et al.}  [NOvA Collaboration].
+  
+ %(Oct 8, 2007)
+%\href{http://inspirehep.net/record/774999}{HEP entry}
+%46 citations counted in INSPIRE as of 10 Sep 2014
+
+
+
+\end{enumerate}
+
+\section{REFERENCES}
+\vspace{0.1in}
+
+	Brian Harns (Current Manager)\\
+	IT Manager\\
+	State of Michigan, DTMB\\
+	(517) 335-2609 \\
+	harnsb1@michigan.gov\\
+	\\\\\\\\
+	Kelly Raymor (Former Co-Worker)\\
+	Business Analyst\\
+	State of Michigan, DTMB\\
+	(517) 636-5094\\
+	raymork@michigan.gov\\
+	\\
+	Dr. Carl Bromberg (Ph.D. Thesis Advisor)\\
+	Professor of Physics\\
+	Michigan State University\\
+	(517) 884-5580\\
+	bromberg@pa.msu.edu
+
+
+\end{resume}
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
