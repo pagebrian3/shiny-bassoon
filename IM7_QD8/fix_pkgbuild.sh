@@ -18,6 +18,7 @@ sed -i 's/^pkgname=.*/pkgname=libmagick-qd8/' PKGBUILD
 sed -i '/perl-options/d' PKGBUILD
 sed -i '/install -Dt/d' PKGBUILD
 sed -i '/make\ check/d' PKGBUILD
+sed -i '/backup=/d' PKGBUILD
 sed -i '/\"$pkgdir\/usr\/lib\/perl5\"\ usr\/lib\//d' PKGBUILD
 sed -i '/\"$pkgdir\/usr\/share\/man\"\ usr\/share\//d' PKGBUILD
 sed -i 's/mv\ \"\$pkgdir\/usr\/bin\/\"\ usr\//rm\ -r\ \"$pkgdir\/usr\/bin\/\"\ /' PKGBUILD
