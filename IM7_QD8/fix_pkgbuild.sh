@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sed -i 's/libmagick()/libmagick-qd8()/g' PKGBUILD
+sed -i 's/imagemagick()/libmagick-qd8()/g' PKGBUILD
 sed -i '/\.\/configure/a \ \ \  --disable-docs \\' PKGBUILD
 sed -i '/\.\/configure/a \ \ \  --with-quantum-depth=8 \\' PKGBUILD
 sed -i 's/--enable-hdri/--enable-hdri=no/' PKGBUILD
@@ -28,7 +28,8 @@ sed -i '/chrpath ocl-icd/ {s/libheif//;s/jbigkit//;}' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/etc' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/include' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/share' PKGBUILD
+sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/bin' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ find\ \"$pkgdir\"\/usr\/lib\/pkgconfig\/\ -type\ f\ !\ -name\ \"\*Q8\.pc\"\ -delete' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ sed\ -i\ \x27\/\^Requires:\/\ s\/$\/-7\\\.Q8\/\x27\ $pkgdir\/usr\/lib\/pkgconfig\/\*\.pc' PKGBUILD
 sed -i '/pkgdir\/usr\/share\/doc/d' PKGBUILD
-sed -i '/package\ imagemagick()/,$d' PKGBUILD
+sed -i '/package_imagemagick-doc()/,$d' PKGBUILD
