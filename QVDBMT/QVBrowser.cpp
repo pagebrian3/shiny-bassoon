@@ -22,6 +22,7 @@
 #include <QStandardItem>
 #include <QResizeEvent>
 #include <QModelIndex>
+#include <iostream>
 
 QVBrowser::QVBrowser() : QMainWindow() {
   vu = new video_utils();
@@ -172,21 +173,25 @@ bool QVBrowser::progress_timeout() {
   float percent=0.0;
   std::chrono::milliseconds timer(1);
   auto res = vu->get_status();
+  int lastBatch = 0;
   if(progressFlag==1) {
     std::vector<VidFile*> batch;
     if(vu->getVidBatch(batch)  || loadVidFiles) {
       if(loadVidFiles) {
 	loadVidFiles=false;
+	lastBatch=batch.size();
 	batch.insert(batch.end(),vidFiles.begin(), vidFiles.end());
       }
       QIcon initIcon = QIcon::fromTheme("image-missing");
       QSize size_hint = QSize(qCfg->get_int("thumb_height"),qCfg->get_int("thumb_width"));
       std::vector<VidFile*> needIcons;
+      int list_counter=0;
       for(auto &a: batch) {
 	int position=(*iconVec).size();
 	int vid = a->vid;
 	bool iExists = vu->thumb_exists(vid);
-	vidFiles.push_back(a);
+	if(list_counter < lastBatch) vidFiles.push_back(a);
+	list_counter++;
 	QStandardItem * b;
 	if(iExists) {
 	  b = new QStandardItem();
@@ -240,6 +245,7 @@ bool QVBrowser::progress_timeout() {
       update_progress(100,"Icons Complete");
       update_sort();
       p_timer->stop();
+      std::cout << "Icons done # files: " << vidFiles.size() << std::endl;
       return false;
     }
     else return true;
@@ -296,6 +302,7 @@ void QVBrowser::browse_clicked() {
 }
 
 void QVBrowser::fdupe_clicked(){
+  std::cout <<"Number of vidFiles: " <<vidFiles.size()<< std::endl;
   std::vector<VidFile *> videos;
   vid_list.clear();
   for(auto & vFile: vidFiles) 
