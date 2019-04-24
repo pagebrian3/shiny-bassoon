@@ -33,4 +33,3 @@ sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ find\ \"$pkgdir\"\/usr\/lib\/pkgconf
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ sed\ -i\ \x27\/\^Requires:\/\ s\/$\/-7\\\.Q8\/\x27\ $pkgdir\/usr\/lib\/pkgconfig\/\*\.pc' PKGBUILD
 sed -i '/pkgdir\/usr\/share\/doc/d' PKGBUILD
 sed -i '/package_imagemagick-doc()/,$d' PKGBUILD
-sed -i 's/41/42/' PKGBUILD
