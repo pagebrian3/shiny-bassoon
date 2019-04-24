@@ -27,8 +27,11 @@ video_utils::video_utils() {
   if(!bfs::exists(tempPath))bfs::create_directory(tempPath);
   tracePath=tempPath;
   tracePath+="traces/";
+  thumbPath=savePath;
+  thumbPath+="thumbs/";
   if(!bfs::exists(tracePath))bfs::create_directory(tracePath);
   if(!bfs::exists(savePath)) bfs::create_directory(savePath);
+  if(!bfs::exists(thumbPath)) bfs::create_directory(thumbPath);
   dbCon = new DbConnector(savePath,tempPath);
   dbCon->fetch_results(result_map);
   appConfig = new qvdb_config();
@@ -192,13 +195,9 @@ bool video_utils::calculate_trace(VidFile * obj) {
   float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("trace_time");
   if(obj->length <= start_time) start_time=0.0;
-  bfs::path outPath = dbCon->createPath(tracePath,obj->vid,".bin");
+  bfs::path outPath = createPath(tracePath,obj->vid,".bin");
   std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % fps % obj->crop %outPath ).str().c_str());
   return true; 
-}
-
-bfs::path video_utils::fetch_icon(int vid) {
-  return dbCon->fetch_icon(vid);
 }
 
 bool video_utils::create_thumb(VidFile * vidFile) {
@@ -212,7 +211,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   //else crop.assign("");  //in case it is null
   float thumb_t = appConfig->get_float("thumb_time");
   if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
-  bfs::path icon_file(dbCon->createPath(tempPath,vidFile->vid,".jpg"));
+  bfs::path icon_file(createPath(thumbPath,vidFile->vid,".jpg"));
   std::string command((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
   std::system(command.c_str());
   return true;
@@ -293,15 +292,14 @@ void video_utils::create_image(bfs::path & fileName, float start_time, std::vect
 }
   
 bool video_utils::thumb_exists(int vid) {
-  return dbCon->icon_exists(vid);
+  return bfs::exists(createPath(thumbPath,vid,".jpg"));
 }
 
 Magick::Image *video_utils::get_image(int vid, bool firstImg) {
   if(img_cache.first == vid) return img_cache.second;
-  bfs::path image_file(dbCon->fetch_icon(vid));
+  bfs::path image_file(createPath(thumbPath,vid,"*.jpg"));
   if(firstImg) delete img_cache.second;
   Magick::Image * img = new Magick::Image(image_file.string());
-  bfs::remove(image_file);
   if(firstImg) img_cache = std::make_pair(vid,img);  
   return img;
 }
@@ -365,7 +363,7 @@ int video_utils::start_make_traces(std::vector<VidFile *> & vFile) {
   bfs::path traceDir = savePath;
   traceDir+="traces/";
   for(auto & b: vFile) {
-    bfs::path tPath(dbCon->createPath(traceDir,b->vid,".bin"));
+    bfs::path tPath(createPath(traceDir,b->vid,".bin"));
     if(!bfs::exists(tPath)) resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
   }
   return resVec.size();
@@ -454,10 +452,6 @@ void video_utils::set_paths(std::vector<bfs::path> & folders) {
   return;
 }
 
-bfs::path video_utils::save_icon(int vid) {
-  return dbCon->save_icon(vid);
-}
-
 void video_utils::close() {
   dbCon->save_config(appConfig->get_data());
   dbCon->save_db_file();
@@ -523,11 +517,10 @@ bool video_utils::getVidBatch(std::vector<VidFile*> & batch) {
   return true;
 }
 
-
 void video_utils::load_trace(int vid) {
   bfs::path traceSave = savePath;
   traceSave+="traces/";
-  std::ifstream dataFile(dbCon->createPath(traceSave,vid,".bin").string(),std::ios::in|std::ios::binary|std::ios::ate);
+  std::ifstream dataFile(createPath(traceSave,vid,".bin").string(),std::ios::in|std::ios::binary|std::ios::ate);
   dataFile.seekg (0, dataFile.end);
   int length = dataFile.tellg();
   dataFile.seekg (0, dataFile.beg);
@@ -539,3 +532,10 @@ void video_utils::load_trace(int vid) {
   traceData[vid] = temp;
 }
 
+bfs::path video_utils::createPath(bfs::path & path, int vid, std::string extension) {
+  return bfs::path((boost::format("%s%i%s") % path.string() % vid % extension).str());
+}
+
+bfs::path video_utils::icon_filename(int vid) {
+  return createPath(thumbPath,vid,"*.jpg");
+}

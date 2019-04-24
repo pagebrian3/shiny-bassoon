@@ -21,15 +21,9 @@ class DbConnector {
 
   bool video_exists(bfs::path & filename);
 
-  bool icon_exists(int vid);
-
   VidFile* fetch_video(bfs::path & filename);
 
   void save_video(VidFile *a);
-
-  bfs::path fetch_icon(int vid);
-
-  bfs::path save_icon(int vid);
 
   void save_crop(VidFile *a);
 
@@ -41,7 +35,7 @@ class DbConnector {
 
   void cleanup(bfs::path & dir, std::vector<bfs::path> & files);
 
-  std::vector<std::pair<std::string,boost::variant<int,float,std::string> > >fetch_config();
+  std::vector<std::pair<std::string,boost::variant<int,float,std::string> > > fetch_config();
 
   void save_config(std::map<std::string,boost::variant<int,float,std::string> >  config);
 

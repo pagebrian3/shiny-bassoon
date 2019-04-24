@@ -19,7 +19,6 @@ DbConnector::DbConnector(bfs::path & appPath,bfs::path & tempPath) {
   sqlite3_open(db_tmp.c_str(),&db);
   if (newFile) {
     sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
-    sqlite3_exec(db,"create table icon_blobs(vid integer primary key, img_dat blob, FOREIGN KEY(vid) REFERENCES videos(vid))",NULL, NULL, NULL);
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer, height integer, width integer)", NULL,NULL, NULL);
     sqlite3_exec(db,"create table config(cfg_label text primary key,cfg_type integer,cfg_int integer,cfg_float double,cfg_str text)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table md_types(md_type_index integer primary key not null, md_type_label text unique)",NULL,NULL,NULL);
@@ -72,31 +71,6 @@ VidFile * DbConnector::fetch_video(bfs::path & filename){
   return result;
 }
 
-bfs::path DbConnector::fetch_icon(int vid){
-  sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "SELECT img_dat FROM icon_blobs WHERE vid = ? limit 1", -1, &stmt, NULL);
-  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_int(stmt, 1, vid);    
-  if (rc != SQLITE_OK) {               
-    std::string errmsg(sqlite3_errmsg(db)); 
-    sqlite3_finalize(stmt);            
-    throw errmsg;                      
-  }
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
-    std::string errmsg(sqlite3_errmsg(db));
-    sqlite3_finalize(stmt);
-    throw errmsg;
-  }
-  bfs::path out_path = createPath(tmpPath,vid,".jpg");
-  std::ofstream output(out_path.string(), std::ios::out|std::ios::binary|std::ios::ate);
-  int size = sqlite3_column_bytes(stmt,0);
-  output.write((char*)sqlite3_column_blob(stmt,0),size);
-  sqlite3_finalize(stmt);
-  output.close();
-  return bfs::path(out_path);
-}
-
 void DbConnector::save_video(VidFile* a) {
   a->okflag=1;
   std::string crop_holder("");
@@ -138,69 +112,11 @@ void DbConnector::save_crop(VidFile* a) {
   return;
 }
 
-bfs::path DbConnector::save_icon(int vid) {  
-  sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT INTO icon_blobs (vid,img_dat) VALUES (? , ?) ", -1, &stmt, NULL);
-  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_int(stmt, 1, vid);
-  bfs::path in_path = createPath(tmpPath,vid,".jpg");
-  std::ifstream input(in_path.string(), std::ios::in|std::ios::binary|std::ios::ate);
-  unsigned char * memblock;
-  int length;
-  if (input.is_open()) {
-    std::streampos size = input.tellg();
-    memblock = (unsigned char *)malloc(size);
-    input.seekg (0, std::ios::beg);
-    input.read (reinterpret_cast<char *>(memblock), size);
-    input.close();
-    length = sizeof(unsigned char)*size;
-  }
-  else {
-    std::cout << "File empty/not there. vid: " << vid << " path: " << in_path << " error: " << strerror(errno) << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  rc = sqlite3_bind_blob(stmt, 2, memblock,length, SQLITE_STATIC);
-  if (rc != SQLITE_OK) {               
-    std::string errmsg(sqlite3_errmsg(db)); 
-    sqlite3_finalize(stmt);            
-    throw errmsg;                      
-  }
-  rc = sqlite3_step(stmt); 
-  sqlite3_finalize(stmt);
-  delete[] memblock;
-  return in_path;
-}
-
 bool DbConnector::video_exists(bfs::path & filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM videos WHERE path = ? limit 1)", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_text(stmt, 1, filename.c_str(),-1, NULL);    
-  if (rc != SQLITE_OK) {               
-    std::string errmsg(sqlite3_errmsg(db)); 
-    sqlite3_finalize(stmt);            
-    throw errmsg;                      
-  }
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
-    std::string errmsg(sqlite3_errmsg(db));
-    sqlite3_finalize(stmt);
-    throw errmsg;
-  }
-  if (rc == SQLITE_DONE) {
-    sqlite3_finalize(stmt);
-    throw std::string("video not found");
-  }
-  bool result = sqlite3_column_int(stmt, 0);
-  sqlite3_finalize(stmt);
-  return result;
-}
-
-bool DbConnector::icon_exists(int vid){
-  sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM icon_blobs WHERE vid = ? limit 1)", -1, &stmt, NULL);
-  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  rc = sqlite3_bind_int(stmt, 1, vid);    
   if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 
     sqlite3_finalize(stmt);            
@@ -272,10 +188,6 @@ void DbConnector::update_results(int  i, int  j, int  k) {
   return;
 }
 
-bfs::path DbConnector::createPath(bfs::path & path, int vid, std::string extension) {
-  return bfs::path((boost::format("%s%i%s") % path.string() % vid % extension).str());
-}
-
 void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db,(boost::format("SELECT path,vid FROM videos WHERE path LIKE '%s%%'") % dir.string()).str().c_str(), -1, &stmt, NULL);
@@ -300,10 +212,6 @@ void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
     if(!match) orphans.push_back(a.first);
   }
   for(auto & a: orphans) {
-    rc = sqlite3_prepare_v2(db, "DELETE FROM icon_blobs WHERE vid = ?", -1, &stmt, NULL);
-    rc = sqlite3_bind_int(stmt, 1, a); 
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
     rc = sqlite3_prepare_v2(db, "DELETE FROM videos WHERE vid = ?", -1, &stmt, NULL);
     rc = sqlite3_bind_int(stmt, 1, a); 
     rc = sqlite3_step(stmt);

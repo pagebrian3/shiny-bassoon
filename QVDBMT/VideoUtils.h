@@ -62,15 +62,15 @@ class video_utils
 
   int make_vids(std::vector<VidFile *> & vidFiles);
 
-  bfs::path fetch_icon(int vid);
-
   std::vector<std::future_status> get_status();
 
   std::set<std::string> get_extensions();
 
   void set_paths(std::vector<bfs::path> & paths);
 
-  bfs::path save_icon(int vid);
+  bfs::path createPath(bfs::path & path, int vid, std::string extension);
+
+  bfs::path icon_filename(int vid);
 
   void close();
 
@@ -87,7 +87,7 @@ class video_utils
  private:
   
   cxxpool::thread_pool * TPool;
-  bfs::path tempPath, tracePath, savePath;
+  bfs::path tempPath, tracePath, savePath, thumbPath;
   DbConnector * dbCon;
   qvdb_config * appConfig;
   qvdb_metadata * metaData;

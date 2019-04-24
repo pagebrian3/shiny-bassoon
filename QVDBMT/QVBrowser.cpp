@@ -196,7 +196,7 @@ bool QVBrowser::progress_timeout() {
 	if(iExists) {
 	  b = new QStandardItem();
 	  (*iconVec).push_back(b);
-	  bfs::path icon_file(vu->fetch_icon(vid));
+	  bfs::path icon_file(vu->icon_filename(vid));
 	  QPixmap img(QString(icon_file.c_str()));
 	  (*iconVec)[position]->setSizeHint(img.size());
 	  (*iconVec)[position]->setBackground(QBrush(img));
@@ -210,12 +210,13 @@ bool QVBrowser::progress_timeout() {
 	  b->setSizeHint(size_hint);
 	  vid_list.push_back(vid);
 	  needIcons.push_back(a);
-	}	
+	}
 	iconLookup[vid]=position;
 	b->setData(a->size,Qt::UserRole+1);
 	b->setData(a->length,Qt::UserRole+2);
 	b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
 	b->setData(vid,Qt::UserRole+4);
+	vidFiles.push_back(a);
 	update_tooltip(vid);
 	fModel->appendRow(b);
       }
@@ -224,12 +225,10 @@ bool QVBrowser::progress_timeout() {
     int i=0;
     for(auto &b: res) {  //this leads to alot of redundant looping, perhaps we can remove completed elements from res and and vid_list, or remember the position of the first job which was not completed from the last loop.
       if(b == std::future_status::ready && vid_list[i] > 0){  //Job is done, icon needs to be added
-	bfs::path icon_file = vu->save_icon(vid_list[i]);
-        QPixmap img(QString(icon_file.c_str()));
+        QPixmap img(QString(vu->icon_filename(vid_list[i]).c_str()));
 	(*iconVec)[i]->setSizeHint(img.size());
 	(*iconVec)[i]->setBackground(QBrush(img));
 	(*iconVec)[i]->setIcon(QIcon());
-	bfs::remove(icon_file);
 	vid_list[i]=0;
       }
       else if(b == std::future_status::ready && vid_list[i]==0) counter+=1.0;  //Job is done and icon already added
