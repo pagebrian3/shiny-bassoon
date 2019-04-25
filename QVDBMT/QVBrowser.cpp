@@ -22,7 +22,6 @@
 #include <QStandardItem>
 #include <QResizeEvent>
 #include <QModelIndex>
-#include <iostream>
 
 QVBrowser::QVBrowser() : QMainWindow() {
   vu = new video_utils();
@@ -42,6 +41,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
   sort_combo->addItem("size");
   sort_combo->addItem("length");
   sort_combo->addItem("name");
+  sort_combo->addItem("vid");
   connect(sort_combo, &QComboBox::currentTextChanged,this,&QVBrowser::on_sort_changed);
   progress_bar = new QProgressBar();
   progress_bar->setMinimum(0);
@@ -152,10 +152,8 @@ void QVBrowser::populate_icons(bool clean) {
     delete iconVec;
   }
   iconVec =  new std::vector<QStandardItem *>;
-  int nItems = vu->make_vids(vidFiles);  //vidFiles contains those we already have in db, nItems is total icons.
-  totalJobs = nItems - vidFiles.size();  //So, this is the number left to do.
-  loadVidFiles=false;
-  if(vidFiles.size() > 0) loadVidFiles = true;
+  int nItems = vu->make_vids(loadedVFs);  //loadedVFs contains those we already have in db, nItems is total icons.
+  totalJobs = nItems - loadedVFs.size();  //totalJobs this is the number left to do.
   fModel = new QStandardItemModel(nItems,1,fFBox);
   fFBox->setModel(fModel);
   QItemSelectionModel * selModel = fFBox->selectionModel();
@@ -173,27 +171,26 @@ bool QVBrowser::progress_timeout() {
   float percent=0.0;
   std::chrono::milliseconds timer(1);
   auto res = vu->get_status();
-  int lastBatch = 0;
   if(progressFlag==1) {
     std::vector<VidFile*> batch;
-    if(vu->getVidBatch(batch)  || loadVidFiles) {
-      if(loadVidFiles) {
-	loadVidFiles=false;
-	lastBatch=batch.size();
-	batch.insert(batch.end(),vidFiles.begin(), vidFiles.end());
+    bool batchTest = vu->getVidBatch(batch);
+    if(batchTest || loadedVFs.size() > 0) {
+      if(loadedVFs.size() > 0) {
+	batch.insert(batch.end(),loadedVFs.begin(), loadedVFs.end());
+	loadedVFs.clear();
       }
       QIcon initIcon = QIcon::fromTheme("image-missing");
       QSize size_hint = QSize(qCfg->get_int("thumb_height"),qCfg->get_int("thumb_width"));
       std::vector<VidFile*> needIcons;
       int list_counter=0;
-      for(auto &a: batch) {
+      for(auto &a: batch) {  //loop over vector of completed VidFiles
 	int position=(*iconVec).size();
 	int vid = a->vid;
 	bool iExists = vu->thumb_exists(vid);
-	if(list_counter < lastBatch) vidFiles.push_back(a);
+	vidFiles.push_back(a);
 	list_counter++;
 	QStandardItem * b;
-	if(iExists) {
+	if(iExists) {  //if icon exists set as background and mark as done.
 	  b = new QStandardItem();
 	  (*iconVec).push_back(b);
 	  bfs::path icon_file(vu->icon_filename(vid));
@@ -201,10 +198,9 @@ bool QVBrowser::progress_timeout() {
 	  (*iconVec)[position]->setSizeHint(img.size());
 	  (*iconVec)[position]->setBackground(QBrush(img));
 	  (*iconVec)[position]->setIcon(QIcon());
-	  bfs::remove(icon_file);
 	  vid_list.push_back(0);
 	}
-	else {
+	else {  //if icon doesn't exist add it's vid to vid_list and needIcons
 	  b = new QStandardItem(initIcon,"");
 	  (*iconVec).push_back(b);
 	  b->setSizeHint(size_hint);
@@ -216,7 +212,6 @@ bool QVBrowser::progress_timeout() {
 	b->setData(a->length,Qt::UserRole+2);
 	b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
 	b->setData(vid,Qt::UserRole+4);
-	vidFiles.push_back(a);
 	update_tooltip(vid);
 	fModel->appendRow(b);
       }
@@ -224,14 +219,17 @@ bool QVBrowser::progress_timeout() {
     }
     int i=0;
     for(auto &b: res) {  //this leads to alot of redundant looping, perhaps we can remove completed elements from res and and vid_list, or remember the position of the first job which was not completed from the last loop.
-      if(b == std::future_status::ready && vid_list[i] > 0){  //Job is done, icon needs to be added
-        QPixmap img(QString(vu->icon_filename(vid_list[i]).c_str()));
-	(*iconVec)[i]->setSizeHint(img.size());
-	(*iconVec)[i]->setBackground(QBrush(img));
-	(*iconVec)[i]->setIcon(QIcon());
-	vid_list[i]=0;
+      if(b == std::future_status::ready) { //Job is done, icon needs to be added
+	if(vid_list[i] != 0) {  
+	  bfs::path iconFilename(vu->icon_filename(vid_list[i]));
+	  QPixmap img(QString(iconFilename.c_str()));
+	  (*iconVec)[i]->setSizeHint(img.size());
+	  (*iconVec)[i]->setBackground(QBrush(img));
+	  (*iconVec)[i]->setIcon(QIcon());
+	  vid_list[i]=0;
+	}
+        counter+=1.0;  //Job is done and icon already added
       }
-      else if(b == std::future_status::ready && vid_list[i]==0) counter+=1.0;  //Job is done and icon already added
       i++;	
     }
     fFBox->resize(fFBox->size()+QSize(0,1));  //This is a hack I hope to remove.
@@ -244,7 +242,6 @@ bool QVBrowser::progress_timeout() {
       update_progress(100,"Icons Complete");
       update_sort();
       p_timer->stop();
-      std::cout << "Icons done # files: " << vidFiles.size() << std::endl;
       return false;
     }
     else return true;
@@ -301,7 +298,6 @@ void QVBrowser::browse_clicked() {
 }
 
 void QVBrowser::fdupe_clicked(){
-  std::cout <<"Number of vidFiles: " <<vidFiles.size()<< std::endl;
   std::vector<VidFile *> videos;
   vid_list.clear();
   for(auto & vFile: vidFiles) 
@@ -337,6 +333,7 @@ void QVBrowser::update_sort() {
   int roleIndex = 1;
   if(sort_by == "length") roleIndex=2;
   else if(sort_by == "name") roleIndex=3;
+  else if(sort_by == "vid") roleIndex=4;
   fModel->setSortRole(Qt::UserRole+roleIndex);
   fModel->sort(0,sOrder);
   update();

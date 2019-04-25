@@ -208,7 +208,6 @@ bool video_utils::create_thumb(VidFile * vidFile) {
     vidFile->crop=crop;
     dbCon->save_crop(vidFile);
   }
-  //else crop.assign("");  //in case it is null
   float thumb_t = appConfig->get_float("thumb_time");
   if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
   bfs::path icon_file(createPath(thumbPath,vidFile->vid,".jpg"));
@@ -297,7 +296,7 @@ bool video_utils::thumb_exists(int vid) {
 
 Magick::Image *video_utils::get_image(int vid, bool firstImg) {
   if(img_cache.first == vid) return img_cache.second;
-  bfs::path image_file(createPath(thumbPath,vid,"*.jpg"));
+  bfs::path image_file(createPath(thumbPath,vid,".jpg"));
   if(firstImg) delete img_cache.second;
   Magick::Image * img = new Magick::Image(image_file.string());
   if(firstImg) img_cache = std::make_pair(vid,img);  
@@ -537,5 +536,5 @@ bfs::path video_utils::createPath(bfs::path & path, int vid, std::string extensi
 }
 
 bfs::path video_utils::icon_filename(int vid) {
-  return createPath(thumbPath,vid,"*.jpg");
+  return createPath(thumbPath,vid,".jpg");
 }

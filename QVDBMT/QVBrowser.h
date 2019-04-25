@@ -48,13 +48,13 @@ class QVBrowser: public QMainWindow
 #endif // QT_NO_CONTEXTMENU
     
  private:
-  bool loadVidFiles;
   int progressFlag; //0=none 1=icons 2=traces 3=dupes
   float totalJobs;
   std::string sort_by;
   std::vector<int> vid_list;
   std::map<int,int> iconLookup;
   std::vector<VidFile *> vidFiles;
+  std::vector<VidFile *> loadedVFs;
   std::vector<QStandardItem *> * iconVec;
   qvdb_config * qCfg ;
   qvdb_metadata * qMD;
