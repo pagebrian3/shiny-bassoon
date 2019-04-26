@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <boost/filesystem.hpp>
+#include <boost/timer/timer.hpp>
 
 namespace bfs=boost::filesystem;
 
@@ -56,6 +57,7 @@ class QVBrowser: public QMainWindow
   std::vector<VidFile *> vidFiles;
   std::vector<VidFile *> loadedVFs;
   std::vector<QStandardItem *> * iconVec;
+  boost::timer::auto_cpu_timer * t;
   qvdb_config * qCfg ;
   qvdb_metadata * qMD;
   video_utils * vu;

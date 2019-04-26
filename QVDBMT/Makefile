@@ -3,7 +3,7 @@ CFLAGS  = -I. -std=gnu++14 -march=native -O3 -fPIC
 QTGUIFLAGS = `pkg-config --cflags Qt5Widgets`
 QTMMFLAGS = `pkg-config --cflags Qt5MultimediaWidgets`
 MAGICKFLAGS = `pkg-config --cflags Magick++-7.Q8`
-LDFLAGS = -L/usr/lib/ `pkg-config --libs Qt5MultimediaWidgets` -lboost_filesystem -lsqlite3 -lMagick++-7.Q8 -lmediainfo -lzen -lfftw3f -pthread
+LDFLAGS = -L/usr/lib/ `pkg-config --libs Qt5MultimediaWidgets` -lboost_filesystem -lboost_timer -lsqlite3 -lMagick++-7.Q8 -lmediainfo -lzen -lfftw3f -lopencv_core -lopencv_videoio -lopencv_imgcodecs -pthread
 
 default: qvbrowser
 
@@ -29,7 +29,7 @@ DbConnector.o:  DbConnector.cpp DbConnector.h
 	$(CC) $(CFLAGS) -c DbConnector.cpp
 
 VideoUtils.o:  VideoUtils.cpp VideoUtils.h QVBMetadata.h QVBConfig.h DbConnector.h
-	$(CC) $(CFLAGS) $(MAGICKFLAGS)  -DUNICODE -c VideoUtils.cpp
+	$(CC) $(CFLAGS) $(MAGICKFLAGS) -I /usr/include/opencv4/ -DUNICODE -c VideoUtils.cpp
 
 clean: 
 	$(RM) qvbrowser *.o *~

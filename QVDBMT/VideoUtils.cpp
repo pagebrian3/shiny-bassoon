@@ -11,6 +11,10 @@
 #include <boost/algorithm/string.hpp>
 #include <fftw3.h>
 #include <iostream>
+#include <opencv2/core.hpp>
+#include <opencv2/videoio.hpp>
+#include <opencv2/imgcodecs.hpp>
+
 
 video_utils::video_utils() {
   if(PLATFORM_NAME == "linux") {
@@ -274,9 +278,14 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
 }
 
 void video_utils::create_image(bfs::path & fileName, float start_time, std::vector<uint8_t> * imgDat) {
-  bfs::path temp = tempPath;
-  temp+=bfs::unique_path();
-  temp+=".bin";  
+  //bfs::path temp = tempPath;
+  //temp+=bfs::unique_path();
+  //temp+=".jpg";
+  cv::Mat frame;
+  cv::VideoCapture vCap(fileName.c_str());
+  vCap.set(cv::CAP_PROP_POS_MSEC,1000.0*start_time);
+  vCap >> frame;
+  /*
   std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -vframes 1 -f image2pipe -pix_fmt rgb24 -vcodec rawvideo - > %s") % start_time % fileName % temp).str().c_str());
   std::ifstream dataFile(temp.c_str(),std::ios::in|std::ios::binary|std::ios::ate);
   dataFile.seekg (0, dataFile.end);
@@ -284,9 +293,11 @@ void video_utils::create_image(bfs::path & fileName, float start_time, std::vect
   dataFile.seekg (0, dataFile.beg);
   char buffer[length];
   dataFile.read(buffer,length);
-  dataFile.close();
-  for(int i = 0; i < length; i++) (*imgDat)[i] = buffer[i];
-  bfs::remove(temp);
+  dataFile.close(); */
+  int size = 3*frame.total();
+  for(int i = 0; i < size; i++) (*imgDat)[i] = frame.data[i];
+  //if(imwrite(temp.c_str(),frame)) std::cout <<"Wrote" <<temp.c_str()<< std::endl;
+  //bfs::remove(temp);
   return;
 }
   

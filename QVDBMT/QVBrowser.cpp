@@ -151,6 +151,7 @@ void QVBrowser::populate_icons(bool clean) {
     delete fModel;
     delete iconVec;
   }
+  t = new boost::timer::auto_cpu_timer();
   iconVec =  new std::vector<QStandardItem *>;
   int nItems = vu->make_vids(loadedVFs);  //loadedVFs contains those we already have in db, nItems is total icons.
   totalJobs = nItems - loadedVFs.size();  //totalJobs this is the number left to do.
@@ -239,6 +240,7 @@ bool QVBrowser::progress_timeout() {
       update_progress(percent,(boost::format("Creating Icons: %i/%i: %%p%% Complete") % counter % totalJobs).str());
     }
     else if(counter == totalJobs) {
+      delete t;
       update_progress(100,"Icons Complete");
       update_sort();
       p_timer->stop();
