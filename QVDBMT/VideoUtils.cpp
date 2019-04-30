@@ -200,12 +200,31 @@ bool video_utils::calculate_trace(VidFile * obj) {
   float start_time = appConfig->get_float("trace_time");
   if(obj->length <= start_time) start_time=0.0;
   bfs::path outPath = createPath(tracePath,obj->vid,".bin");
-  std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % fps % obj->crop %outPath ).str().c_str());
+  cv::Mat frame;
+  std::vector<float> times;
+  std::vector<std::vector<uint8_t> > cData;
+  std::vector<uint8_t> cDataHolder(12);
+  cv::VideoCapture vCap((obj->fileName).c_str());
+  vCap.set(cv::CAP_PROP_POS_MSEC,1000.0*start_time);
+  vCap >> frame;
+  while(!frame.empty()) {
+    times.push_back(vCap.get(cv::CAP_PROP_POS_MSEC));
+    Magick::Image mgk(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
+    if(obj->crop.length() > 0) mgk.crop(obj->crop);
+    mgk.scale("2x2!");
+    Magick::Pixels pxls(mgk);
+    const Magick::Quantum * pixels = pxls.getConst(0,0,2,2);
+    for(int i = 0; i < 12; i++) cDataHolder[i]=pixels[i];
+    cData.push_back(cDataHolder);
+    vCap >> frame;
+  }
+  //cubic spline interpolation
+  //std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % fps % obj->crop %outPath ).str().c_str());
   return true; 
 }
 
 bool video_utils::create_thumb(VidFile * vidFile) {
-  int cHeight = appConfig->get_int("thumb_height");
+  std::string thumb_size = appConfig->get_string("thumb_size");
   int cWidth = appConfig->get_int("thumb_width");
   std::string crop(find_border(vidFile->fileName, vidFile->length, vidFile->height, vidFile->width));
   if(crop.length() > 0) {
@@ -215,8 +234,14 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   float thumb_t = appConfig->get_float("thumb_time");
   if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
   bfs::path icon_file(createPath(thumbPath,vidFile->vid,".jpg"));
-  std::string command((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -frames:v 1 -filter:v \"%sscale=w=%d:h=%d:force_original_aspect_ratio=decrease\" %s") % thumb_t % vidFile->fileName % crop % cWidth % cHeight % icon_file).str());
-  std::system(command.c_str());
+  cv::Mat frame;
+  cv::VideoCapture vCap((vidFile->fileName).c_str());
+  vCap.set(cv::CAP_PROP_POS_MSEC,1000.0*thumb_t);
+  vCap >> frame;
+  Magick::Image mgk(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
+  mgk.crop(crop);
+  mgk.resize(thumb_size);
+  mgk.write(icon_file.c_str());
   return true;
 };
 
@@ -266,9 +291,9 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
     while(rowSums[y1] < cCutThresh && y1 < height -1) y1++;
     while(rowSums[y2] < cCutThresh && y2 > 0) y2--;
     if( x1 < x2 and  y1 < y2) { 
-      x2-=x1-1;  
-      y2-=y1-1;
-      crop = (boost::format("crop=%i:%i:%i:%i,")% x2 % y2 % x1 % y1).str();
+      x2-=x1;  
+      y2-=y1;
+      crop = (boost::format("%ix%i+%i+%i,")% x2 % y2 % x1 % y1).str();
     }
     else std::cout << "Find border failed for:" << fileName.string() << std::endl;  
   }
@@ -278,26 +303,12 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
 }
 
 void video_utils::create_image(bfs::path & fileName, float start_time, std::vector<uint8_t> * imgDat) {
-  //bfs::path temp = tempPath;
-  //temp+=bfs::unique_path();
-  //temp+=".jpg";
   cv::Mat frame;
   cv::VideoCapture vCap(fileName.c_str());
   vCap.set(cv::CAP_PROP_POS_MSEC,1000.0*start_time);
   vCap >> frame;
-  /*
-  std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -vframes 1 -f image2pipe -pix_fmt rgb24 -vcodec rawvideo - > %s") % start_time % fileName % temp).str().c_str());
-  std::ifstream dataFile(temp.c_str(),std::ios::in|std::ios::binary|std::ios::ate);
-  dataFile.seekg (0, dataFile.end);
-  int length = dataFile.tellg();
-  dataFile.seekg (0, dataFile.beg);
-  char buffer[length];
-  dataFile.read(buffer,length);
-  dataFile.close(); */
   int size = 3*frame.total();
   for(int i = 0; i < size; i++) (*imgDat)[i] = frame.data[i];
-  //if(imwrite(temp.c_str(),frame)) std::cout <<"Wrote" <<temp.c_str()<< std::endl;
-  //bfs::remove(temp);
   return;
 }
   
