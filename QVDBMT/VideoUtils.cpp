@@ -9,6 +9,7 @@
 #include <ZenLib/Ztring.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/math/interpolators/barycentric_rational.hpp>
 #include <fftw3.h>
 #include <iostream>
 #include <opencv2/core.hpp>
@@ -202,8 +203,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   bfs::path outPath = createPath(tracePath,obj->vid,".bin");
   cv::Mat frame;
   std::vector<float> times;
-  std::vector<std::vector<uint8_t> > cData;
-  std::vector<uint8_t> cDataHolder(12);
+  std::vector<std::vector<float> > cData(12);
   cv::VideoCapture vCap((obj->fileName).c_str());
   vCap.set(cv::CAP_PROP_POS_MSEC,1000.0*start_time);
   vCap >> frame;
@@ -214,12 +214,20 @@ bool video_utils::calculate_trace(VidFile * obj) {
     mgk.scale("2x2!");
     Magick::Pixels pxls(mgk);
     const Magick::Quantum * pixels = pxls.getConst(0,0,2,2);
-    for(int i = 0; i < 12; i++) cDataHolder[i]=pixels[i];
-    cData.push_back(cDataHolder);
+    for(int i = 0; i < 12; i++) cData[i].push_back(pixels[i]);
     vCap >> frame;
   }
-  //cubic spline interpolation
-  //std::system((boost::format("ffmpeg -y -nostats -loglevel 0 -ss %.3f -i %s -filter:v \"framerate=fps=%.3f,%sscale=2x2:flags=fast_bilinear\" -pix_fmt rgb24 -f image2pipe -vcodec rawvideo %s") % start_time % obj->fileName  % fps % obj->crop %outPath ).str().c_str());
+  std::vector<boost::math::barycentric_rational<float> *> interps(12);
+  int tSize = times.size();
+  for(int i = 0; i < 12; i++) interps[i] = new boost::math::barycentric_rational<float> (times.begin(),times.end(),cData[i].begin());
+  std::vector<uint8_t> output(12*tSize);
+  float endT = times.back();
+  float startT = times.front();
+  float incT = 1000.0/fps;
+  for(float j=startT; j < endT; j+=incT) for(int i = 0; i < 12;i++) output.push_back((uint8_t)(*(interps[i]))(j));   
+  std::ofstream outfile(outPath.c_str(),std::ofstream::binary);
+  outfile.write((char*)&(output[0]),output.size());
+  outfile.close();
   return true; 
 }
 
