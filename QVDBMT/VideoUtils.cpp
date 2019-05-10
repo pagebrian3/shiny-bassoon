@@ -3,7 +3,6 @@
 #include <QVBMetadata.h>
 #include <QVBConfig.h>
 #include <VidFile.h>
-#include <fstream>
 #include <MediaInfo/MediaInfo.h>
 #include <Magick++.h>
 #include <ZenLib/Ztring.h>
@@ -11,11 +10,17 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/math/interpolators/barycentric_rational.hpp>
 #include <fftw3.h>
+#include <fstream>
 #include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/imgcodecs.hpp>
-
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libswscale/swscale.h>
+#include <libavutil/imgutils.h>
+}
 
 video_utils::video_utils() {
   if(PLATFORM_NAME == "linux") {
@@ -196,7 +201,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
   return true;
 }
 
-bool video_utils::calculate_trace(VidFile * obj) {
+/*bool video_utils::calculate_trace(VidFile * obj) {
   float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("trace_time");
   if(obj->length <= start_time) start_time=0.0;
@@ -218,16 +223,74 @@ bool video_utils::calculate_trace(VidFile * obj) {
     vCap >> frame;
   }
   std::vector<boost::math::barycentric_rational<float> *> interps(12);
-  int tSize = times.size();
   for(int i = 0; i < 12; i++) interps[i] = new boost::math::barycentric_rational<float> (times.begin(),times.end(),cData[i].begin());
-  std::vector<uint8_t> output(12*tSize);
   float endT = times.back();
   float startT = times.front();
   float incT = 1000.0/fps;
+  int tSize = (endT-startT)/incT;
+  std::vector<uint8_t> output(12*tSize);
   for(float j=startT; j < endT; j+=incT) for(int i = 0; i < 12;i++) output.push_back((uint8_t)(*(interps[i]))(j));   
   std::ofstream outfile(outPath.c_str(),std::ofstream::binary);
   outfile.write((char*)&(output[0]),output.size());
   outfile.close();
+  return true; 
+  }*/
+
+bool video_utils::calculate_trace(VidFile * obj) {
+  float fps = appConfig->get_float("trace_fps");
+  float start_time = appConfig->get_float("trace_time");
+  if(obj->length <= start_time) start_time=0.0;
+  bfs::path outPath = createPath(tracePath,obj->vid,".bin");
+  cv::Mat frame;
+  float time0=1000.0*start_time;
+  float time1=0.0;
+  std::vector<std::vector<float> > cData(12);
+  cv::VideoCapture vCap((obj->fileName).c_str());
+  vCap.set(cv::CAP_PROP_POS_MSEC,time0);
+  float incT = 1000.0/fps;
+   std::vector<uint8_t> output;
+  float avgTime = time0;
+  vCap >> frame;
+  Magick::Image mgk0(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
+  if(obj->crop.length() > 0) mgk0.crop(obj->crop);
+  mgk0.scale("2x2!");
+  float coeff0,coeff1;
+  while(!frame.empty()) {
+    time1 = vCap.get(cv::CAP_PROP_POS_MSEC);
+    if(time1 < avgTime) {
+      time0 = time1;
+      vCap >> frame;
+      Magick::Image mgk(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
+      if(obj->crop.length() > 0) mgk0.crop(obj->crop);
+      mgk.scale("2x2!");
+      mgk0=mgk;
+      continue;
+    }
+    Magick::Image mgk1(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
+    if(obj->crop.length() > 0) mgk1.crop(obj->crop);
+    mgk1.scale("2x2!");
+    if(time1 != time0) {
+      coeff0 = (avgTime-time0)/(time1-time0);
+      coeff1 = 1.0 - coeff0;
+    }
+    else {
+      coeff0 = 1.0;
+      coeff1 = 0.0;
+    }
+    Magick::Pixels pxls0(mgk0);
+    Magick::Pixels pxls1(mgk1);
+    const Magick::Quantum * pixels0 = pxls0.getConst(0,0,2,2);
+    const Magick::Quantum * pixels1 = pxls1.getConst(0,0,2,2);
+    for(int i = 0; i < 12; i++) output.push_back((uint8_t)(coeff0*pixels0[i]+coeff1*pixels1[i]));
+    vCap >> frame;
+    mgk0=mgk1;
+    avgTime+=incT;
+    time0 = time1;
+  }
+  std::ofstream outfile(outPath.c_str(),std::ofstream::binary);
+  outfile.write((char*)&(output[0]),output.size());
+  outfile.close();
+  std::cout << "Trace: " << obj->vid << "done" << std::endl;
   return true; 
 }
 
@@ -242,16 +305,15 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   float thumb_t = appConfig->get_float("thumb_time");
   if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
   bfs::path icon_file(createPath(thumbPath,vidFile->vid,".jpg"));
-  cv::Mat frame;
-  cv::VideoCapture vCap((vidFile->fileName).c_str());
-  vCap.set(cv::CAP_PROP_POS_MSEC,1000.0*thumb_t);
-  vCap >> frame;
-  Magick::Image mgk(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
-  mgk.crop(crop);
+  std::vector<char> * buffer = new std::vector<char>(3*vidFile->height*vidFile->width);
+  libav_frame(vidFile->fileName,1000.0*thumb_t,buffer);
+  Magick::Image mgk(vidFile->width, vidFile->height, "BGR", Magick::CharPixel, (char*)&((*buffer)[0]));
+  if(crop.length() > 0) mgk.crop(crop);
   mgk.resize(thumb_size);
   mgk.write(icon_file.c_str());
+  delete buffer;
   return true;
-};
+}
 
 std::string video_utils::find_border(bfs::path & fileName, float length, int height, int width) {
   std::string crop("");
@@ -259,24 +321,24 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
   float cCutThresh = appConfig->get_float("cut_thresh");
   float frame_time = 0.5*length/(cBFrames+1.0);
   float frame_spacing = length/(cBFrames+1.0);
-  std::vector<uint8_t> * imgDat0 = new std::vector<uint8_t>(width*height*3);
-  std::vector<uint8_t> * imgDat1 = new std::vector<uint8_t>(width*height*3);
-  create_image(fileName, frame_time, imgDat0);
+  std::vector<char> * imgDat0 = new std::vector<char>(width*height*3);
+  std::vector<char> * imgDat1 = new std::vector<char>(width*height*3);
+  libav_frame(fileName, frame_time, imgDat0);
   std::vector<float> rowSums(height);
   std::vector<float> colSums(width);
   float corrFactorCol = 1.0/(float)(cBFrames*height);
   float corrFactorRow = 1.0/(float)(cBFrames*width);
   bool skipBorder = false;
-  std::vector<uint8_t> * ptrHolder;
+  std::vector<char> * ptrHolder;
   for(int i = 0; i < cBFrames; i++) {
     frame_time+=frame_spacing;
-    create_image(fileName,frame_time,imgDat1);
+    libav_frame(fileName,frame_time,imgDat1);
     for (int y=0; y < height; y++)
       for (int x=0; x < width; x++) {
 	int rpos=3*(y*width+x);
 	int gpos=rpos+1;
 	int bpos=gpos+1;
-	float value =sqrt(1.0/3.0*(pow((*imgDat1)[rpos]-(*imgDat0)[rpos],2.0)+pow((*imgDat1)[gpos]-(*imgDat0)[gpos],2.0)+pow((*imgDat1)[bpos]-(*imgDat0)[bpos],2.0)));
+	float value = sqrt(1.0/3.0*(pow((*imgDat1)[rpos]-(*imgDat0)[rpos],2.0)+pow((*imgDat1)[gpos]-(*imgDat0)[gpos],2.0)+pow((*imgDat1)[bpos]-(*imgDat0)[bpos],2.0)));
 	rowSums[y]+=corrFactorRow*value;
 	colSums[x]+=corrFactorCol*value;      
       }
@@ -295,9 +357,9 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
     int x1(0), x2(width-1), y1(0), y2(height-1);
     //This might be taking 1 more pixel in each direction than it should.
     while(colSums[x1] < cCutThresh && x1 < width-1) x1++;
-    while(colSums[x2] < cCutThresh && x2 > 0) x2--;
+    while(colSums[x2] < cCutThresh && x2 > x1) x2--;
     while(rowSums[y1] < cCutThresh && y1 < height -1) y1++;
-    while(rowSums[y2] < cCutThresh && y2 > 0) y2--;
+    while(rowSums[y2] < cCutThresh && y2 > y1) y2--;
     if( x1 < x2 and  y1 < y2) { 
       x2-=x1;  
       y2-=y1;
@@ -310,7 +372,7 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
   return crop;
 }
 
-void video_utils::create_image(bfs::path & fileName, float start_time, std::vector<uint8_t> * imgDat) {
+void video_utils::create_image(bfs::path & fileName, float start_time, std::vector<char> * imgDat) {
   cv::Mat frame;
   cv::VideoCapture vCap(fileName.c_str());
   vCap.set(cv::CAP_PROP_POS_MSEC,1000.0*start_time);
@@ -568,3 +630,68 @@ bfs::path video_utils::createPath(bfs::path & path, int vid, std::string extensi
 bfs::path video_utils::icon_filename(int vid) {
   return createPath(thumbPath,vid,".jpg");
 }
+
+void video_utils::libav_frame(bfs::path & fileName, float start_time, std::vector<char> * imgDat) {
+  AVFormatContext *pFormatContext = NULL;
+  int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
+  if(ret < 0) std::cout << "trouble opening: " << fileName.c_str() << std::endl;
+  avformat_find_stream_info(pFormatContext,  NULL);
+  AVCodec *pCodec;
+  AVCodecParameters *pCodecParameters;
+  int index=0;
+  for (; index < pFormatContext->nb_streams; index++) {
+    pCodecParameters = pFormatContext->streams[index]->codecpar;
+    if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
+      pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
+      break;
+    }
+  }
+  AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
+  avcodec_parameters_to_context(pCodecContext, pCodecParameters);
+  avcodec_open2(pCodecContext, pCodec, NULL);
+  int w = pCodecContext->width;
+  int h = pCodecContext->height;
+  AVPacket *pPacket = av_packet_alloc();
+  AVFrame *pFrame = av_frame_alloc();
+  AVFrame *pFrameRGB = av_frame_alloc();
+  if(!pFrame || !pFrameRGB) {
+    std::cout << "Couldn't allocate frame" << std::endl;
+  }
+  ret = 0;
+  int done = 0;
+  int ts = 0;
+  if(start_time > 0.0) {
+    ret = avformat_seek_file(pFormatContext,index,1000*start_time,1000*start_time,INT64_MAX,0);
+    if(ret < 0) while(av_read_frame(pFormatContext,pPacket) >= 0 && ts <= 1000*start_time) ts = pPacket->pts;
+  }
+  while(av_read_frame(pFormatContext,pPacket) >= 0) {
+    if (pPacket->stream_index == index) {
+      int ret = avcodec_send_packet(pCodecContext, pPacket);
+      if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+	std::cout << "avcodec_send_packet: " << ret << std::endl;
+	break;
+      }
+      while (ret  >= 0) {
+	ret = avcodec_receive_frame(pCodecContext, pFrame);
+	if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || pFrame->key_frame == 0) {
+	  //std::cout << "avcodec_receive_frame: " << ret << std::endl;
+	  break;
+	}
+	else {
+	  done = 1;
+	  break;
+	}
+      }
+    }
+    av_packet_unref(pPacket);
+    if(done) {
+      static struct SwsContext *img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);;
+      if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&((*imgDat)[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
+      std::cout <<fileName.c_str()<< " Time: " << pFrame->pts << std::endl;
+      sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+      return;
+    }
+  }
+  return;
+}
+ 

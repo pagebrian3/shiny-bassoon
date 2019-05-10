@@ -258,6 +258,8 @@ bool QVBrowser::progress_timeout() {
     else {   //once traces are done, compare.
     update_progress(100,"Traces Complete");
     vu->move_traces();
+    delete t;
+    t = new boost::timer::auto_cpu_timer();
     totalJobs = vu->compare_traces();
     progressFlag=3;
     return true;
@@ -273,6 +275,7 @@ bool QVBrowser::progress_timeout() {
     else {
       update_progress(100,"Done Dupe Hunting");
       p_timer->stop();
+      delete t;
       return false;    
     }
   }
@@ -305,6 +308,7 @@ void QVBrowser::fdupe_clicked(){
   for(auto & vFile: vidFiles) 
     vid_list.push_back(vFile->vid);
   vu->img_comp_thread();
+  t = new boost::timer::auto_cpu_timer();
   progressFlag=2;
   p_timer->start(qCfg->get_int("progress_time"));
   totalJobs = vu->start_make_traces(vidFiles);

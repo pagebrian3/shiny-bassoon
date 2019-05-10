@@ -38,7 +38,7 @@ class video_utils
 
   bool create_thumb(VidFile * vFile);
 
-  void create_image(bfs::path & fileName, float start_time, std::vector<uint8_t> * imgDat);
+  void create_image(bfs::path & fileName, float start_time, std::vector<char> * imgDat);
 
   bool compare_images(int vid1, int vid2);
 
@@ -83,6 +83,8 @@ class video_utils
   bool getVidBatch(std::vector<VidFile*> & batch);
 
   bool thumb_exists(int vid);
+
+  void libav_frame(bfs::path & fileName, float start_time, std::vector<char> * imgDat);
 
  private:
   
