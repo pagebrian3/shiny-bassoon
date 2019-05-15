@@ -242,12 +242,12 @@ bool video_utils::calculate_trace(VidFile * obj) {
   if(obj->length <= start_time) start_time=0.0;
   bfs::path outPath = createPath(tracePath,obj->vid,".bin");
   cv::Mat frame;
-  float time0=1000.0*start_time;
+  float time0=start_time;
   float time1=0.0;
   std::vector<std::vector<float> > cData(12);
   cv::VideoCapture vCap((obj->fileName).c_str());
   vCap.set(cv::CAP_PROP_POS_MSEC,time0);
-  float incT = 1000.0/fps;
+  float incT = 1.0/fps;
    std::vector<uint8_t> output;
   float avgTime = time0;
   vCap >> frame;
@@ -306,8 +306,8 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
   bfs::path icon_file(createPath(thumbPath,vidFile->vid,".jpg"));
   std::vector<char> * buffer = new std::vector<char>(3*vidFile->height*vidFile->width);
-  libav_frame(vidFile->fileName,1000.0*thumb_t,buffer);
-  Magick::Image mgk(vidFile->width, vidFile->height, "BGR", Magick::CharPixel, (char*)&((*buffer)[0]));
+  libav_frame(vidFile->fileName,thumb_t,buffer);
+  Magick::Image mgk(vidFile->width, vidFile->height, "RGB", Magick::CharPixel, (char*)&((*buffer)[0]));
   if(crop.length() > 0) mgk.crop(crop);
   mgk.resize(thumb_size);
   mgk.write(icon_file.c_str());
@@ -323,6 +323,7 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
   float frame_spacing = length/(cBFrames+1.0);
   std::vector<char> * imgDat0 = new std::vector<char>(width*height*3);
   std::vector<char> * imgDat1 = new std::vector<char>(width*height*3);
+  //std::cout << fileName.c_str() << " " << frame_time << std::endl;
   libav_frame(fileName, frame_time, imgDat0);
   std::vector<float> rowSums(height);
   std::vector<float> colSums(width);
@@ -332,6 +333,7 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
   std::vector<char> * ptrHolder;
   for(int i = 0; i < cBFrames; i++) {
     frame_time+=frame_spacing;
+    //std::cout << fileName.c_str() << " " << frame_time << std::endl;
     libav_frame(fileName,frame_time,imgDat1);
     for (int y=0; y < height; y++)
       for (int x=0; x < width; x++) {
@@ -367,21 +369,11 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
     }
     else std::cout << "Find border failed for:" << fileName.string() << std::endl;  
   }
-  delete imgDat0;
-  delete imgDat1;
+  //delete imgDat0;
+  //delete imgDat1;
   return crop;
 }
-
-void video_utils::create_image(bfs::path & fileName, float start_time, std::vector<char> * imgDat) {
-  cv::Mat frame;
-  cv::VideoCapture vCap(fileName.c_str());
-  vCap.set(cv::CAP_PROP_POS_MSEC,1000.0*start_time);
-  vCap >> frame;
-  int size = 3*frame.total();
-  for(int i = 0; i < size; i++) (*imgDat)[i] = frame.data[i];
-  return;
-}
-  
+ 
 bool video_utils::thumb_exists(int vid) {
   return bfs::exists(createPath(thumbPath,vid,".jpg"));
 }
@@ -422,9 +414,7 @@ bool video_utils::compare_images(int vid1, int vid2) {
       return true;
     }
   }
-  else {
-    delete img2;
-  }
+  else delete img2;
   return false;
 }
 
@@ -632,17 +622,20 @@ bfs::path video_utils::icon_filename(int vid) {
 }
 
 void video_utils::libav_frame(bfs::path & fileName, float start_time, std::vector<char> * imgDat) {
-  AVFormatContext *pFormatContext = NULL;
+  SwsContext *img_convert_ctx;
+  AVFormatContext *pFormatContext=NULL;
   int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
   if(ret < 0) std::cout << "trouble opening: " << fileName.c_str() << std::endl;
   avformat_find_stream_info(pFormatContext,  NULL);
   AVCodec *pCodec;
   AVCodecParameters *pCodecParameters;
   int index=0;
+  AVRational time_base;
   for (; index < pFormatContext->nb_streams; index++) {
     pCodecParameters = pFormatContext->streams[index]->codecpar;
     if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
       pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
+      time_base = pFormatContext->streams[index]->time_base;
       break;
     }
   }
@@ -652,46 +645,51 @@ void video_utils::libav_frame(bfs::path & fileName, float start_time, std::vecto
   int w = pCodecContext->width;
   int h = pCodecContext->height;
   AVPacket *pPacket = av_packet_alloc();
+  AVPacket* pPacket1 = av_packet_alloc();
   AVFrame *pFrame = av_frame_alloc();
+  AVFrame *closestFrame = av_frame_alloc();
   AVFrame *pFrameRGB = av_frame_alloc();
-  if(!pFrame || !pFrameRGB) {
+  if(!pFrame || !pFrameRGB)
     std::cout << "Couldn't allocate frame" << std::endl;
-  }
-  ret = 0;
-  int done = 0;
+  double tConv = 1.0/av_q2d(time_base);
   int ts = 0;
-  if(start_time > 0.0) {
-    ret = avformat_seek_file(pFormatContext,index,1000*start_time,1000*start_time,INT64_MAX,0);
-    if(ret < 0) while(av_read_frame(pFormatContext,pPacket) >= 0 && ts <= 1000*start_time) ts = pPacket->pts;
-  }
+  bool exit_flag = false;
+  ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
+  if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
-    if (pPacket->stream_index == index) {
-      int ret = avcodec_send_packet(pCodecContext, pPacket);
-      if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-	std::cout << "avcodec_send_packet: " << ret << std::endl;
-	break;
-      }
-      while (ret  >= 0) {
-	ret = avcodec_receive_frame(pCodecContext, pFrame);
-	if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || pFrame->key_frame == 0) {
-	  //std::cout << "avcodec_receive_frame: " << ret << std::endl;
-	  break;
-	}
-	else {
-	  done = 1;
-	  break;
-	}
-      }
-    }
-    av_packet_unref(pPacket);
-    if(done) {
-      static struct SwsContext *img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);;
-      if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&((*imgDat)[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
-      std::cout <<fileName.c_str()<< " Time: " << pFrame->pts << std::endl;
-      sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+    if(pPacket->stream_index != index) continue;
+    int ret = avcodec_send_packet(pCodecContext, pPacket);
+    if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
       return;
     }
+    while (avcodec_receive_frame(pCodecContext, pFrame) == 0) {
+      if(pFrame->pts > start_time*tConv) {
+	exit_flag=true;
+	break;
+      }
+      memcpy(closestFrame,pFrame,sizeof(AVFrame));
+      closestFrame->format         = pFrame->format;
+      closestFrame->width          = pFrame->width;
+      closestFrame->height         = pFrame->height;
+      closestFrame->channels       = pFrame->channels;
+      closestFrame->channel_layout = pFrame->channel_layout;
+      closestFrame->nb_samples     = pFrame->nb_samples;
+      closestFrame->extended_data  = pFrame->extended_data;
+      memcpy(closestFrame->data, pFrame->data, sizeof(pFrame->data));
+      ret = av_frame_copy_props(closestFrame, pFrame);
+    }
+    if(exit_flag) break;   
   }
+  img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
+  if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&((*imgDat)[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
+  sws_scale(img_convert_ctx, closestFrame->data, closestFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+  avformat_close_input(&pFormatContext);
+  sws_freeContext(img_convert_ctx);
+  avcodec_free_context(&pCodecContext);
+  av_frame_free(&pFrame);
+  av_frame_free(&pFrameRGB);
+  //av_frame_free(&closestFrame);  This segfaults need to do proper cleanup.
+  av_packet_free(&pPacket);
   return;
 }
  
