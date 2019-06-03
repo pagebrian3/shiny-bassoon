@@ -30,8 +30,6 @@ class video_utils
 
   video_utils();
 
-  bool compare_vids(int i, int j);
-
   bool compare_vids_fft(int i, int j);
 
   bool calculate_trace(VidFile * obj);
@@ -83,8 +81,6 @@ class video_utils
   bool getVidBatch(std::vector<VidFile*> & batch);
 
   bool thumb_exists(int vid);
-
-  void frameThumb(bfs::path & fileName, double start_time, std::vector<char> & imgDat, std::string & filter);
 
   void frameNoCrop(bfs::path & fileName, double start_time, std::vector<char> & imgDat);
 

@@ -65,47 +65,6 @@ qvdb_metadata * video_utils::mdInterface() {
   return metaData;
 }
 
-bool video_utils::compare_vids(int i, int j) {
-  bool match=false;
-  int counter=0;
-  uint t_s,t_x, t_o, t_d;
-  double cTraceFPS = appConfig->get_float("trace_fps");
-  double cCompTime = appConfig->get_float("comp_time");
-  double cSliceSpacing = appConfig->get_float("slice_spacing");
-  double cThresh = appConfig->get_float("thresh");
-  double cFudge = appConfig->get_float("fudge");
-  //loop over slices
-  for(t_s =0; t_s < traceData[i].size()-12*cTraceFPS*cCompTime; t_s+= 12*cTraceFPS*cSliceSpacing){
-    if(match) break;
-    //starting offset for 2nd trace-this is the loop for the indiviual tests
-    for(t_x=0; t_x < traceData[j].size()-12*cTraceFPS*cCompTime; t_x+=12){
-      if(match) break;
-      std::vector<int> accum(12);
-      //offset loop
-      for(t_o = 0; t_o < 12*cCompTime*cTraceFPS; t_o+=12){
-	counter = 0;
-	for(auto & a : accum) if (a > cThresh*cCompTime*cTraceFPS) counter++;
-	if(counter != 0) break;
-	//pixel/color loop
-	for (t_d = 0; t_d < 12; t_d++) {
-	  double value = fabs((int)traceData[i][t_s+t_o+t_d]-(int)(traceData[j][t_x+t_o+t_d]))-cFudge;
-	  if(value < 0) value = 0;
-	  accum[t_d]+=pow(value,2.0);
-	}
-      }
-      counter = 0;
-      for(auto & a: accum)  if(a < cThresh*cCompTime*cTraceFPS) counter+=1;
-      if(counter == 12) match=true;
-      if(match) std::cout << "ACCUM " <<i<<" " <<j <<" " <<t_o <<" slice " <<t_s <<" 2nd offset " <<t_x <<" " <<*max_element(accum.begin(),accum.end())  <<std::endl;
-    }
-  }
-  std::pair<int,int> key(i,j);
-  if(match) result_map[key]+=2;
-  else if(result_map[key]==0) result_map[key]=4;
-  dbCon->update_results(i,j,result_map[key]);
-  return true;
-}
-
 bool video_utils::compare_vids_fft(int i, int j) {
   bool match=false;
   uint numVars=12;
