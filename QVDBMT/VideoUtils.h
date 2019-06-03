@@ -46,7 +46,7 @@ class video_utils
 
   void compare_icons();
 
-  std::string find_border(bfs::path & fileName, float length, int height, int width);
+  void find_border(VidFile * vidFile, std::vector<char> &data, std::vector<unsigned int> & crop);
 
   Magick::Image * get_image(int vid, bool firstImg);
 
@@ -84,7 +84,9 @@ class video_utils
 
   bool thumb_exists(int vid);
 
-  void libav_frame(bfs::path & fileName, float start_time, std::vector<char> * imgDat);
+  void frameThumb(bfs::path & fileName, double start_time, std::vector<char> & imgDat, std::string & filter);
+
+  void frameNoCrop(bfs::path & fileName, double start_time, std::vector<char> & imgDat);
 
  private:
   

@@ -59,6 +59,13 @@ VidFile * DbConnector::fetch_video(bfs::path & filename){
   } catch(const std::exception& e) {
     std::cout << "Something happened for : " << filename.string() << std::endl;
   }
+  unsigned int * cropArray = NULL;
+  if(crop.length() > 0) {
+    cropArray = new unsigned int[4]; 
+    std::vector<std::string> split_vec;
+    boost::algorithm::split(split_vec, crop, boost::is_any_of(","));
+    for(int i = 0; i < 4; i++) cropArray[i]=std::atoi(split_vec[i].c_str());
+  }
   float length = sqlite3_column_double(stmt,1);
   int size = sqlite3_column_int(stmt,2);
   int flag = sqlite3_column_int(stmt,3);
@@ -67,7 +74,7 @@ VidFile * DbConnector::fetch_video(bfs::path & filename){
   int height = sqlite3_column_int(stmt,6);
   int width = sqlite3_column_int(stmt,7);
   sqlite3_finalize(stmt); 
-  VidFile * result = new VidFile(filename, length, size, flag, vid, crop, rotate, height, width);
+  VidFile * result = new VidFile(filename, length, size, flag, vid, cropArray, rotate, height, width);
   return result;
 }
 
@@ -77,6 +84,16 @@ void DbConnector::save_video(VidFile* a) {
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,crop,length,size,okflag,rotate,width,height) VALUES (?,?,?,?,?,?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+  if(a->crop != NULL)  {
+     std::stringstream ss;
+    int counter=0;
+    while(counter < 3) {
+      ss << a->crop[counter] << ",";
+      counter++;
+    }
+    ss << a->crop[counter]<<std::endl;
+    crop_holder=ss.str();
+  }
   sqlite3_bind_text(stmt, 1, a->fileName.c_str(), -1, NULL);
   sqlite3_bind_text(stmt, 2, crop_holder.c_str(), -1, NULL);
   sqlite3_bind_double(stmt, 3, a->length);
@@ -97,10 +114,21 @@ void DbConnector::save_video(VidFile* a) {
 }
 
 void DbConnector::save_crop(VidFile* a) {
+  std::string crop_holder;
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "UPDATE videos SET crop=? WHERE vid=?", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  sqlite3_bind_text(stmt, 1, a->crop.c_str(), -1, NULL);
+  if(a->crop != NULL)  {
+     std::stringstream ss;
+    int counter=0;
+    while(counter < 3) {
+      ss << a->crop[counter] << ",";
+      counter++;
+    }
+    ss << a->crop[counter]<<std::endl;
+    crop_holder=ss.str();
+  }
+  sqlite3_bind_text(stmt, 1, crop_holder.c_str(), -1, NULL);
   sqlite3_bind_int(stmt, 2, a->vid);
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {

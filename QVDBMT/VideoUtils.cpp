@@ -18,8 +18,8 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
 #include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
 }
 
 video_utils::video_utils() {
@@ -69,11 +69,11 @@ bool video_utils::compare_vids(int i, int j) {
   bool match=false;
   int counter=0;
   uint t_s,t_x, t_o, t_d;
-  float cTraceFPS = appConfig->get_float("trace_fps");
-  float cCompTime = appConfig->get_float("comp_time");
-  float cSliceSpacing = appConfig->get_float("slice_spacing");
-  float cThresh = appConfig->get_float("thresh");
-  float cFudge = appConfig->get_float("fudge");
+  double cTraceFPS = appConfig->get_float("trace_fps");
+  double cCompTime = appConfig->get_float("comp_time");
+  double cSliceSpacing = appConfig->get_float("slice_spacing");
+  double cThresh = appConfig->get_float("thresh");
+  double cFudge = appConfig->get_float("fudge");
   //loop over slices
   for(t_s =0; t_s < traceData[i].size()-12*cTraceFPS*cCompTime; t_s+= 12*cTraceFPS*cSliceSpacing){
     if(match) break;
@@ -88,7 +88,7 @@ bool video_utils::compare_vids(int i, int j) {
 	if(counter != 0) break;
 	//pixel/color loop
 	for (t_d = 0; t_d < 12; t_d++) {
-	  float value = fabs((int)traceData[i][t_s+t_o+t_d]-(int)(traceData[j][t_x+t_o+t_d]))-cFudge;
+	  double value = fabs((int)traceData[i][t_s+t_o+t_d]-(int)(traceData[j][t_x+t_o+t_d]))-cFudge;
 	  if(value < 0) value = 0;
 	  accum[t_d]+=pow(value,2.0);
 	}
@@ -237,7 +237,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
   }*/
 
 bool video_utils::calculate_trace(VidFile * obj) {
-  float fps = appConfig->get_float("trace_fps");
+  /*float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("trace_time");
   if(obj->length <= start_time) start_time=0.0;
   bfs::path outPath = createPath(tracePath,obj->vid,".bin");
@@ -290,57 +290,63 @@ bool video_utils::calculate_trace(VidFile * obj) {
   std::ofstream outfile(outPath.c_str(),std::ofstream::binary);
   outfile.write((char*)&(output[0]),output.size());
   outfile.close();
-  std::cout << "Trace: " << obj->vid << "done" << std::endl;
+  std::cout << "Trace: " << obj->vid << "done" << std::endl;*/
   return true; 
 }
 
 bool video_utils::create_thumb(VidFile * vidFile) {
   std::string thumb_size = appConfig->get_string("thumb_size");
-  int cWidth = appConfig->get_int("thumb_width");
-  std::string crop(find_border(vidFile->fileName, vidFile->length, vidFile->height, vidFile->width));
-  if(crop.length() > 0) {
-    vidFile->crop=crop;
+  int w = vidFile->width;
+  int h = vidFile->height;
+  int vid = vidFile->vid;
+  std::vector<char> first_frame(3*w*h);
+  std::vector<unsigned int> crop(4);
+  find_border(vidFile,first_frame, crop);
+  bfs::path icon_file(createPath(thumbPath,vid,".jpg"));
+  Magick::Image mgk(w, h, "RGB", Magick::CharPixel, &(first_frame[0]));
+  if(crop[0] != -1) {
+    vidFile->crop=&(crop[0]);
     dbCon->save_crop(vidFile);
+    int cropW = w - crop[0] - crop[1];
+    int cropH = h - crop[2] - crop[3];
+    std::string cropStr=(boost::format("%ix%i+%i+%i") % cropW % cropH % crop[0] % crop[2]).str();
+    mgk.crop(cropStr.c_str());
   }
-  float thumb_t = appConfig->get_float("thumb_time");
-  if(vidFile->length < thumb_t) thumb_t = vidFile->length/2.0;
-  bfs::path icon_file(createPath(thumbPath,vidFile->vid,".jpg"));
-  std::vector<char> * buffer = new std::vector<char>(3*vidFile->height*vidFile->width);
-  libav_frame(vidFile->fileName,thumb_t,buffer);
-  Magick::Image mgk(vidFile->width, vidFile->height, "RGB", Magick::CharPixel, (char*)&((*buffer)[0]));
-  if(crop.length() > 0) mgk.crop(crop);
   mgk.resize(thumb_size);
   mgk.write(icon_file.c_str());
-  delete buffer;
   return true;
 }
 
-std::string video_utils::find_border(bfs::path & fileName, float length, int height, int width) {
-  std::string crop("");
+void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame, std::vector<unsigned int> & crop) {
+  bfs::path fileName = vidFile->fileName;
+  int height = vidFile->height;
+  int width = vidFile->width;
+  double length = vidFile->length;
+  double thumb_t = appConfig->get_float("thumb_time");
   int cBFrames = appConfig->get_int("border_frames");
-  float cCutThresh = appConfig->get_float("cut_thresh");
-  float frame_time = 0.5*length/(cBFrames+1.0);
-  float frame_spacing = length/(cBFrames+1.0);
-  std::vector<char> * imgDat0 = new std::vector<char>(width*height*3);
-  std::vector<char> * imgDat1 = new std::vector<char>(width*height*3);
-  //std::cout << fileName.c_str() << " " << frame_time << std::endl;
-  libav_frame(fileName, frame_time, imgDat0);
+  double cCutThresh = appConfig->get_float("cut_thresh");
+  double frame_time = thumb_t;
+  double frame_spacing = (length-thumb_t)/(double)cBFrames;
+  std::vector<char> imgDat0;
+  std::vector<char> imgDat1(3*width*height);
+  frameNoCrop(fileName, frame_time, first_frame);
+  imgDat0 = first_frame;
   std::vector<float> rowSums(height);
   std::vector<float> colSums(width);
   float corrFactorCol = 1.0/(float)(cBFrames*height);
   float corrFactorRow = 1.0/(float)(cBFrames*width);
   bool skipBorder = false;
-  std::vector<char> * ptrHolder;
+  std::vector<char> ptrHolder;
+  bool firstRun;
   for(int i = 0; i < cBFrames; i++) {
     frame_time+=frame_spacing;
-    //std::cout << fileName.c_str() << " " << frame_time << std::endl;
-    libav_frame(fileName,frame_time,imgDat1);
+    frameNoCrop(fileName,frame_time,imgDat1);
     for (int y=0; y < height; y++)
       for (int x=0; x < width; x++) {
 	int rpos=3*(y*width+x);
 	int gpos=rpos+1;
 	int bpos=gpos+1;
-	float value = sqrt(1.0/3.0*(pow((*imgDat1)[rpos]-(*imgDat0)[rpos],2.0)+pow((*imgDat1)[gpos]-(*imgDat0)[gpos],2.0)+pow((*imgDat1)[bpos]-(*imgDat0)[bpos],2.0)));
+	float value = sqrt(1.0/3.0*(pow(imgDat1[rpos]-imgDat0[rpos],2.0)+pow(imgDat1[gpos]-imgDat0[gpos],2.0)+pow(imgDat1[bpos]-imgDat0[bpos],2.0)));
 	rowSums[y]+=corrFactorRow*value;
 	colSums[x]+=corrFactorCol*value;      
       }
@@ -351,27 +357,30 @@ std::string video_utils::find_border(bfs::path & fileName, float length, int hei
       skipBorder=true;
       break;
     }
-    ptrHolder = imgDat1;
+    ptrHolder=imgDat1;
     imgDat1=imgDat0;
     imgDat0=ptrHolder;
   }
   if(!skipBorder) {
-    int x1(0), x2(width-1), y1(0), y2(height-1);
+    unsigned int x1(0), x2(0), y1(0), y2(0);
     //This might be taking 1 more pixel in each direction than it should.
-    while(colSums[x1] < cCutThresh && x1 < width-1) x1++;
-    while(colSums[x2] < cCutThresh && x2 > x1) x2--;
-    while(rowSums[y1] < cCutThresh && y1 < height -1) y1++;
-    while(rowSums[y2] < cCutThresh && y2 > y1) y2--;
-    if( x1 < x2 and  y1 < y2) { 
-      x2-=x1;  
-      y2-=y1;
-      crop = (boost::format("%ix%i+%i+%i,")% x2 % y2 % x1 % y1).str();
+    while(colSums[x1] < cCutThresh && x1 < width) x1++;
+    while(colSums[width-1-x2] < cCutThresh && (x2+x1) < width) x2++;
+    while(rowSums[y1] < cCutThresh && y1 < height ) y1++;
+    while(rowSums[height-1-y2] < cCutThresh && (y2+y1) < height) y2++;
+    if( (x1 + x2) < width &&  (y1 + y2) < height) { 
+      crop[0]=x1;
+      crop[1]=x2;
+      crop[2]=y1;
+      crop[3]=y2;
     }
-    else std::cout << "Find border failed for:" << fileName.string() << std::endl;  
+    else {
+      std::cout << "Find border failed for:" << fileName.string() << std::endl;
+      crop[0] = -1;
+    }
   }
-  //delete imgDat0;
-  //delete imgDat1;
-  return crop;
+  else crop[0] = -1;
+  return;
 }
  
 bool video_utils::thumb_exists(int vid) {
@@ -572,7 +581,7 @@ bool video_utils::vid_factory(std::vector<bfs::path> & files) {
       MI.Option(__T("Inform"),__T("Video;%Width%"));
       int width = ZenLib::Ztring(MI.Inform()).To_int32s();
       MI.Close();
-      VidFile * newVid = new VidFile(fileName, length, size, 0, -1, "", rotate, height, width);
+      VidFile * newVid = new VidFile(fileName, length, size, 0, -1, NULL, rotate, height, width);
       batch.push_back(newVid);
     }
     mtx.lock();
@@ -621,7 +630,7 @@ bfs::path video_utils::icon_filename(int vid) {
   return createPath(thumbPath,vid,".jpg");
 }
 
-void video_utils::libav_frame(bfs::path & fileName, float start_time, std::vector<char> * imgDat) {
+void video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vector<char> & imgDat) {
   SwsContext *img_convert_ctx;
   AVFormatContext *pFormatContext=NULL;
   int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
@@ -662,34 +671,20 @@ void video_utils::libav_frame(bfs::path & fileName, float start_time, std::vecto
     if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
       return;
     }
-    while (avcodec_receive_frame(pCodecContext, pFrame) == 0) {
-      if(pFrame->pts > start_time*tConv) {
-	exit_flag=true;
-	break;
-      }
-      memcpy(closestFrame,pFrame,sizeof(AVFrame));
-      closestFrame->format         = pFrame->format;
-      closestFrame->width          = pFrame->width;
-      closestFrame->height         = pFrame->height;
-      closestFrame->channels       = pFrame->channels;
-      closestFrame->channel_layout = pFrame->channel_layout;
-      closestFrame->nb_samples     = pFrame->nb_samples;
-      closestFrame->extended_data  = pFrame->extended_data;
-      memcpy(closestFrame->data, pFrame->data, sizeof(pFrame->data));
-      ret = av_frame_copy_props(closestFrame, pFrame);
+    if(avcodec_receive_frame(pCodecContext, pFrame) == 0) {
+      exit_flag=true;
+      break;      
     }
     if(exit_flag) break;   
   }
   img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
-  if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&((*imgDat)[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
-  sws_scale(img_convert_ctx, closestFrame->data, closestFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+  if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
+  sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
   avformat_close_input(&pFormatContext);
   sws_freeContext(img_convert_ctx);
   avcodec_free_context(&pCodecContext);
   av_frame_free(&pFrame);
   av_frame_free(&pFrameRGB);
-  //av_frame_free(&closestFrame);  This segfaults need to do proper cleanup.
   av_packet_free(&pPacket);
   return;
 }
- 
