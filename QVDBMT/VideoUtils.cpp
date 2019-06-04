@@ -71,7 +71,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
   float cTraceFPS = appConfig->get_float("trace_fps");
   float cSliceSpacing = appConfig->get_float("slice_spacing");
   float cThresh = appConfig->get_float("thresh");
-  float cFudge = appConfig->get_float("fudge");
+  float cPower = appConfig->get_float("power");
   int trT = cTraceFPS*appConfig->get_float("comp_time");
   int size = 2;  //size of 1 transform  must be a power of 2
   uint length1 = traceData[i].size()/numVars;
@@ -141,7 +141,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
     for(k = 0; k < length2-trT; k++)  {
       sum=0.0;
       for(l=0; l <numVars; l++) sum+=in[numVars*k+l]/(uSize* 6*(compCoeffs[l]+coeffs[numVars*k+l]));
-      result[k]=pow(sum,cFudge);
+      result[k]=pow(sum,cPower);
     }
     float max_val = *max_element(result.begin(),result.end());
     int max_offset = max_element(result.begin(),result.end()) - result.begin();
@@ -160,44 +160,9 @@ bool video_utils::compare_vids_fft(int i, int j) {
   return true;
 }
 
-/*bool video_utils::calculate_trace(VidFile * obj) {
-  float fps = appConfig->get_float("trace_fps");
-  float start_time = appConfig->get_float("trace_time");
-  if(obj->length <= start_time) start_time=0.0;
-  bfs::path outPath = createPath(tracePath,obj->vid,".bin");
-  cv::Mat frame;
-  std::vector<float> times;
-  std::vector<std::vector<float> > cData(12);
-  cv::VideoCapture vCap((obj->fileName).c_str());
-  vCap.set(cv::CAP_PROP_POS_MSEC,1000.0*start_time);
-  vCap >> frame;
-  while(!frame.empty()) {
-    times.push_back(vCap.get(cv::CAP_PROP_POS_MSEC));
-    Magick::Image mgk(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
-    if(obj->crop.length() > 0) mgk.crop(obj->crop);
-    mgk.scale("2x2!");
-    Magick::Pixels pxls(mgk);
-    const Magick::Quantum * pixels = pxls.getConst(0,0,2,2);
-    for(int i = 0; i < 12; i++) cData[i].push_back(pixels[i]);
-    vCap >> frame;
-  }
-  std::vector<boost::math::barycentric_rational<float> *> interps(12);
-  for(int i = 0; i < 12; i++) interps[i] = new boost::math::barycentric_rational<float> (times.begin(),times.end(),cData[i].begin());
-  float endT = times.back();
-  float startT = times.front();
-  float incT = 1000.0/fps;
-  int tSize = (endT-startT)/incT;
-  std::vector<uint8_t> output(12*tSize);
-  for(float j=startT; j < endT; j+=incT) for(int i = 0; i < 12;i++) output.push_back((uint8_t)(*(interps[i]))(j));   
-  std::ofstream outfile(outPath.c_str(),std::ofstream::binary);
-  outfile.write((char*)&(output[0]),output.size());
-  outfile.close();
-  return true; 
-  }*/
-
 bool video_utils::calculate_trace(VidFile * obj) {
   /*float fps = appConfig->get_float("trace_fps");
-  float start_time = appConfig->get_float("trace_time");
+  float start_time = appConfig->get_float("thumb_time");
   if(obj->length <= start_time) start_time=0.0;
   bfs::path outPath = createPath(tracePath,obj->vid,".bin");
   cv::Mat frame;
@@ -261,7 +226,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   std::vector<char> first_frame(3*w*h);
   std::vector<unsigned int> crop(4);
   find_border(vidFile,first_frame, crop);
-  bfs::path icon_file(createPath(thumbPath,vid,".jpg"));
+  bfs::path icon_file(icon_filename(vid));
   Magick::Image mgk(w, h, "RGB", Magick::CharPixel, &(first_frame[0]));
   if(crop[0] != -1) {
     vidFile->crop=&(crop[0]);
@@ -322,7 +287,6 @@ void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
   }
   if(!skipBorder) {
     unsigned int x1(0), x2(0), y1(0), y2(0);
-    //This might be taking 1 more pixel in each direction than it should.
     while(colSums[x1] < cCutThresh && x1 < width) x1++;
     while(colSums[width-1-x2] < cCutThresh && (x2+x1) < width) x2++;
     while(rowSums[y1] < cCutThresh && y1 < height ) y1++;
@@ -343,12 +307,12 @@ void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
 }
  
 bool video_utils::thumb_exists(int vid) {
-  return bfs::exists(createPath(thumbPath,vid,".jpg"));
+  return bfs::exists(icon_filename(vid));
 }
 
 Magick::Image *video_utils::get_image(int vid, bool firstImg) {
   if(img_cache.first == vid) return img_cache.second;
-  bfs::path image_file(createPath(thumbPath,vid,".jpg"));
+  bfs::path image_file(icon_filename(vid));
   if(firstImg) delete img_cache.second;
   Magick::Image * img = new Magick::Image(image_file.string());
   if(firstImg) img_cache = std::make_pair(vid,img);  
@@ -488,7 +452,13 @@ int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
 	counter++;
       }     
     }    
-    //if(!new_db) dbCon->cleanup(path,current_dir_files);  //Bring back
+    std::vector<int> orphans = dbCon->cleanup(path,current_dir_files);
+    bfs::path traceSave = savePath;
+    traceSave+="traces/";
+    for(auto & a: orphans) {
+      bfs::remove(icon_filename(a));
+      bfs::remove(createPath(traceSave,a,".bin"));
+    }
   }
   TPool->push([this](std::vector<bfs::path> pathvs) {return vid_factory(pathvs);},pathVs);
   resVec.clear();  //need to do it here because start_thumbs is called multiple times.

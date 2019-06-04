@@ -1,6 +1,5 @@
 #include <DbConnector.h>
 #include <VidFile.h>
-#include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <iostream>
@@ -11,15 +10,15 @@ DbConnector::DbConnector(bfs::path & appPath,bfs::path & tempPath) {
   db_path+="vdb.db";
   db_tmp = tmpPath;
   db_tmp+="vdb.db";
-  bool newFile = true;
+  newDB = true;
   if (bfs::exists(db_path)) {
-    newFile=false;
+    newDB=false;
     bfs::copy_file(db_path,db_tmp,bfs::copy_option::overwrite_if_exists);
   }  
   sqlite3_open(db_tmp.c_str(),&db);
-  if (newFile) {
-    sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
+  if (newDB) {
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer, height integer, width integer)", NULL,NULL, NULL);
+    sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table config(cfg_label text primary key,cfg_type integer,cfg_int integer,cfg_float double,cfg_str text)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table md_types(md_type_index integer primary key not null, md_type_label text unique)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table md_index(md_idx integer primary key not null, md_type integer not null, md_label text unique)",NULL,NULL,NULL);
@@ -216,44 +215,39 @@ void DbConnector::update_results(int  i, int  j, int  k) {
   return;
 }
 
-void DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
+std::vector<int> DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
+  if(newDB) return std::vector<int>();
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db,(boost::format("SELECT path,vid FROM videos WHERE path LIKE '%s%%'") % dir.string()).str().c_str(), -1, &stmt, NULL);
+  std::vector<int> orphans;
+  std::stringstream ss;
+  ss << "SELECT path,vid FROM videos WHERE path LIKE '" << dir.c_str() <<"%'" << std::endl;
+  int rc = sqlite3_prepare_v2(db,ss.str().c_str(), -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  if (rc != SQLITE_OK) {               
-    std::string errmsg(sqlite3_errmsg(db)); 
-    sqlite3_finalize(stmt);            
-    throw errmsg;                      
-  }
-  std::map<int,bfs::path> videos;
   while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
     bfs::path path1(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
-    int vid = sqlite3_column_int(stmt,1);
-    videos[vid]=path1;
+    auto result = std::find(files.begin(),files.end(),path1);
+    if(result == files.end()) orphans.push_back(sqlite3_column_int(stmt,1));
   }
   sqlite3_finalize(stmt);
-  std::vector<int> orphans;
-  for(auto & a: videos) {
-    bool match = false;
-    for(auto & b: files)   
-      if(a.second==b) match=true;
-    if(!match) orphans.push_back(a.first);
-  }
   for(auto & a: orphans) {
-    rc = sqlite3_prepare_v2(db, "DELETE FROM videos WHERE vid = ?", -1, &stmt, NULL);
-    rc = sqlite3_bind_int(stmt, 1, a); 
-    rc = sqlite3_step(stmt);
+    sqlite3_prepare_v2(db, "DELETE FROM file_mdx WHERE vid = ?", -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, a); 
+    sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-     rc = sqlite3_prepare_v2(db, "DELETE FROM results WHERE v1id = ? OR v2id = ?", -1, &stmt, NULL);
-    rc = sqlite3_bind_int(stmt, 1, a); 
-    rc = sqlite3_bind_int(stmt, 2, a); 
-    rc = sqlite3_step(stmt);
+    sqlite3_prepare_v2(db, "DELETE FROM results WHERE v1id = ? OR v2id = ?", -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, a); 
+    sqlite3_bind_int(stmt, 2, a); 
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    sqlite3_prepare_v2(db, "DELETE FROM videos WHERE vid = ?", -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, a); 
+    sqlite3_step(stmt);
     sqlite3_finalize(stmt);
   }  
-  return;
+  return orphans;
 }
 
-std::vector<std::pair<std::string,boost::variant<int,float,std::string>> >DbConnector::fetch_config() {
+std::vector<std::pair<std::string,boost::variant<int,float,std::string>>> DbConnector::fetch_config() {
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db,"SELECT cfg_label, cfg_type, cfg_int, cfg_float, cfg_str FROM config" , -1, &stmt, NULL);
   if (rc != SQLITE_OK) {               

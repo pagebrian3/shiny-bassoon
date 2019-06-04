@@ -17,8 +17,6 @@ class DbConnector {
 
   DbConnector(bfs::path & path, bfs::path & tempPath);
 
-  bfs::path createPath(bfs::path & path, int vid, std::string extension);
-
   bool video_exists(bfs::path & filename);
 
   VidFile* fetch_video(bfs::path & filename);
@@ -33,7 +31,7 @@ class DbConnector {
 
   void save_db_file();
 
-  void cleanup(bfs::path & dir, std::vector<bfs::path> & files);
+  std::vector<int> cleanup(bfs::path & dir, std::vector<bfs::path> & files);
 
   std::vector<std::pair<std::string,boost::variant<int,float,std::string> > > fetch_config();
 
@@ -48,6 +46,8 @@ class DbConnector {
   bool video_has_md(int vid);
   
  private:
+
+  bool newDB;
 
   sqlite3 * db;
 
