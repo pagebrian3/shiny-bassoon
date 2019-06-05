@@ -1,5 +1,4 @@
 #include <QDialog>
-#include <boost/bimap.hpp>
 
 class QWidget;
 class QComboBox;
