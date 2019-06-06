@@ -32,6 +32,7 @@ class QVBrowser: public QMainWindow
   void browse_clicked();
   void fdupe_clicked();
   void config_clicked();
+  void filter_clicked();
   void asc_clicked();
   void edit_md_clicked();
   void on_sort_changed(const QString & text);
@@ -56,7 +57,7 @@ class QVBrowser: public QMainWindow
   std::map<int,int> iconLookup;
   std::vector<VidFile *> vidFiles;
   std::vector<VidFile *> loadedVFs;
-  std::vector<QStandardItem *> * iconVec;
+  std::vector<QStandardItem *> iconVec;
   boost::timer::auto_cpu_timer * t;
   qvdb_config * qCfg ;
   qvdb_metadata * qMD;

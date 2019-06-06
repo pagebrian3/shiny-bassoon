@@ -39,9 +39,9 @@ class DbConnector {
 
   void load_metadata_labels(std::map<int,std::pair<int,std::string> > & labelLookup, boost::bimap<int, std::string> & typeLookup) ;
 
-  void load_metadata_for_files(std::vector<int> & vids,std::map<int,std::vector<int > > & file_metdata); 
+  void load_metadata_for_files(std::vector<int> & vids,std::map<int,std::set<int > > & file_metdata); 
 
-  void save_metadata(std::map<int,std::vector<int >> & file_metdata,std::map<int,std::pair<int,std::string>> & labelLookup, boost::bimap<int,std::string> & typeLookup);
+  void save_metadata(std::map<int,std::set<int >> & file_metdata,std::map<int,std::pair<int,std::string>> & labelLookup, boost::bimap<int,std::string> & typeLookup);
 
   bool video_has_md(int vid);
   

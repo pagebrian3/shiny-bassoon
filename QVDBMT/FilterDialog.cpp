@@ -8,20 +8,24 @@
 #include <QCheckBox>
 #include <QInputDialog>
 #include <QGridLayout>
-#include <QStandardItem>
+#include <QListView>
+#include <QStandardItemModel>
 #include <QFormLayout>
+#include <QRegularExpression>
+#include <boost/algorithm/string.hpp>
+#include <iostream>
 
-FilterDialog::FilterDialog(QWidget * parent, std::vector<QStandardItem *> & vids, qvdb_metadata * md)  : fMD(md),fVids(vids) { 
+FilterDialog::FilterDialog(QWidget * parent, QListView * listView, qvdb_metadata * md)  : fMD(md),fListView(listView) { 
   QGroupBox * filterBox = new QGroupBox;
   QVBoxLayout * mainLayout = new QVBoxLayout;
   QFormLayout * formLayout = new QFormLayout;
-  std::vector<std::string> labels = { "Minimum Length:", "Maximum Length:", "Minimum Size:", "Maximum Size:", "Filename Regex:"};
+  std::vector<std::string> labels = { "VIDs:","Minimum Length (s):", "Maximum Length (s):", "Minimum Size (MB):", "Maximum Size(MB):", "Filename Regex:"};
   for(auto & l: labels) {
     QLineEdit * tempEntry = new QLineEdit;
     formLayout->addRow(l.c_str(),tempEntry);
-    editPtrs->push_back(tempEntry);
+    linePtrs.push_back(tempEntry);
   }
-  filterBox->addLayout(formLayout);
+  filterBox->setLayout(formLayout);
   mainLayout->addWidget(filterBox);
   auto mdLookup = fMD->md_lookup();
   int columns = 3;
@@ -32,14 +36,15 @@ FilterDialog::FilterDialog(QWidget * parent, std::vector<QStandardItem *> & vids
     for(auto & x : mdLookup) {
       int index = 0;
       if(a.first == x.second.first) {
+	md_lookup.push_back(x.first);
 	QCheckBox * tagCheck = new QCheckBox(x.second.second.c_str());
 	tagCheck->setTristate();
-        grid->addItem(tagCheck,index/columns,index%columns);
-	checkPtrs->push_back(tagCheck);
+        grid->addWidget(tagCheck,index/columns,index%columns);
+	checkPtrs.push_back(tagCheck);
 	index++;
       }
     }
-    tempGroup->addLayout(grid);
+    tempGroup->setLayout(grid);
     mainLayout->addWidget(tempGroup);
   }
   QDialogButtonBox * buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -53,32 +58,95 @@ FilterDialog::FilterDialog(QWidget * parent, std::vector<QStandardItem *> & vids
 
 void FilterDialog::on_accept() {
   std::vector<int> vids;
-  if(editPtrs[0]->isModified()){
-    std::vector<string> strTemp;
-    boost::split(editPtrs[0]->text().toString(),strTemp,boost::is_any_of("\t"));
-    for(auto &tok: strTemp) vids.push_back(atoi(tok));
+  if(linePtrs[0]->isModified() && linePtrs[0]->text().toStdString().length()>0) {
+    char * line = strdup(linePtrs[0]->text().toStdString().c_str());
+    char * pch = strtok (line," ,");    
+    while (pch != NULL)
+      {
+	vids.push_back(atoi(pch));
+	pch = strtok (NULL, " ,");
+      }
   }
   float lengthMin = -1;
-  if(editPtrs[1]->isModified()) lengthMin = editPtrs[1]->text().toFloat();
+  if(linePtrs[1]->isModified()) lengthMin = linePtrs[1]->text().toFloat();
   float lengthMax = -1;
-  if(editPtrs[2]->isModified()) lengthMax = editPtrs[2]->text().toFloat();
+  if(linePtrs[2]->isModified()) lengthMax = linePtrs[2]->text().toFloat();
   float sizeMin = -1;
-  if(editPtrs[3]->isModified()) sizeMin = editPtrs[3]->text().toFloat();
+  if(linePtrs[3]->isModified()) sizeMin = linePtrs[3]->text().toFloat();
   float sizeMax = -1;
-  if(editPtrs[4]->isModified()) sizeMax = editPtrs[4]->text().toFloat();
+  if(linePtrs[4]->isModified()) sizeMax = linePtrs[4]->text().toFloat();
   std::string regex("");
-  if(editPtrs[5]->isModified()) regex = editPtrs[5]->text().toString();
-  std::vector<std::string> acceptTags;
-  std::vector<std::string> rejectTags;
-  for(auto & b: checkPtrs) {
-    if(b->checkState() == Qt::Checked) acceptTags.push_back(b->text().toString());
-    else if(b->checkState() == Qt::PartiallyChecked) rejectTags.push_back(b->text().toString());		 
+  if(linePtrs[5]->isModified()) regex = linePtrs[5]->text().toStdString();
+  QRegularExpression re(regex.c_str());
+  std::set<int> acceptTags;
+  std::set<int> rejectTags;
+  for(int i = 0; i < checkPtrs.size(); i++) {
+    auto state = checkPtrs[i]->checkState();
+    if(state == Qt::Unchecked) continue;
+    else if(state == Qt::Checked) acceptTags.insert(md_lookup[i]);
+    else rejectTags.insert(md_lookup[i]);		 
   }
-  for(auto & a: fVids) {
-    if(vids.size() > 0 && std::find(vids.begin(), vids.end(), a->data(Qt::UserRole+4).toInt()) == vids.end()) {
-      std::cout << "Make vid " << a->data(Qt::UserRole+4).toInt()) << " invisible." << std::endl;
+  auto fModel = fListView->model();
+  auto root_index = fListView->rootIndex();
+  auto rows = fModel->rowCount(root_index);
+  for(int i = 0; i < rows; i++) {
+    fListView->setRowHidden(i,false);
+    auto index = fModel->index(i,0,root_index);
+    int vid = fModel->data(index, Qt::UserRole+4).toInt();
+    if(vids.size() > 0 && std::find(vids.begin(), vids.end(), vid) == vids.end()) {
+      fListView->setRowHidden(i,true);
+      continue;
     }
-  //if(lengthMin > 0 && a->data(Qt::UserRole
+    if(lengthMin != -1 && fModel->data(index, Qt::UserRole+2).toFloat() < lengthMin) {
+      fListView->setRowHidden(i,true);
+      continue;
+    }
+    if(lengthMax != -1 && fModel->data(index, Qt::UserRole+2).toFloat() > lengthMax) {
+      fListView->setRowHidden(i,true);
+      continue;
+    }
+    if(sizeMin != -1 && fModel->data(index, Qt::UserRole+1).toFloat() < sizeMin) {
+      fListView->setRowHidden(i,true);
+      continue;
+    }
+    if(sizeMax != -1 && fModel->data(index, Qt::UserRole+1).toFloat() > sizeMax) {
+      fListView->setRowHidden(i,true);
+      continue;
+    }
+    if(regex.length() > 0)  {
+      QRegularExpressionMatch match = re.match(fModel->data(index, Qt::UserRole+3).toString());
+      if(!match.hasMatch()) {
+	fListView->setRowHidden(i,true);
+	continue;
+      }
+    }
+    std::set<int> vidMD = fMD->mdForFile(vid);
+    if(acceptTags.size() > 0) {
+      bool hasAll = true;
+      for(auto & element: acceptTags) {
+	if(vidMD.count(element) == 0) {  //c++20 contains is better
+	  hasAll = false;
+	  break;
+	}
+      }
+      if(!hasAll) {
+	fListView->setRowHidden(i,true);
+	continue;
+      }
+    }
+    if(rejectTags.size() > 0) {
+      bool hasAny = false;
+      for(auto & element: rejectTags) {
+	if(vidMD.count(element) > 0) { //c++20 contains is better
+	  hasAny = true;
+	  break;
+	}
+      }
+      if(hasAny) {
+	fListView->setRowHidden(i,true);
+	continue;
+      }
+    }
   }
   return;
 }

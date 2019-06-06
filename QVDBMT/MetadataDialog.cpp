@@ -89,14 +89,11 @@ void MetadataDialog::updateLabels() {
     flList->clear();
   }
   if(type_combo->currentText().isEmpty()) return;
-  std::vector<int>mdIDs1 = fMD->mdForFile(fVids[0]);
-  std::vector<int> mdIsx(mdIDs1.size());
-  std::sort(mdIDs1.begin(),mdIDs1.end());
+  std::set<int> mdIDs1 = fMD->mdForFile(fVids[0]);
+  std::set<int> mdIsx;
   for(int i = 1; i < fVids.size(); i++) {
-    std::vector<int> mdIDs2 = fMD->mdForFile(fVids[i]);
-    std::sort(mdIDs2.begin(),mdIDs2.end());  
-    auto it = std::set_intersection(mdIDs1.begin(), mdIDs1.end(),mdIDs2.begin(),mdIDs2.end(),mdIsx.begin());
-    mdIsx.resize(it-mdIsx.begin());
+    std::set<int> mdIDs2 = fMD->mdForFile(fVids[i]); 
+    auto it = std::set_intersection(mdIDs1.begin(), mdIDs1.end(),mdIDs2.begin(),mdIDs2.end(),std::inserter(mdIsx,std::next(mdIsx.begin())));
     mdIDs1 = mdIsx;
   }
   //right now just one file

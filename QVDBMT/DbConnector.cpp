@@ -335,7 +335,7 @@ void DbConnector::load_metadata_labels(std::map<int,std::pair<int,std::string> >
   return;
 }
 
-void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,std::vector<int > > & fileMetadata) {
+void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,std::set<int > > & fileMetadata) {
   for(auto & vid: vids) {
     if(!video_has_md(vid)) continue;
     sqlite3_stmt *stmt;
@@ -356,15 +356,15 @@ void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,s
     std::string tag_str(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
     std::vector<std::string> split_vec;
     boost::algorithm::split(split_vec, tag_str, boost::is_any_of(","));
-    std::vector<int> tag_ids;
-    for(auto & s: split_vec) tag_ids.push_back(std::atoi(s.c_str()));
+    std::set<int> tag_ids;
+    for(auto & s: split_vec) tag_ids.insert(std::atoi(s.c_str()));
     fileMetadata[vid]=tag_ids;
     sqlite3_finalize(stmt); 
   }
   return;
 }
 
-void DbConnector::save_metadata(std::map<int,std::vector<int > > & file_metadata,std::map<int,std::pair<int,std::string> > & labelLookup, boost::bimap<int, std::string> & typeLookup) {
+void DbConnector::save_metadata(std::map<int,std::set<int > > & file_metadata,std::map<int,std::pair<int,std::string> > & labelLookup, boost::bimap<int, std::string> & typeLookup) {
   for(auto & a: typeLookup.left) {
     sqlite3_stmt *stmt;
     int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO  md_types(md_type_index, md_type_label) VALUES (?,?) ", -1, &stmt, NULL);
@@ -409,11 +409,13 @@ void DbConnector::save_metadata(std::map<int,std::vector<int > > & file_metadata
     sqlite3_stmt *stmt;
     std::stringstream ss;
     int counter=0;
+    auto setIter = a.second.begin();
     while(counter < a.second.size()-1) {
-      ss << a.second[counter] << ",";
+      ss << *setIter << ",";
+      setIter++;
       counter++;
     }
-    ss << a.second[counter]<<std::endl;   
+    ss << *setIter<<std::endl;   
     int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO  file_mdx(vid, tagids) VALUES (?,?) ", -1, &stmt, NULL);
     if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
     rc = sqlite3_bind_int(stmt, 1, a.first);

@@ -2,7 +2,7 @@
 
 class QWidget;
 class QCheckBox;
-class QStandardItem;
+class QListView;
 class QLineEdit;
 class qvdb_metadata;
 
@@ -12,14 +12,15 @@ class FilterDialog: public QDialog {
 
 public:
 
-  FilterDialog(QWidget * parent, std::vector<QStandardItem *> & vids, qvdb_metadata *  md);  //vids may be redundant as they are already in md
+  FilterDialog(QWidget * parent, QListView * listView, qvdb_metadata *  md);  //vids may be redundant as they are already in md
 
   void on_accept();
   
 private:
 
   qvdb_metadata * fMD;
-  std::vector<QStandardItem *> fVids;
+  QListView * fListView;
   std::vector<QCheckBox *> checkPtrs;
   std::vector<QLineEdit *> linePtrs;
+  std::vector<int> md_lookup;
 };

@@ -19,7 +19,7 @@ public:
     return;
   };
   
-  std::vector<int> mdForFile(int vid) {
+  std::set<int> mdForFile(int vid) {
     return fileMap[vid];
   };
 
@@ -55,7 +55,7 @@ public:
       ss <<"\n"<< typeLabel << ": ";
       std::vector<std::string> tags;
       int i = 0;
-      for( ; i < fileMap[vid].size(); i++)  if(labelMap[fileMap[vid][i]].first == typeIndex) tags.push_back(labelMap[fileMap[vid][i]].second);
+      for(auto & tagid: fileMap[vid])  if(labelMap[tagid].first == typeIndex) tags.push_back(labelMap[tagid].second);
       for(i=0 ; i +1 < tags.size(); i++)  ss << tags[i] << ", ";
       if(tags.size() > 0)  ss << tags[i] ;
     }
@@ -87,9 +87,7 @@ public:
 	break;
       }
     }
-    auto iter = std::find(fileMap[vid].begin(), fileMap[vid].end(), labelID);
-    if(iter != fileMap[vid].end()) return;
-    else if(labelID != -1) fileMap[vid].push_back(labelID);
+    fileMap[vid].insert(labelID);
     return;
   };
 
@@ -101,8 +99,7 @@ public:
 	break;
       }
     }
-    auto iter = std::find(fileMap[vid].begin(), fileMap[vid].end(), labelID);
-    if(iter != fileMap[vid].end()) fileMap[vid].erase(iter);
+    fileMap[vid].erase(labelID);
     return;
   };
 
@@ -115,7 +112,7 @@ private:
 
   std::map<int,std::pair<int,std::string>> labelMap;
   boost::bimap<int, std::string> typeMap;
-  std::map<int,std::vector<int >> fileMap;
+  std::map<int,std::set<int >> fileMap;
   DbConnector * db;
 };
 

@@ -35,6 +35,8 @@ QVBrowser::QVBrowser() : QMainWindow() {
   connect(browse_button, &QPushButton::clicked, this, &QVBrowser::browse_clicked);
   QPushButton * dupe_button = new QPushButton("Find Dupes");
   connect(dupe_button, &QPushButton::clicked, this, &QVBrowser::fdupe_clicked);
+  QPushButton *filter_button = new QPushButton("Filter"); //replace with icon
+  connect(filter_button, &QPushButton::clicked, this, &QVBrowser::filter_clicked);
   QGroupBox  * sort_opt = new QGroupBox();
   QHBoxLayout * hbox = new QHBoxLayout();  
   QLabel sort_label("Sort by:");
@@ -56,6 +58,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
   hbox->addWidget(&sort_label);
   hbox->addWidget(sort_combo);
   hbox->addWidget(asc_button);
+  hbox->addWidget(filter_button);
   hbox->addWidget(progress_bar);
   hbox->addWidget(dupe_button);
   hbox->addWidget(browse_button);
@@ -84,7 +87,7 @@ QVBrowser::~QVBrowser() {
 void QVBrowser::onSelChanged() {
   QModelIndexList sList = fFBox->selectionModel()->selectedIndexes();
   QStandardItem *  selItem; 
-  for(auto & item: (*iconVec) )  item->setText("");
+  for(auto & item: iconVec )  item->setText("");
   for(int i = 0; i < sList.size(); i++)  {
     selItem = fModel->itemFromIndex(sList[i]);
     selItem->setText("SELECTED");
@@ -139,6 +142,12 @@ void QVBrowser::config_clicked() {
   return;
 }
 
+void QVBrowser::filter_clicked() {
+  FilterDialog * filtDialog = new FilterDialog(this,fFBox,qMD);
+  filtDialog->open();
+  return;
+}
+
 void QVBrowser::closeEvent(QCloseEvent *event) {
   vu->close();
   QMainWindow::closeEvent(event);
@@ -150,13 +159,13 @@ void QVBrowser::populate_icons(bool clean) {
     vid_list.clear();
     vidFiles.clear();
     delete fModel;
-    delete iconVec;
+    for(auto & a: iconVec) delete a;
+    iconVec.clear();
   }
   t = new boost::timer::auto_cpu_timer();
-  iconVec =  new std::vector<QStandardItem *>;
   int nItems = vu->make_vids(loadedVFs);  //loadedVFs contains those we already have in db, nItems is total icons.
   totalJobs = nItems - loadedVFs.size();  //totalJobs this is the number left to do.
-  fModel = new QStandardItemModel(nItems,1,fFBox);
+  fModel = new QStandardItemModel(0,1,fFBox);
   fFBox->setModel(fModel);
   QItemSelectionModel * selModel = fFBox->selectionModel();
   connect(selModel,&QItemSelectionModel::selectionChanged,this,&QVBrowser::onSelChanged);
@@ -186,7 +195,7 @@ bool QVBrowser::progress_timeout() {
       std::vector<VidFile*> needIcons;
       int list_counter=0;
       for(auto &a: batch) {  //loop over vector of completed VidFiles
-	int position=(*iconVec).size();
+	int position=iconVec.size();
 	int vid = a->vid;
 	bool iExists = vu->thumb_exists(vid);
 	vidFiles.push_back(a);
@@ -194,17 +203,17 @@ bool QVBrowser::progress_timeout() {
 	QStandardItem * b;
 	if(iExists) {  //if icon exists set as background and mark as done.
 	  b = new QStandardItem();
-	  (*iconVec).push_back(b);
+	  iconVec.push_back(b);
 	  bfs::path icon_file(vu->icon_filename(vid));
 	  QPixmap img(QString(icon_file.c_str()));
-	  (*iconVec)[position]->setSizeHint(img.size());
-	  (*iconVec)[position]->setBackground(QBrush(img));
-	  (*iconVec)[position]->setIcon(QIcon());
+	  iconVec[position]->setSizeHint(img.size());
+	  iconVec[position]->setBackground(QBrush(img));
+	  iconVec[position]->setIcon(QIcon());
 	  vid_list.push_back(0);
 	}
 	else {  //if icon doesn't exist add it's vid to vid_list and needIcons
 	  b = new QStandardItem(initIcon,"");
-	  (*iconVec).push_back(b);
+	  iconVec.push_back(b);
 	  b->setSizeHint(size_hint);
 	  vid_list.push_back(vid);
 	  needIcons.push_back(a);
@@ -225,9 +234,9 @@ bool QVBrowser::progress_timeout() {
 	if(vid_list[i] != 0) {  
 	  bfs::path iconFilename(vu->icon_filename(vid_list[i]));
 	  QPixmap img(QString(iconFilename.c_str()));
-	  (*iconVec)[i]->setSizeHint(img.size());
-	  (*iconVec)[i]->setBackground(QBrush(img));
-	  (*iconVec)[i]->setIcon(QIcon());
+	  iconVec[i]->setSizeHint(img.size());
+	  iconVec[i]->setBackground(QBrush(img));
+	  iconVec[i]->setIcon(QIcon());
 	  vid_list[i]=0;
 	}
         counter+=1.0;  //Job is done and icon already added
@@ -354,7 +363,7 @@ void QVBrowser::update_progress(int fraction, std::string label) {
 }
 
 void QVBrowser::update_tooltip(int vid) {
-  QStandardItem * currItem = (*iconVec)[iconLookup[vid]];
+  QStandardItem * currItem = iconVec[iconLookup[vid]];
   VidFile * a = vidFiles[iconLookup[vid]];
   float size = a->size;
   float length = a->length;
