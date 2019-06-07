@@ -99,7 +99,7 @@ void MetadataDialog::updateLabels() {
   for(auto &b: fMD->md_lookup()) { 
     int tID = fMD->md_types().right.at(type_combo->currentText().toStdString());
     if(b.second.first == tID) {
-      if(mdIDs1.count(b.first)==0) flList->addItem(b.second.second.c_str());    
+      if(mdIDs1.count(b.first)==1) flList->addItem(b.second.second.c_str());    
       else lList->addItem(b.second.second.c_str());
     }
   }

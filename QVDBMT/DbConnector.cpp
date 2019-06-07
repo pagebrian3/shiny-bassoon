@@ -6,7 +6,7 @@
 
 DbConnector::DbConnector(bfs::path & appPath,bfs::path & tempPath) {
   db_path = appPath;
-  tmpPath = tempPath;
+  bfs::path tmpPath = tempPath;
   db_path+="vdb.db";
   db_tmp = tmpPath;
   db_tmp+="vdb.db";

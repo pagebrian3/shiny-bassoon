@@ -10,6 +10,7 @@ public:
 
   qvdb_metadata(DbConnector * dbCon)  : db(dbCon) {
     db->load_metadata_labels(labelMap, typeMap);
+    for(auto & a: labelMap) labelLookup[a.second.first].insert(a.second.second);
   };
 
   ~qvdb_metadata(){};
@@ -21,6 +22,11 @@ public:
   
   std::set<int> mdForFile(int vid) {
     return fileMap[vid];
+  };
+
+  bool labelExists(int type, std::string label) {
+    if(labelLookup[type].count(label) == 1) return true;
+    else return false;
   };
 
   std::string labelForMDID(int id) {
@@ -113,6 +119,7 @@ private:
   std::map<int,std::pair<int,std::string>> labelMap;
   boost::bimap<int, std::string> typeMap;
   std::map<int,std::set<int >> fileMap;
+  std::map<int,std::set<std::string>> labelLookup;
   DbConnector * db;
 };
 

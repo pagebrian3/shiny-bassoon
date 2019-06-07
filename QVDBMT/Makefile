@@ -5,10 +5,10 @@ QTMMFLAGS = `pkg-config --cflags Qt5MultimediaWidgets`
 MAGICKFLAGS = `pkg-config --cflags Magick++-7.Q8`
 LDFLAGS = -L/usr/lib/ -lavutil -lswscale -lavcodec -lavformat `pkg-config --libs Qt5MultimediaWidgets` -lboost_filesystem -lboost_timer -lsqlite3 -lMagick++-7.Q8 -lmediainfo -lzen -lfftw3f -pthread
 
-default: qvbrowser
+default: qvbrowser mdImporter
 
 debug: CFLAGS =  -I. -std=gnu++14 -g -Wall -fPIC
-debug: qvbrowser
+debug: qvbrowser mdImporter
 
 qvbrowser:   VideoUtils.o DbConnector.o MetadataDialog.o ConfigDialog.o FilterDialog.o QVBrowser.o qmain.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o qvbrowser VideoUtils.o DbConnector.o ConfigDialog.o MetadataDialog.o FilterDialog.o QVBrowser.o qmain.o 
@@ -34,5 +34,11 @@ DbConnector.o:  DbConnector.cpp DbConnector.h
 VideoUtils.o:  VideoUtils.cpp VideoUtils.h QVBMetadata.h QVBConfig.h DbConnector.h
 	$(CC) $(CFLAGS) $(MAGICKFLAGS) -DUNICODE -c VideoUtils.cpp
 
+mdImporter: DbConnector.o mdImporter.o
+	$(CC) $(CFLAGS) -L/usr/lib/ -lboost_filesystem -lsqlite3  -pthread -o mdImporter DbConnector.o mdImporter.o
+
+mdImporter.o: mdImporter.cc QVBMetadata.h
+	$(CC) $(CFLAGS) -c mdImporter.cc 
+
 clean: 
-	$(RM) qvbrowser *.o *~
+	$(RM) qvbrowser mdImporter *.o *~

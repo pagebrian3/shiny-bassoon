@@ -51,8 +51,6 @@ class DbConnector {
 
   sqlite3 * db;
 
-  bfs::path tmpPath;
-
   bfs::path db_path;
 
   bfs::path db_tmp;
