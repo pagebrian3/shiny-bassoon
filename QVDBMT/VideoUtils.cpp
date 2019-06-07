@@ -12,9 +12,6 @@
 #include <fftw3.h>
 #include <fstream>
 #include <iostream>
-#include <opencv2/core.hpp>
-#include <opencv2/videoio.hpp>
-#include <opencv2/imgcodecs.hpp>
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -529,7 +526,6 @@ bool video_utils::getVidBatch(std::vector<VidFile*> & batch) {
     fVIDs.push_back(a->vid);
     bVids.push_back(a->vid);
   }
-  metaData->load_file_md(bVids);
   mtx.lock();
   completedVFs.pop_front();
   mtx.unlock();

@@ -96,12 +96,10 @@ void MetadataDialog::updateLabels() {
     auto it = std::set_intersection(mdIDs1.begin(), mdIDs1.end(),mdIDs2.begin(),mdIDs2.end(),std::inserter(mdIsx,std::next(mdIsx.begin())));
     mdIDs1 = mdIsx;
   }
-  //right now just one file
   for(auto &b: fMD->md_lookup()) { 
     int tID = fMD->md_types().right.at(type_combo->currentText().toStdString());
     if(b.second.first == tID) {
-      auto p = std::find(mdIDs1.begin(),mdIDs1.end(),b.first);
-      if(p != mdIDs1.end()) flList->addItem(b.second.second.c_str());    
+      if(mdIDs1.count(b.first)==0) flList->addItem(b.second.second.c_str());    
       else lList->addItem(b.second.second.c_str());
     }
   }

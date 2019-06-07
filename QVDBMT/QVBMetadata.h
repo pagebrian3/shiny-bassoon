@@ -81,13 +81,13 @@ public:
 
   void attachToFile(int vid,std::string label) {
     int labelID = -1;
-    for(auto &a: labelMap) {
+    for(auto &a: labelMap) {  
       if(!strcmp(label.c_str(),a.second.second.c_str())) {
 	labelID = a.first;
 	break;
       }
     }
-    fileMap[vid].insert(labelID);
+    if(labelID != -1) fileMap[vid].insert(labelID);
     return;
   };
 
@@ -99,7 +99,7 @@ public:
 	break;
       }
     }
-    fileMap[vid].erase(labelID);
+    if(labelID != -1) fileMap[vid].erase(labelID);
     return;
   };
 

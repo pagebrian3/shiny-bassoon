@@ -190,16 +190,17 @@ bool QVBrowser::progress_timeout() {
 	batch.insert(batch.end(),loadedVFs.begin(), loadedVFs.end());
 	loadedVFs.clear();
       }
+      std::vector<int> vidTemp;
+      for(auto & a: batch) vidTemp.push_back(a->vid);
+      qMD->load_file_md(vidTemp);
       QIcon initIcon = QIcon::fromTheme("image-missing");
       QSize size_hint = QSize(qCfg->get_int("thumb_height"),qCfg->get_int("thumb_width"));
       std::vector<VidFile*> needIcons;
-      int list_counter=0;
       for(auto &a: batch) {  //loop over vector of completed VidFiles
 	int position=iconVec.size();
 	int vid = a->vid;
 	bool iExists = vu->thumb_exists(vid);
 	vidFiles.push_back(a);
-	list_counter++;
 	QStandardItem * b;
 	if(iExists) {  //if icon exists set as background and mark as done.
 	  b = new QStandardItem();

@@ -13,7 +13,6 @@
 #include <QFormLayout>
 #include <QRegularExpression>
 #include <boost/algorithm/string.hpp>
-#include <iostream>
 
 FilterDialog::FilterDialog(QWidget * parent, QListView * listView, qvdb_metadata * md)  : fMD(md),fListView(listView) { 
   QGroupBox * filterBox = new QGroupBox;
