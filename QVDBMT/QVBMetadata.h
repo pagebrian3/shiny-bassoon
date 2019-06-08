@@ -82,6 +82,7 @@ public:
     maxID++;
     int tID = typeMap.right.at(type);
     labelMap[maxID]=std::make_pair(tID,label);
+    labelLookup[tID].insert(label);
     return;
   };
 
@@ -115,7 +116,6 @@ public:
   };
   
 private:
-
   std::map<int,std::pair<int,std::string>> labelMap;
   boost::bimap<int, std::string> typeMap;
   std::map<int,std::set<int >> fileMap;

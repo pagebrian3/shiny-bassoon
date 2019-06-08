@@ -1,4 +1,5 @@
 #include <QVBMetadata.h>
+#include <iostream>
 
 int main(int argc, char *argv[])
 {
@@ -10,6 +11,7 @@ int main(int argc, char *argv[])
   std::string STRING;
   std::string label;
   bfs::path filename;
+  bfs::path baseDir("/home/pageb/Downloads/blah/");
   std::ifstream infile;
   infile.open(argv[1]);
   size_t spacePos;
@@ -25,8 +27,11 @@ int main(int argc, char *argv[])
       currentTypeLabel=STRING;
     }
     else {
+      filename=baseDir;
       label = STRING.substr(0,spacePos);
-      filename = STRING.substr(spacePos);
+      filename +=STRING.substr(spacePos+1);
+      std::cout << filename.string() << std::endl;
+      if(!dbCon->video_exists(filename)) continue;
       if(!md->labelExists(currentType,label)) md->newLabel(currentTypeLabel,label);
       md->attachToFile(dbCon->fileVid(filename),label);
     }

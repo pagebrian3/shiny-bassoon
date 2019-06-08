@@ -417,7 +417,7 @@ void DbConnector::save_metadata(std::map<int,std::set<int> > & file_metadata,std
       setIter++;
       counter++;
     }
-    ss << *setIter<<std::endl;   
+    ss << *setIter;   
     int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO  file_mdx(vid, tagids) VALUES (?,?) ", -1, &stmt, NULL);
     if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
     rc = sqlite3_bind_int(stmt, 1, a.first);
