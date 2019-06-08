@@ -77,9 +77,7 @@ void MetadataDialog::on_accept() {
 
 void MetadataDialog::updateTypes() {
   if(!firstRun) type_combo->clear();
-  for(auto &a: fMD->md_types().left) {
-    type_combo->addItem(a.second.c_str());
-  }
+  for(auto &a: fMD->md_types().left) type_combo->addItem(a.second.c_str());
   return;
 }
 
@@ -89,11 +87,11 @@ void MetadataDialog::updateLabels() {
     flList->clear();
   }
   if(type_combo->currentText().isEmpty()) return;
-  std::set<int> mdIDs1 = fMD->mdForFile(fVids[0]);
+  std::set<int> mdIDs1 = fMD->mdForFile(fVids[0]); 
   std::set<int> mdIsx;
-  for(int i = 1; i < fVids.size(); i++) {
-    std::set<int> mdIDs2 = fMD->mdForFile(fVids[i]); 
-    auto it = std::set_intersection(mdIDs1.begin(), mdIDs1.end(),mdIDs2.begin(),mdIDs2.end(),std::inserter(mdIsx,std::next(mdIsx.begin())));
+  if(mdIDs1.size() > 0) for(int i = 1; i < fVids.size(); i++) {
+    std::set<int> mdIDs2 = fMD->mdForFile(fVids[i]);
+    for(auto & a:mdIDs1) if(mdIDs2.count(a)==1) mdIsx.insert(a);
     mdIDs1 = mdIsx;
   }
   for(auto &b: fMD->md_lookup()) { 

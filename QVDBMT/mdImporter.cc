@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
   qvdb_metadata * md = new qvdb_metadata(dbCon);
   std::string STRING;
   std::string label;
-  std::string filename;
+  bfs::path filename;
   std::ifstream infile;
   infile.open(argv[1]);
   size_t spacePos;
@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
       label = STRING.substr(0,spacePos);
       filename = STRING.substr(spacePos);
       if(!md->labelExists(currentType,label)) md->newLabel(currentTypeLabel,label);
-      md->attachToFile(currentType,label);
+      md->attachToFile(dbCon->fileVid(filename),label);
     }
   }
   infile.close();

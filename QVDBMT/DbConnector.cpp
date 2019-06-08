@@ -225,6 +225,8 @@ std::vector<int> DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & 
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
     bfs::path path1(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
+    bfs::path relative = bfs::relative(dir,path1);
+    if(relative.string().find_first_of('/') != std::string::npos) continue;
     auto result = std::find(files.begin(),files.end(),path1);
     if(result == files.end()) orphans.push_back(sqlite3_column_int(stmt,1));
   }
@@ -461,3 +463,27 @@ bool DbConnector::video_has_md(int vid){
   return result;
 }
 
+int DbConnector::fileVid(bfs::path & fileName) {
+  sqlite3_stmt *stmt;
+  int rc = sqlite3_prepare_v2(db, "SELECT vid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+  rc = sqlite3_bind_text(stmt, 1, fileName.c_str(),-1, NULL);    
+  if (rc != SQLITE_OK) {               
+    std::string errmsg(sqlite3_errmsg(db)); 
+    sqlite3_finalize(stmt);            
+    throw errmsg;                      
+  }
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
+    std::string errmsg(sqlite3_errmsg(db));
+    sqlite3_finalize(stmt);
+    throw errmsg;
+  }
+  if (rc == SQLITE_DONE) {
+    sqlite3_finalize(stmt);
+    throw std::string("video not found");
+  }
+  int result = sqlite3_column_int(stmt, 0);
+  sqlite3_finalize(stmt);
+  return result;
+}
