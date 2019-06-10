@@ -158,60 +158,104 @@ bool video_utils::compare_vids_fft(int i, int j) {
 }
 
 bool video_utils::calculate_trace(VidFile * obj) {
-  /*float fps = appConfig->get_float("trace_fps");
+  float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("thumb_time");
   if(obj->length <= start_time) start_time=0.0;
   bfs::path outPath = createPath(tracePath,obj->vid,".bin");
-  cv::Mat frame;
-  float time0=start_time;
-  float time1=0.0;
-  std::vector<std::vector<float> > cData(12);
-  cv::VideoCapture vCap((obj->fileName).c_str());
-  vCap.set(cv::CAP_PROP_POS_MSEC,time0);
-  float incT = 1.0/fps;
-   std::vector<uint8_t> output;
-  float avgTime = time0;
-  vCap >> frame;
-  Magick::Image mgk0(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
-  if(obj->crop.length() > 0) mgk0.crop(obj->crop);
-  mgk0.scale("2x2!");
-  float coeff0,coeff1;
-  while(!frame.empty()) {
-    time1 = vCap.get(cv::CAP_PROP_POS_MSEC);
-    if(time1 < avgTime) {
-      time0 = time1;
-      vCap >> frame;
-      Magick::Image mgk(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
-      if(obj->crop.length() > 0) mgk0.crop(obj->crop);
-      mgk.scale("2x2!");
-      mgk0=mgk;
-      continue;
+  unsigned int * crop = obj->crop;
+  std::vector<int> times;
+  std::vector<char> traceDat;
+  SwsContext *img_convert_ctx;
+  AVFormatContext *pFormatContext=NULL;
+  bfs::path fileName = obj->fileName;
+  int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
+  if(ret < 0) std::cout << "trouble opening: " << fileName.c_str() << std::endl;
+  avformat_find_stream_info(pFormatContext,  NULL);
+  AVCodec *pCodec;
+  AVCodecParameters *pCodecParameters;
+  int index=0;
+  AVRational time_base;
+  for (; index < pFormatContext->nb_streams; index++) {
+    pCodecParameters = pFormatContext->streams[index]->codecpar;
+    if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
+      pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
+      time_base = pFormatContext->streams[index]->time_base;
+      break;
     }
-    Magick::Image mgk1(frame.cols, frame.rows, "BGR", Magick::CharPixel, (char *)frame.data);
-    if(obj->crop.length() > 0) mgk1.crop(obj->crop);
-    mgk1.scale("2x2!");
-    if(time1 != time0) {
-      coeff0 = (avgTime-time0)/(time1-time0);
-      coeff1 = 1.0 - coeff0;
-    }
-    else {
-      coeff0 = 1.0;
-      coeff1 = 0.0;
-    }
-    Magick::Pixels pxls0(mgk0);
-    Magick::Pixels pxls1(mgk1);
-    const Magick::Quantum * pixels0 = pxls0.getConst(0,0,2,2);
-    const Magick::Quantum * pixels1 = pxls1.getConst(0,0,2,2);
-    for(int i = 0; i < 12; i++) output.push_back((uint8_t)(coeff0*pixels0[i]+coeff1*pixels1[i]));
-    vCap >> frame;
-    mgk0=mgk1;
-    avgTime+=incT;
-    time0 = time1;
   }
-  std::ofstream outfile(outPath.c_str(),std::ofstream::binary);
-  outfile.write((char*)&(output[0]),output.size());
-  outfile.close();
-  std::cout << "Trace: " << obj->vid << "done" << std::endl;*/
+  AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
+  avcodec_parameters_to_context(pCodecContext, pCodecParameters);
+  avcodec_open2(pCodecContext, pCodec, NULL);
+  int w = pCodecContext->width;
+  int h = pCodecContext->height;
+  int cropW = w;
+  int cropH = h;
+  if(crop[0] != -1){
+    cropW -= (crop[0]+crop[1]);
+    cropH -= (crop[2]+crop[3]);
+  }
+  std::vector<char> imgDat(3*w*h);
+  AVPacket *pPacket = av_packet_alloc();
+  AVPacket* pPacket1 = av_packet_alloc();
+  AVFrame *pFrame = av_frame_alloc();
+  AVFrame *closestFrame = av_frame_alloc();
+  AVFrame *pFrameRGB = av_frame_alloc();
+  if(!pFrame || !pFrameRGB)
+    std::cout << "Couldn't allocate frame" << std::endl;
+  double tConv = 1.0/av_q2d(time_base);
+  int ts = 0;
+  bool exit_flag = false;
+  img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
+  if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
+  ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
+  if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
+  while(av_read_frame(pFormatContext,pPacket) >= 0) {
+    if(pPacket->stream_index != index) continue;
+    int ret = avcodec_send_packet(pCodecContext, pPacket);
+    if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+      return false;
+    }
+    float norm = 4.0/(cropW*cropH);
+    //deal with odd numbered cropW/cropH
+    if(avcodec_receive_frame(pCodecContext, pFrame) == 0) {
+      times.push_back(pFrame->pts);
+      std::vector<int> temp(12);
+      sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+      int y = 0;
+      auto dataIter = imgDat.begin();
+      for(; y < cropH/2; y++) {
+	auto dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
+	int x = 0;
+	for(; x < 3*cropW/2; x++) {
+	  temp[x%3]+=*dataIter;
+	  dataIter++;
+	}
+	for(; x < 3*cropW; x++) {
+	  temp[x%3+3]+=*dataIter;
+	  dataIter++;
+	}
+      }
+      for(; y < cropH; y++) {
+	auto dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
+	int x = 0;
+	for(; x < 3*cropW/2; x++) {
+	  temp[x%3+6]+=*dataIter;
+	  dataIter++;
+	}
+	for(; x < 3*cropW; x++) {
+	  temp[x%3+9]+=*dataIter;
+	  dataIter++;
+	}
+      }      
+      for(int i = 0; i < 12; i++) traceDat.push_back(norm*temp[i]);
+    }
+  }  
+  avformat_close_input(&pFormatContext);
+  sws_freeContext(img_convert_ctx);
+  avcodec_free_context(&pCodecContext);
+  av_frame_free(&pFrame);
+  av_frame_free(&pFrameRGB);
+  av_packet_free(&pPacket);
   return true; 
 }
 
