@@ -10,6 +10,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/math/interpolators/barycentric_rational.hpp>
 #include <fftw3.h>
+#include <zstd.h>
 #include <fstream>
 #include <iostream>
 extern "C" {
@@ -158,13 +159,14 @@ bool video_utils::compare_vids_fft(int i, int j) {
 }
 
 bool video_utils::calculate_trace(VidFile * obj) {
+  int vid = obj->vid;
   float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("thumb_time");
   if(obj->length <= start_time) start_time=0.0;
   bfs::path outPath = createPath(tracePath,obj->vid,".bin");
-  unsigned int * crop = obj->crop;
+  std::vector<int> crop = obj->crop;
   std::vector<int> times;
-  std::vector<char> traceDat;
+  std::vector<std::vector<char> > traceDat(12);
   SwsContext *img_convert_ctx;
   AVFormatContext *pFormatContext=NULL;
   bfs::path fileName = obj->fileName;
@@ -190,21 +192,15 @@ bool video_utils::calculate_trace(VidFile * obj) {
   int h = pCodecContext->height;
   int cropW = w;
   int cropH = h;
-  if(crop[0] != -1){
-    cropW -= (crop[0]+crop[1]);
-    cropH -= (crop[2]+crop[3]);
-  }
+  cropW -= (crop[0]+crop[1]);
+  cropH -= (crop[2]+crop[3]);
   std::vector<char> imgDat(3*w*h);
   AVPacket *pPacket = av_packet_alloc();
-  AVPacket* pPacket1 = av_packet_alloc();
   AVFrame *pFrame = av_frame_alloc();
-  AVFrame *closestFrame = av_frame_alloc();
   AVFrame *pFrameRGB = av_frame_alloc();
   if(!pFrame || !pFrameRGB)
     std::cout << "Couldn't allocate frame" << std::endl;
   double tConv = 1.0/av_q2d(time_base);
-  int ts = 0;
-  bool exit_flag = false;
   img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
   ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
@@ -224,7 +220,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
       int y = 0;
       auto dataIter = imgDat.begin();
       for(; y < cropH/2; y++) {
-	auto dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
+	dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
 	int x = 0;
 	for(; x < 3*cropW/2; x++) {
 	  temp[x%3]+=*dataIter;
@@ -247,15 +243,33 @@ bool video_utils::calculate_trace(VidFile * obj) {
 	  dataIter++;
 	}
       }      
-      for(int i = 0; i < 12; i++) traceDat.push_back(norm*temp[i]);
+      for(int i = 0; i < 12; i++) traceDat[i].push_back(norm*temp[i]);
     }
-  }  
+  }
   avformat_close_input(&pFormatContext);
   sws_freeContext(img_convert_ctx);
   avcodec_free_context(&pCodecContext);
   av_frame_free(&pFrame);
   av_frame_free(&pFrameRGB);
-  av_packet_free(&pPacket);
+  av_packet_free(&pPacket); 
+  std::vector<boost::math::barycentric_rational<float> *> b;
+  for(int i = 0; i < 12; i++) {
+    auto c = new boost::math::barycentric_rational<float>(times.begin(),times.end(),traceDat[i].begin());
+    b.push_back(c);
+  }
+  double frame_spacing = tConv/fps;
+  double sample_time=start_time*tConv;
+  double length = times.back();
+  bfs::path traceFile = createPath(tracePath,vid,".bin");
+  std::ofstream ofile(traceFile.c_str(),std::ofstream::binary);
+  std::vector<char> dataVec;
+  for(; sample_time < length; sample_time+=frame_spacing)
+    for( int i = 0; i < 12; i++) dataVec.push_back((char) (*b[i])(sample_time));
+  int dist_cap = 2*ZSTD_compressBound(dataVec.size());
+  std::vector<char> compressVec(dist_cap);
+  int dist_size = ZSTD_compress(&compressVec[0],dist_cap,&dataVec[0],dataVec.size(),15);
+  ofile.write(&compressVec[0], dist_size);
+  ofile.close();
   return true; 
 }
 
@@ -265,13 +279,13 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   int h = vidFile->height;
   int vid = vidFile->vid;
   std::vector<char> first_frame(3*w*h);
-  std::vector<unsigned int> crop(4);
+  std::vector<int> crop(4);
   find_border(vidFile,first_frame, crop);
   bfs::path icon_file(icon_filename(vid));
   Magick::Image mgk(w, h, "RGB", Magick::CharPixel, &(first_frame[0]));
-  if(crop[0] != -1) {
-    vidFile->crop=&(crop[0]);
-    dbCon->save_crop(vidFile);
+  vidFile->crop=crop;
+  dbCon->save_crop(vidFile);
+  if(crop[0]+crop[1]+crop[2]+crop[3] > 0) {
     int cropW = w - crop[0] - crop[1];
     int cropH = h - crop[2] - crop[3];
     std::string cropStr=(boost::format("%ix%i+%i+%i") % cropW % cropH % crop[0] % crop[2]).str();
@@ -282,7 +296,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   return true;
 }
 
-void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame, std::vector<unsigned int> & crop) {
+void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame, std::vector<int> & crop) {
   bfs::path fileName = vidFile->fileName;
   int height = vidFile->height;
   int width = vidFile->width;
@@ -302,7 +316,6 @@ void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
   float corrFactorRow = 1.0/(float)(cBFrames*width);
   bool skipBorder = false;
   std::vector<char> ptrHolder;
-  bool firstRun;
   for(int i = 0; i < cBFrames; i++) {
     frame_time+=frame_spacing;
     frameNoCrop(fileName,frame_time,imgDat1);
@@ -338,12 +351,8 @@ void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
       crop[2]=y1;
       crop[3]=y2;
     }
-    else {
-      std::cout << "Find border failed for:" << fileName.string() << std::endl;
-      crop[0] = -1;
-    }
+
   }
-  else crop[0] = -1;
   return;
 }
  
@@ -526,6 +535,7 @@ qvdb_config * video_utils::get_config(){
 bool video_utils::vid_factory(std::vector<bfs::path> & files) {
   MediaInfoLib::MediaInfo MI;
   int nThreads = appConfig->get_int("threads");
+  std::vector<int> blank(4);
   for(uint h = 0; h*nThreads < files.size(); h++) {
     std::vector<VidFile *> batch;   
     for(uint i = 0; i < nThreads && i+h*nThreads < files.size(); i++) {
@@ -551,7 +561,7 @@ bool video_utils::vid_factory(std::vector<bfs::path> & files) {
       MI.Option(__T("Inform"),__T("Video;%Width%"));
       int width = ZenLib::Ztring(MI.Inform()).To_int32s();
       MI.Close();
-      VidFile * newVid = new VidFile(fileName, length, size, 0, -1, NULL, rotate, height, width);
+      VidFile * newVid = new VidFile(fileName, length, size, 0, -1, blank, rotate, height, width);
       batch.push_back(newVid);
     }
     mtx.lock();
@@ -586,8 +596,9 @@ void video_utils::load_trace(int vid) {
   char buffer[length];
   dataFile.read(buffer,length);
   dataFile.close();
-  std::vector<uint8_t> temp(length);
-  for(int i = 0; i < length; i++) temp[i] =(uint8_t) buffer[i];
+  int decompSize = ZSTD_getFrameContentSize(buffer,length);
+  std::vector<char> temp(decompSize);
+  ZSTD_decompress(&temp[0], decompSize, buffer, length);
   traceData[vid] = temp;
 }
 
@@ -623,14 +634,11 @@ void video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vect
   int w = pCodecContext->width;
   int h = pCodecContext->height;
   AVPacket *pPacket = av_packet_alloc();
-  AVPacket* pPacket1 = av_packet_alloc();
   AVFrame *pFrame = av_frame_alloc();
-  AVFrame *closestFrame = av_frame_alloc();
   AVFrame *pFrameRGB = av_frame_alloc();
   if(!pFrame || !pFrameRGB)
     std::cout << "Couldn't allocate frame" << std::endl;
   double tConv = 1.0/av_q2d(time_base);
-  int ts = 0;
   bool exit_flag = false;
   ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
   if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;

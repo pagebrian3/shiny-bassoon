@@ -44,7 +44,7 @@ class video_utils
 
   void compare_icons();
 
-  void find_border(VidFile * vidFile, std::vector<char> &data, std::vector<unsigned int> & crop);
+  void find_border(VidFile * vidFile, std::vector<char> &data, std::vector<int> & crop);
 
   Magick::Image * get_image(int vid, bool firstImg);
 
@@ -92,7 +92,7 @@ class video_utils
   qvdb_config * appConfig;
   qvdb_metadata * metaData;
   std::pair<int,Magick::Image *> img_cache;
-  std::map<int,std::vector<uint8_t> > traceData;
+  std::map<int,std::vector<char> > traceData;
   std::map<std::pair<int,int>,int> result_map;
   std::list<std::vector<VidFile *> > completedVFs;
   std::vector<std::future<bool> > resVec;

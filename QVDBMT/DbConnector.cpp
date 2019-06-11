@@ -58,9 +58,8 @@ VidFile * DbConnector::fetch_video(bfs::path & filename){
   } catch(const std::exception& e) {
     std::cout << "Something happened for : " << filename.string() << std::endl;
   }
-  unsigned int * cropArray = NULL;
+  std::vector<int> cropArray(4);
   if(crop.length() > 0) {
-    cropArray = new unsigned int[4]; 
     std::vector<std::string> split_vec;
     boost::algorithm::split(split_vec, crop, boost::is_any_of(","));
     for(int i = 0; i < 4; i++) cropArray[i]=std::atoi(split_vec[i].c_str());
@@ -83,7 +82,7 @@ void DbConnector::save_video(VidFile* a) {
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,crop,length,size,okflag,rotate,width,height) VALUES (?,?,?,?,?,?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  if(a->crop != NULL)  {
+  if(a->crop[0]+a->crop[1]+a->crop[2]+a->crop[3] > 0)  {
      std::stringstream ss;
     int counter=0;
     while(counter < 3) {
@@ -117,7 +116,7 @@ void DbConnector::save_crop(VidFile* a) {
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "UPDATE videos SET crop=? WHERE vid=?", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  if(a->crop != NULL)  {
+  if(a->crop[0]+a->crop[1]+a->crop[2]+a->crop[3] >  0)  {
      std::stringstream ss;
     int counter=0;
     while(counter < 3) {

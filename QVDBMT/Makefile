@@ -3,7 +3,7 @@ CFLAGS  = -I. -std=gnu++14 -march=native -O3 -fPIC
 QTGUIFLAGS = `pkg-config --cflags Qt5Widgets`
 QTMMFLAGS = `pkg-config --cflags Qt5MultimediaWidgets`
 MAGICKFLAGS = `pkg-config --cflags Magick++-7.Q8`
-LDFLAGS = -L/usr/lib/ -lavutil -lswscale -lavcodec -lavformat `pkg-config --libs Qt5MultimediaWidgets` -lboost_filesystem -lboost_timer -lsqlite3 -lMagick++-7.Q8 -lmediainfo -lzen -lfftw3f -pthread
+LDFLAGS = -L/usr/lib/ -lavutil -lswscale -lavcodec -lavformat `pkg-config --libs Qt5MultimediaWidgets` -lboost_filesystem -lboost_timer -lsqlite3 -lMagick++-7.Q8 -lmediainfo -lzen -lfftw3f -lzstd -pthread
 
 default: qvbrowser mdImporter
 
