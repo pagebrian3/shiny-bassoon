@@ -25,9 +25,9 @@ class DbConnector {
 
   void save_crop(VidFile *a);
 
-  void fetch_results(std::map<std::pair<int,int>, int> & map);
+  void fetch_results(std::map<std::tuple<int,int,int>, std::pair<int,std::string> > & map);
 
-  void update_results(int i, int j, int k);
+  void update_results(int i, int j, int k, int l, std::string details);
 
   void save_db_file();
 

@@ -93,6 +93,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
   uint uSize = size;
   std::vector<float> compCoeffs(numVars);
   std::vector<float> coeff_temp(numVars);
+  std::stringstream ss;
   //calculate normalization for 2nd trace
   for(offset=0; offset < numVars*trT; offset+=numVars) for(l = 0; l < numVars; l++) coeff_temp[l]+=pow(traceData[j][offset+l],2);
   while(offset < numVars*length2)  {
@@ -145,14 +146,16 @@ bool video_utils::compare_vids_fft(int i, int j) {
     int max_offset = max_element(result.begin(),result.end()) - result.begin();
     if(max_val > cThresh) {
       std::cout << "Match! " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset << std::endl;
+      ss <<t_s<<" "<< max_val <<" "<<max_offset;
       match = true;
 	break;
     }
   }
-  std::pair<int,int> key(i,j);
-  if(match) result_map[key]+=2;
-  else if(result_map[key]==0) result_map[key]=4;
-  dbCon->update_results(i,j,result_map[key]);
+  std::tuple<int,int,int> key(i,j,1);
+  int resultFlag = 1;
+  if(match) resultFlag = 2;
+  result_map[key]=std::make_pair(resultFlag,ss.str());
+  dbCon->update_results(i,j,1,resultFlag,ss.str());
   fftwf_free(in);
   fftwf_free(out);
   return true;
@@ -408,9 +411,11 @@ void video_utils::img_comp_thread() {
 void video_utils::compare_icons() {
   for(uint i = 0; i +1 < fVIDs.size(); i++) { 
     for(uint j = i+1; j < fVIDs.size(); j++) {
-      std::pair<int,int> key(fVIDs[i],fVIDs[j]);
-      if (result_map[key]%2  == 1 || result_map[key] ==4) continue;
-      else if(compare_images(fVIDs[i],fVIDs[j])) result_map[key]+=1;      
+      std::tuple<int,int,int> key(fVIDs[i],fVIDs[j],2);
+      if (result_map[key].first  != 0) continue;
+      int result = 1;
+      if(compare_images(fVIDs[i],fVIDs[j])) result = 2;
+      else result_map[key]=std::make_pair(result,"");  //It would be nice to capture a closeness metric here
     }
   }
   return;
@@ -462,7 +467,7 @@ int video_utils::compare_traces() {
     load_trace(fVIDs[i]);
     //loop over files after i
     for(uint j = i+1; j < fVIDs.size(); j++) {
-      if (result_map[std::make_pair(fVIDs[i],fVIDs[j])]/2 >= 1) continue;  
+      if (result_map[std::make_tuple(fVIDs[i],fVIDs[j],1)].first > 0 ) continue;  
       load_trace(fVIDs[j]);
       resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},fVIDs[i],fVIDs[j]));
     }

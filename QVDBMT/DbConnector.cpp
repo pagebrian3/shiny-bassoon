@@ -18,7 +18,7 @@ DbConnector::DbConnector(bfs::path & appPath,bfs::path & tempPath) {
   sqlite3_open(db_tmp.c_str(),&db);
   if (newDB) {
     sqlite3_exec(db,"create table videos(vid integer primary key not null, path text,crop text, length double, size integer, okflag integer, rotate integer, height integer, width integer)", NULL,NULL, NULL);
-    sqlite3_exec(db,"create table results(v1id integer, v2id integer, result integer)",NULL, NULL, NULL);
+    sqlite3_exec(db,"create table results(v1id integer, v2id integer, test integer, result integer, details text)",NULL, NULL, NULL);
     sqlite3_exec(db,"create table config(cfg_label text primary key,cfg_type integer,cfg_int integer,cfg_float double,cfg_str text)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table md_types(md_type_index integer primary key not null, md_type_label text unique)",NULL,NULL,NULL);
     sqlite3_exec(db,"create table md_index(md_idx integer primary key not null, md_type integer not null, md_label text unique)",NULL,NULL,NULL);
@@ -163,25 +163,26 @@ bool DbConnector::video_exists(bfs::path & filename){
   return result;
 }
   
-void DbConnector::fetch_results(std::map<std::pair<int,int>, int> & map) {
-  sqlite3_stmt *cstmt;
+void DbConnector::fetch_results(std::map<std::tuple<int,int,int>, std::pair<int,std::string>> & map) {
+  /*sqlite3_stmt *cstmt;
   int rc = sqlite3_prepare_v2(db,"SELECT Count(*) FROM results", -1, &cstmt, NULL);
   sqlite3_step(cstmt);
   if (sqlite3_column_int(cstmt, 0) == 0) {
     sqlite3_finalize(cstmt);
     return;
   }
-  sqlite3_finalize(cstmt);
+  sqlite3_finalize(cstmt);*/
   sqlite3_stmt *stmt;
-  rc = sqlite3_prepare_v2(db, "SELECT * FROM results", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "SELECT * FROM results", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  rc = 0; 
-  int a,b,c;
+  int a,b,c,d;
   while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
     a = sqlite3_column_int(stmt, 0);
     b = sqlite3_column_int(stmt, 1);
     c = sqlite3_column_int(stmt, 2);
-    map[std::make_pair(a,b)]=c;
+    d = sqlite3_column_int(stmt, 3);
+    std::string details(reinterpret_cast<const char *>(sqlite3_column_text(stmt,4)));
+    map[std::make_tuple(a,b,c)]=std::make_pair(d,details);
   }
   if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
     std::string errmsg(sqlite3_errmsg(db));
@@ -192,13 +193,15 @@ void DbConnector::fetch_results(std::map<std::pair<int,int>, int> & map) {
   return;
 }
 
-void DbConnector::update_results(int  i, int  j, int  k) {
+void DbConnector::update_results(int  i, int  j, int  k, int l, std::string details) {
   sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO results (v1id, v2id, result) VALUES (?,?,?) ", -1, &stmt, NULL);
+  int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO results (v1id, v2id, test, result, details) VALUES (?,?,?,?,?) ", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   rc = sqlite3_bind_int(stmt, 1, i);
   rc = sqlite3_bind_int(stmt, 2, j);
   rc = sqlite3_bind_int(stmt, 3, k);
+  rc = sqlite3_bind_int(stmt, 4, l);
+  rc = sqlite3_bind_text(stmt, 5, details.c_str(),-1, NULL);
   if (rc != SQLITE_OK) {               
     std::string errmsg(sqlite3_errmsg(db)); 
     sqlite3_finalize(stmt);            

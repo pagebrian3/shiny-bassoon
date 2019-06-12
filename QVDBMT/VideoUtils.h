@@ -93,7 +93,7 @@ class video_utils
   qvdb_metadata * metaData;
   std::pair<int,Magick::Image *> img_cache;
   std::map<int,std::vector<char> > traceData;
-  std::map<std::pair<int,int>,int> result_map;
+  std::map<std::tuple<int,int,int>,std::pair<int,std::string>> result_map;
   std::list<std::vector<VidFile *> > completedVFs;
   std::vector<std::future<bool> > resVec;
   std::vector<std::string> cBadChars;
