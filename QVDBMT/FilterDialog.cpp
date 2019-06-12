@@ -12,7 +12,6 @@
 #include <QStandardItemModel>
 #include <QFormLayout>
 #include <QRegularExpression>
-#include <boost/algorithm/string.hpp>
 
 FilterDialog::FilterDialog(QWidget * parent, QListView * listView, qvdb_metadata * md)  : fMD(md),fListView(listView) { 
   QGroupBox * filterBox = new QGroupBox;
@@ -32,8 +31,8 @@ FilterDialog::FilterDialog(QWidget * parent, QListView * listView, qvdb_metadata
     std::string tempS(a.second);
     QGroupBox *  tempGroup = new QGroupBox(tempS.c_str());
     QGridLayout * grid = new QGridLayout();
-    for(auto & x : mdLookup) {
-      int index = 0;
+    int index = 0;
+    for(auto & x : mdLookup) {  
       if(a.first == x.second.first) {
 	md_lookup.push_back(x.first);
 	QCheckBox * tagCheck = new QCheckBox(x.second.second.c_str());
@@ -79,7 +78,7 @@ void FilterDialog::on_accept() {
   QRegularExpression re(regex.c_str());
   std::set<int> acceptTags;
   std::set<int> rejectTags;
-  for(int i = 0; i < checkPtrs.size(); i++) {
+  for(uint i = 0; i < checkPtrs.size(); i++) {
     auto state = checkPtrs[i]->checkState();
     if(state == Qt::Unchecked) continue;
     else if(state == Qt::Checked) acceptTags.insert(md_lookup[i]);

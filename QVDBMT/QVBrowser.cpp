@@ -159,7 +159,7 @@ void QVBrowser::populate_icons(bool clean) {
     vid_list.clear();
     vidFiles.clear();
     delete fModel;
-    for(auto & a: iconVec) delete a;
+    //for(auto & a: iconVec) delete a;
     iconVec.clear();
   }
   t = new boost::timer::auto_cpu_timer();

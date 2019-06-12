@@ -409,7 +409,7 @@ void DbConnector::save_metadata(std::map<int,std::set<int> > & file_metadata,std
     if(a.second.size() == 0)  continue;
     sqlite3_stmt *stmt;
     std::stringstream ss;
-    int counter=0;
+    uint counter=0;
     auto setIter = a.second.begin();
     while(counter < a.second.size()-1) {
       ss << *setIter << ",";

@@ -21,10 +21,10 @@ extern "C" {
 }
 
 video_utils::video_utils() {
-  if(PLATFORM_NAME == "linux") {
+  if(strcmp(PLATFORM_NAME,"linux") == 0) {
     savePath = getenv("HOME");
   }
-  else if(PLATFORM_NAME == "windows") {
+  else if(strcmp(PLATFORM_NAME,"windows") == 0) {
     std::string temp(getenv("USERPROFILE"));
     savePath =temp.substr(temp.find("="));
   }
@@ -73,7 +73,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
   int trT = cTraceFPS*appConfig->get_float("comp_time");
   int size = 2;  //size of 1 transform  must be a power of 2
   uint length1 = traceData[i].size()/numVars;
-  uint length2 = traceData[j].size()/numVars;
+  int length2 = traceData[j].size()/numVars;
   while(size < length2) size*=2;    
   int dims[]={size};
   float * in=(float *) fftwf_malloc(sizeof(float)*numVars*size);
@@ -136,7 +136,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
     }
     fftwf_execute(rPlan);
     float sum;
-    for(k = 0; k < length2-trT; k++)  {
+    for(k = 0; k < (unsigned)(length2-trT); k++)  {
       sum=0.0;
       for(l=0; l <numVars; l++) sum+=in[numVars*k+l]/(uSize* 6*(compCoeffs[l]+coeffs[numVars*k+l]));
       result[k]=pow(sum,cPower);
@@ -175,7 +175,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   avformat_find_stream_info(pFormatContext,  NULL);
   AVCodec *pCodec;
   AVCodecParameters *pCodecParameters;
-  int index=0;
+  uint index=0;
   AVRational time_base;
   for (; index < pFormatContext->nb_streams; index++) {
     pCodecParameters = pFormatContext->streams[index]->codecpar;
@@ -206,7 +206,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
   if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
-    if(pPacket->stream_index != index) continue;
+    if(pPacket->stream_index != (signed)index) continue;
     int ret = avcodec_send_packet(pCodecContext, pPacket);
     if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
       return false;
@@ -298,8 +298,8 @@ bool video_utils::create_thumb(VidFile * vidFile) {
 
 void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame, std::vector<int> & crop) {
   bfs::path fileName = vidFile->fileName;
-  int height = vidFile->height;
-  int width = vidFile->width;
+  unsigned int height = vidFile->height;
+  unsigned int width = vidFile->width;
   double length = vidFile->length;
   double thumb_t = appConfig->get_float("thumb_time");
   int cBFrames = appConfig->get_int("border_frames");
@@ -319,8 +319,8 @@ void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
   for(int i = 0; i < cBFrames; i++) {
     frame_time+=frame_spacing;
     frameNoCrop(fileName,frame_time,imgDat1);
-    for (int y=0; y < height; y++)
-      for (int x=0; x < width; x++) {
+    for (unsigned int y=0; y < height; y++)
+      for (unsigned int x=0; x < width; x++) {
 	int rpos=3*(y*width+x);
 	int gpos=rpos+1;
 	int bpos=gpos+1;
@@ -534,7 +534,7 @@ qvdb_config * video_utils::get_config(){
 
 bool video_utils::vid_factory(std::vector<bfs::path> & files) {
   MediaInfoLib::MediaInfo MI;
-  int nThreads = appConfig->get_int("threads");
+  unsigned int nThreads = appConfig->get_int("threads");
   std::vector<int> blank(4);
   for(uint h = 0; h*nThreads < files.size(); h++) {
     std::vector<VidFile *> batch;   
@@ -618,7 +618,7 @@ void video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vect
   avformat_find_stream_info(pFormatContext,  NULL);
   AVCodec *pCodec;
   AVCodecParameters *pCodecParameters;
-  int index=0;
+  unsigned int index=0;
   AVRational time_base;
   for (; index < pFormatContext->nb_streams; index++) {
     pCodecParameters = pFormatContext->streams[index]->codecpar;
@@ -643,7 +643,7 @@ void video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vect
   ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
   if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
-    if(pPacket->stream_index != index) continue;
+    if(pPacket->stream_index != (signed)index) continue;
     int ret = avcodec_send_packet(pCodecContext, pPacket);
     if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
       return;

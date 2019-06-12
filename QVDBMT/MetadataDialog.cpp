@@ -89,7 +89,7 @@ void MetadataDialog::updateLabels() {
   if(type_combo->currentText().isEmpty()) return;
   std::set<int> mdIDs1 = fMD->mdForFile(fVids[0]); 
   std::set<int> mdIsx;
-  if(mdIDs1.size() > 0) for(int i = 1; i < fVids.size(); i++) {
+  if(mdIDs1.size() > 0) for(uint i = 1; i < fVids.size(); i++) {
     std::set<int> mdIDs2 = fMD->mdForFile(fVids[i]);
     for(auto & a:mdIDs1) if(mdIDs2.count(a)==1) mdIsx.insert(a);
     mdIDs1 = mdIsx;
@@ -126,7 +126,7 @@ void MetadataDialog::onLabelAddClicked() {
 
 void MetadataDialog::onRightArrowClicked() {
   auto list = lList->selectedItems();
-  for(int i = 0; i < fVids.size(); i++) for(auto & item: list)
+  for(uint i = 0; i < fVids.size(); i++) for(auto & item: list)
     fMD->attachToFile(fVids[i],item->text().toStdString());
   updateLabels();
   return;
@@ -134,7 +134,7 @@ void MetadataDialog::onRightArrowClicked() {
 
 void MetadataDialog::onLeftArrowClicked() {
   auto list = flList->selectedItems();
-  for(int i = 0; i < fVids.size(); i++) for(auto & item: list) fMD->removeFromFile(fVids[i],item->text().toStdString());
+  for(uint i = 0; i < fVids.size(); i++) for(auto & item: list) fMD->removeFromFile(fVids[i],item->text().toStdString());
   updateLabels();
   return;
 }
