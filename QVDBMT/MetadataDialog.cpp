@@ -28,7 +28,9 @@ MetadataDialog::MetadataDialog(QWidget * parent,std::vector<int> & vids, qvdb_me
   QGridLayout *  hlo = new QGridLayout;
   flob->setLayout(hlo);
   lList = new QListWidget(this);
+  lList->setSelectionMode(QAbstractItemView::ExtendedSelection);
   flList = new QListWidget(this);
+  flList->setSelectionMode(QAbstractItemView::ExtendedSelection);
   QPushButton * rightArrow = new QPushButton(">");
   QPushButton * addLabel = new QPushButton("+");
   QPushButton * leftArrow = new QPushButton("<");
@@ -94,13 +96,17 @@ void MetadataDialog::updateLabels() {
     for(auto & a:mdIDs1) if(mdIDs2.count(a)==1) mdIsx.insert(a);
     mdIDs1 = mdIsx;
   }
+  std::set<std::string> lSet;
+  std::set<std::string> flSet;
   for(auto &b: fMD->md_lookup()) { 
     int tID = fMD->md_types().right.at(type_combo->currentText().toStdString());
     if(b.second.first == tID) {
-      if(mdIDs1.count(b.first)==1) flList->addItem(b.second.second.c_str());    
-      else lList->addItem(b.second.second.c_str());
+      if(mdIDs1.count(b.first)==1) flSet.insert(b.second.second);    
+      else lSet.insert(b.second.second);
     }
   }
+  for(auto & c: lSet) lList->addItem(c.c_str());
+  for(auto & d: flSet) flList->addItem(d.c_str());
   return;
 }
 

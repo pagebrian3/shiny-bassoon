@@ -103,11 +103,12 @@ void FilterDialog::on_accept() {
       fListView->setRowHidden(i,true);
       continue;
     }
-    if(sizeMin != -1 && fModel->data(index, Qt::UserRole+1).toFloat() < sizeMin) {
+    float mbConv=1.0e-6;
+    if(sizeMin != -1 && mbConv*fModel->data(index, Qt::UserRole+1).toFloat() < sizeMin) {
       fListView->setRowHidden(i,true);
       continue;
     }
-    if(sizeMax != -1 && fModel->data(index, Qt::UserRole+1).toFloat() > sizeMax) {
+    if(sizeMax != -1 && mbConv*fModel->data(index, Qt::UserRole+1).toFloat() > sizeMax) {
       fListView->setRowHidden(i,true);
       continue;
     }
