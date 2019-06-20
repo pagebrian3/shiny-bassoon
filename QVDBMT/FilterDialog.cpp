@@ -12,11 +12,17 @@
 #include <QStandardItemModel>
 #include <QFormLayout>
 #include <QRegularExpression>
+#include <QScrollArea>
 
 FilterDialog::FilterDialog(QWidget * parent, QListView * listView, qvdb_metadata * md)  : fMD(md),fListView(listView) { 
   QGroupBox * filterBox = new QGroupBox;
   QVBoxLayout * mainLayout = new QVBoxLayout;
   QFormLayout * formLayout = new QFormLayout;
+  QVBoxLayout * scrollLayout = new QVBoxLayout;
+  QWidget *viewport = new QWidget;
+  viewport->setMinimumSize(20,20);
+  viewport->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+  QScrollArea *scrollArea = new QScrollArea;
   std::vector<std::string> labels = { "VIDs:","Minimum Length (s):", "Maximum Length (s):", "Minimum Size (MB):", "Maximum Size(MB):", "Filename Regex:"};
   for(auto & l: labels) {
     QLineEdit * tempEntry = new QLineEdit;
@@ -24,7 +30,7 @@ FilterDialog::FilterDialog(QWidget * parent, QListView * listView, qvdb_metadata
     linePtrs.push_back(tempEntry);
   }
   filterBox->setLayout(formLayout);
-  mainLayout->addWidget(filterBox);
+  scrollLayout->addWidget(filterBox);
   auto mdLookup = fMD->md_lookup();
   int columns = 3;
   for(auto & a: fMD->md_types().left) {
@@ -43,12 +49,15 @@ FilterDialog::FilterDialog(QWidget * parent, QListView * listView, qvdb_metadata
       }
     }
     tempGroup->setLayout(grid);
-    mainLayout->addWidget(tempGroup);
+    scrollLayout->addWidget(tempGroup);
   }
+  viewport->setLayout(scrollLayout);
+  scrollArea->setWidget(viewport);
   QDialogButtonBox * buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
   connect(buttonBox, &QDialogButtonBox::accepted, this, &FilterDialog::on_accept);
   connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
   connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+  mainLayout->addWidget(viewport);
   mainLayout->addWidget(buttonBox);
   setLayout(mainLayout);
   setWindowTitle(tr("Edit Filter"));
