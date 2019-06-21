@@ -4,12 +4,13 @@
 #include <QVideoWidget>
 #include <QVBoxLayout>
 #include <QUrl>
+#include <QKeyEvent>
 
 class Miniplayer: public QDialog {
 
   using QDialog::QDialog;
 
- public:
+public:
   
   Miniplayer(QMainWindow * parent,std::string & vidFile, int height, int width) {
     player = new QMediaPlayer;
@@ -25,7 +26,30 @@ class Miniplayer: public QDialog {
     player->play();
   };
   
- private:
+private:
 
   QMediaPlayer * player;
+
+protected:
+
+  void keyPressEvent(QKeyEvent *event) override {
+    int change = 15000;
+    int position = player->position();
+    switch(event->key()) {
+    case Qt::Key_Right:
+      player->setPosition(position+change);
+      break;
+    case Qt::Key_Left:
+      player->setPosition(position-change);
+      break;
+    case Qt::Key_Up:
+      player->setPosition(position+20*change);
+      break;
+    case Qt::Key_Down:
+      player->setPosition(position-20*change);
+      break;
+    default:
+      QDialog::keyPressEvent(event);
+    }
+  };
 };

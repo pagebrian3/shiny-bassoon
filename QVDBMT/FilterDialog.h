@@ -9,7 +9,7 @@ class qvdb_metadata;
 class FilterDialog: public QDialog {
 
   using QDialog::QDialog;
-
+  
 public:
 
   FilterDialog(QWidget * parent, QListView * listView, qvdb_metadata *  md);  //vids may be redundant as they are already in md
