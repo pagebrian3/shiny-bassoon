@@ -1,8 +1,7 @@
 #include <QDialog>
 
-class QWidget;
-class QCheckBox;
 class QListView;
+class QListWidget;
 class QLineEdit;
 class qvdb_metadata;
 
@@ -20,7 +19,7 @@ private:
 
   qvdb_metadata * fMD;
   QListView * fListView;
-  std::vector<QCheckBox *> checkPtrs;
+  std::vector<QListWidget *> lwPtrs;
   std::vector<QLineEdit *> linePtrs;
-  std::vector<int> md_lookup;
+  
 };

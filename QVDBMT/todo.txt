@@ -2,6 +2,5 @@ List of future enhancements/fixes:
 
 -Detect when frames are a solid color or stationary, and don't use them for traces and thumbnails.   Perhaps part of the border detection.  Some intros have animation, so perhaps it would be better to just set a later start time.
 -Save/restore previous sort options/directories
--Improve preview feature with controls/dynamic window size.  Preferrably with no decoration.
+-Improve preview feature.  Perhaps add dynamic window size.  Preferrably with no decoration.  Fix bug causing false start of videos.
 -Further improvements for icon creation speed.
-
