@@ -52,7 +52,7 @@ class video_utils
   
   int start_make_traces(std::vector<VidFile *> & vFile);
 
-  void load_trace(int vid);
+  bool load_trace(int vid);
 
   void move_traces();
 
@@ -81,6 +81,8 @@ class video_utils
   bool getVidBatch(std::vector<VidFile*> & batch);
 
   bool thumb_exists(int vid);
+
+  bool trace_exists(int vid);
 
   bool frameNoCrop(bfs::path & fileName, double start_time, std::vector<char> & imgDat);
 

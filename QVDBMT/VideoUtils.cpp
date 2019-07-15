@@ -174,7 +174,10 @@ bool video_utils::calculate_trace(VidFile * obj) {
   AVFormatContext *pFormatContext=NULL;
   bfs::path fileName = obj->fileName;
   int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
-  if(ret < 0) std::cout << "trouble opening: " << fileName.c_str() << std::endl;
+  if(ret < 0) {
+    std::cout << "trouble opening: " << fileName.c_str() << std::endl;
+    return false;
+  }
   avformat_find_stream_info(pFormatContext,  NULL);
   AVCodec *pCodec;
   AVCodecParameters *pCodecParameters;
@@ -365,16 +368,23 @@ bool video_utils::thumb_exists(int vid) {
   return bfs::exists(icon_filename(vid));
 }
 
+bool video_utils::trace_exists(int vid) {
+  bfs::path traceSave = savePath;
+  traceSave+="traces/";
+  return bfs::exists(createPath(traceSave,vid,".bin"));
+}
+
 Magick::Image *video_utils::get_image(int vid, bool firstImg) {
   if(img_cache.first == vid) return img_cache.second;
-  bfs::path image_file(icon_filename(vid));
   if(firstImg) delete img_cache.second;
+  bfs::path image_file(icon_filename(vid));
   Magick::Image * img = new Magick::Image(image_file.string());
   if(firstImg) img_cache = std::make_pair(vid,img);  
   return img;
 }
 
 bool video_utils::compare_images(int vid1, int vid2) {
+  if(!(thumb_exists(vid1) && thumb_exists(vid2))) return false;
   Magick::Image * img1 = get_image(vid1,true);
   Magick::Image * img2 = get_image(vid2,false);
   float width1 = img1->size().width();
@@ -466,11 +476,11 @@ int video_utils::compare_traces() {
   std::map<int,std::vector<uint8_t> > data_holder;
   //loop over files
   for(uint i = 0; i +1 < fVIDs.size(); i++) {
-    load_trace(fVIDs[i]);
+    if(!load_trace(fVIDs[i])) continue;
     //loop over files after i
     for(uint j = i+1; j < fVIDs.size(); j++) {
       if (result_map[std::make_tuple(fVIDs[i],fVIDs[j],1)].first > 0 ) continue;  
-      load_trace(fVIDs[j]);
+      if(!load_trace(fVIDs[j])) continue;
       resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},fVIDs[i],fVIDs[j]));
     }
   }
@@ -593,10 +603,12 @@ bool video_utils::getVidBatch(std::vector<VidFile*> & batch) {
   return true;
 }
 
-void video_utils::load_trace(int vid) {
+bool video_utils::load_trace(int vid) {
+  if(!trace_exists(vid)) return false;
   bfs::path traceSave = savePath;
   traceSave+="traces/";
-  std::ifstream dataFile(createPath(traceSave,vid,".bin").string(),std::ios::in|std::ios::binary|std::ios::ate);
+  bfs::path traceFN = createPath(traceSave,vid,".bin");  
+  std::ifstream dataFile(traceFN.string(),std::ios::in|std::ios::binary|std::ios::ate);
   dataFile.seekg (0, dataFile.end);
   int length = dataFile.tellg();
   dataFile.seekg (0, dataFile.beg);
@@ -604,9 +616,10 @@ void video_utils::load_trace(int vid) {
   dataFile.read(buffer,length);
   dataFile.close();
   int decompSize = ZSTD_getFrameContentSize(buffer,length);
-  std::vector<char> temp(decompSize);
-  ZSTD_decompress(&temp[0], decompSize, buffer, length);
-  traceData[vid] = temp;
+  std::vector<char> * temp = new std::vector<char>(decompSize);
+  ZSTD_decompress(&(*temp)[0], decompSize, buffer, length);
+  traceData[vid] = *temp;
+  return true;
 }
 
 bfs::path video_utils::createPath(bfs::path & path, int vid, std::string extension) {
