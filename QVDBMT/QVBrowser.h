@@ -11,6 +11,8 @@ class qvdb_metadata;
 class qvdb_config;
 class video_utils;
 class VidFile;
+class Miniplayer;
+class QThread;
 class QPushButton;
 class QProgressBar;
 class QTimer;
@@ -20,6 +22,8 @@ class QStandardItemModel;
 class QResizeEvent;
 class QAction;
 class QContextMenuEvent;
+
+Miniplayer * launchMiniplayer(std::string vid_file, int h, int w);
 
 class QVBrowser: public QMainWindow
 {
@@ -38,6 +42,7 @@ class QVBrowser: public QMainWindow
   void on_sort_changed(const QString & text);
   void resizeEvent(QResizeEvent * event);
   void closeEvent(QCloseEvent * event);
+
   bool progress_timeout();
   void set_sort(std::string sort);
   void update_sort();
@@ -69,6 +74,7 @@ class QVBrowser: public QMainWindow
   QPushButton * asc_button;
   QAction *mDAct;
   QTimer * p_timer;
+  QThread * mPlayerThread;
 };
 
 #endif //QVBROWSER_H

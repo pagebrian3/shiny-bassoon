@@ -23,6 +23,7 @@
 #include <QStandardItem>
 #include <QResizeEvent>
 #include <QModelIndex>
+#include <QThread>
 
 QVBrowser::QVBrowser() : QMainWindow() {
   vu = new video_utils();
@@ -99,8 +100,9 @@ void QVBrowser::onSelChanged() {
 void QVBrowser::on_double_click(const QModelIndex & index) {
   QStandardItem * selItem = fModel->itemFromIndex(index);
   std::string vid_file = selItem->data(Qt::UserRole+3).toString().toStdString();
-  Miniplayer player(this,vid_file,qCfg->get_int("preview_height"),qCfg->get_int("preview_width"));
-  player.exec();
+  if(mPlayerThread != NULL) mPlayerThread->quit();  
+  mPlayerThread = new QThread(launchMiniplayer(vid_file,qCfg->get_int("preview_height"),qCfg->get_int("preview_width")));
+  mPlayerThread->start();
   return;
 }
 
@@ -389,6 +391,13 @@ void QVBrowser::update_tooltip(int vid) {
   QString toolTip((boost::format("Filename: %s\nVID: %i\nSize: %3.2f%s\nLength: %i:%02i:%02.1f%s") % a->fileName % a->vid %  size % sizeLabel % h % m % s % mdString).str().c_str());
   currItem->setToolTip(toolTip);
 }
+
+Miniplayer * launchMiniplayer(std::string vid_file, int h, int w) {
+  Miniplayer * player = new Miniplayer(vid_file,h,w);
+  player->exec();
+  return player;
+}
+
 
 
 
