@@ -283,7 +283,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   int vid = vidFile->vid;
   std::vector<char> first_frame(3*w*h);
   std::vector<int> crop(4);
-  find_border(vidFile,first_frame, crop);
+  if(!find_border(vidFile,first_frame, crop)) return false;
   bfs::path icon_file(icon_filename(vid));
   Magick::Image mgk(w, h, "RGB", Magick::CharPixel, &(first_frame[0]));
   vidFile->crop=crop;
@@ -299,7 +299,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   return true;
 }
 
-void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame, std::vector<int> & crop) {
+bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame, std::vector<int> & crop) {
   bfs::path fileName = vidFile->fileName;
   unsigned int height = vidFile->height;
   unsigned int width = vidFile->width;
@@ -311,7 +311,9 @@ void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
   double frame_spacing = (length-thumb_t)/(double)cBFrames;
   std::vector<char> imgDat0;
   std::vector<char> imgDat1(3*width*height);
-  frameNoCrop(fileName, frame_time, first_frame);
+  if(!frameNoCrop(fileName, frame_time, first_frame)) {
+    return false;
+  }
   imgDat0 = first_frame;
   std::vector<float> rowSums(height);
   std::vector<float> colSums(width);
@@ -356,7 +358,7 @@ void video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
     }
 
   }
-  return;
+  return true;
 }
  
 bool video_utils::thumb_exists(int vid) {
@@ -615,11 +617,14 @@ bfs::path video_utils::icon_filename(int vid) {
   return createPath(thumbPath,vid,".jpg");
 }
 
-void video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vector<char> & imgDat) {
+bool video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vector<char> & imgDat) {
   SwsContext *img_convert_ctx;
   AVFormatContext *pFormatContext=NULL;
   int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
-  if(ret < 0) std::cout << "trouble opening: " << fileName.c_str() << std::endl;
+  if(ret < 0) {
+    std::cout << "trouble opening: " << fileName.c_str() << std::endl;
+    return false;
+  }
   avformat_find_stream_info(pFormatContext,  NULL);
   AVCodec *pCodec;
   AVCodecParameters *pCodecParameters;
@@ -651,7 +656,7 @@ void video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vect
     if(pPacket->stream_index != (signed)index) continue;
     int ret = avcodec_send_packet(pCodecContext, pPacket);
     if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-      return;
+      return false;
     }
     if(avcodec_receive_frame(pCodecContext, pFrame) == 0) {
       exit_flag=true;
@@ -668,5 +673,5 @@ void video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vect
   av_frame_free(&pFrame);
   av_frame_free(&pFrameRGB);
   av_packet_free(&pPacket);
-  return;
+  return true;
 }
