@@ -1,5 +1,4 @@
 #include <QDialog>
-#include <QMainWindow>
 #include <QMediaPlayer>
 #include <QVideoWidget>
 #include <QVBoxLayout>
