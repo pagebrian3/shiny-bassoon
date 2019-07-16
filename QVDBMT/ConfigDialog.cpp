@@ -11,7 +11,7 @@
 ConfigDialog::ConfigDialog(QWidget * parent, qvdb_config * cfg)  {
   cfgPtr = cfg;
   config = cfg->get_data();
-  setMaximumHeight(cfgPtr->get_int("window_height"));
+  setMaximumHeight(cfgPtr->get_int("win_height"));
   QGroupBox * flob = new QGroupBox;
   QScrollArea * scrollArea = new QScrollArea;
   scrollArea->setWidget(flob);

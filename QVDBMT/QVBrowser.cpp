@@ -140,7 +140,10 @@ void QVBrowser::edit_md_clicked() {
 
 void QVBrowser::config_clicked() {
   ConfigDialog * cfgd = new ConfigDialog(this,qCfg);
-  cfgd->open();
+  cfgd->exec();
+  int w = qCfg->get_int("win_width");
+  int h = qCfg->get_int("win_height");
+  if(w != width() || h != height()) resize(w,h);
   return;
 }
 
@@ -161,7 +164,6 @@ void QVBrowser::populate_icons(bool clean) {
     vid_list.clear();
     vidFiles.clear();
     delete fModel;
-    //for(auto & a: iconVec) delete a;
     iconVec.clear();
   }
   t = new boost::timer::auto_cpu_timer();
@@ -196,7 +198,10 @@ bool QVBrowser::progress_timeout() {
       for(auto & a: batch) vidTemp.push_back(a->vid);
       qMD->load_file_md(vidTemp);
       QIcon initIcon = QIcon::fromTheme("image-missing");
-      QSize size_hint = QSize(qCfg->get_int("thumb_height"),qCfg->get_int("thumb_width"));
+      std::vector<std::string> dims;
+      std::string tDims = qCfg->get_string("thumb_size");
+      boost::split(dims, tDims, boost::is_any_of("x"));
+      QSize size_hint = QSize(std::atoi(dims[0].c_str()),std::atoi(dims[1].c_str()));
       std::vector<VidFile*> needIcons;
       for(auto &a: batch) {  //loop over vector of completed VidFiles
 	int position=iconVec.size();
@@ -394,7 +399,7 @@ void QVBrowser::update_tooltip(int vid) {
 
 Miniplayer * launchMiniplayer(std::string vid_file, int h, int w) {
   Miniplayer * player = new Miniplayer(vid_file,h,w);
-  player->exec();
+  player->open();
   return player;
 }
 

@@ -616,9 +616,9 @@ bool video_utils::load_trace(int vid) {
   dataFile.read(buffer,length);
   dataFile.close();
   int decompSize = ZSTD_getFrameContentSize(buffer,length);
-  std::vector<char> * temp = new std::vector<char>(decompSize);
-  ZSTD_decompress(&(*temp)[0], decompSize, buffer, length);
-  traceData[vid] = *temp;
+  std::vector<char> temp(decompSize);
+  ZSTD_decompress(&temp[0], decompSize, buffer, length);
+  traceData[vid] = temp;
   return true;
 }
 
@@ -665,18 +665,23 @@ bool video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vect
   bool exit_flag = false;
   ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
   if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
+  double curFT,lastFT;
+  lastFT=0.0;
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
     if(pPacket->stream_index != (signed)index) continue;
+    curFT=(double)pPacket->pts/tConv;
+    if(curFT > start_time) {
+      if(start_time-lastFT < curFT-start_time) break;
+      else exit_flag=true;
+    }
     int ret = avcodec_send_packet(pCodecContext, pPacket);
     if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
       return false;
     }
-    if(avcodec_receive_frame(pCodecContext, pFrame) == 0) {
-      exit_flag=true;
-      break;      
-    }
-    if(exit_flag) break;   
+    if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && exit_flag) break;      
+    lastFT=curFT;
   }
+  std::cout << fileName.string() << " " << pFrame->best_effort_timestamp/tConv << std::endl;
   img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
   sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
