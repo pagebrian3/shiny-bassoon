@@ -3,11 +3,13 @@ CFLAGS  = -I. -std=gnu++17 -march=native -O3 -fPIC
 QTGUIFLAGS = `pkg-config --cflags Qt5Widgets`
 QTMMFLAGS = `pkg-config --cflags Qt5MultimediaWidgets`
 MAGICKFLAGS = `pkg-config --cflags Magick++-7.Q8`
-LDFLAGS = -L/usr/lib/ -lavutil -lswscale -lavcodec -lavformat `pkg-config --libs Qt5MultimediaWidgets` -lboost_timer -lsqlite3 -lMagick++-7.Q8 -lmediainfo -lzen -lfftw3f -lzstd -pthread
+MAGICKLD = `pkg-config --libs Magick++-7.Q8`
+QTMMLD = `pkg-config --libs Qt5MultimediaWidgets`
+LDFLAGS = -L/usr/lib/ -lavutil -lswscale -lavcodec -lavformat -lboost_timer -lsqlite3 $(QTMMLD) $(MAGICKLD) -lmediainfo -lzen -lfftw3f -lzstd -pthread
 
 default: qvbrowser mdImporter
 
-debug: CFLAGS =  -I. -std=gnu++14 -g -Wall -fPIC
+debug: CFLAGS =  -I. -std=gnu++17 -g -Wall -fPIC
 debug: qvbrowser mdImporter
 
 qvbrowser:   VideoUtils.o DbConnector.o MetadataDialog.o ConfigDialog.o FilterDialog.o QVBrowser.o qmain.o
@@ -40,5 +42,5 @@ mdImporter: DbConnector.o mdImporter.o
 mdImporter.o: mdImporter.cc QVBMetadata.h
 	$(CC) $(CFLAGS) -c mdImporter.cc 
 
-clean: 
+clean:
 	$(RM) qvbrowser mdImporter *.o *~

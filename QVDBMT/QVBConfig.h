@@ -29,29 +29,29 @@ public:
   };
 
   void set(std::string config, int  var){
-  config_data[config] = var;
-};
+    config_data[config] = var;
+  };
 
   void set(std::string config, float var){
-  config_data[config] = var;
-};
+    config_data[config] = var;
+  };
 
   void set(std::string config, std::string var){
-  config_data[config] = var;
-};
+    config_data[config] = var;
+  };
   
   bool load_config(std::vector<std::pair<std::string,boost::variant<int, float, std::string>>>input) {
     if(input.size() == 0) {
-      std::vector<std::string> defaults={"win_height,i,600","win_width,i,800","thumb_size,s,240x136","progress_time,i,200","thumb_time,f,15.0","image_thresh,i,4","threads,i,6","trace_fps,f,30.0","border_frames,i,6","cut_thresh,f,1.0","comp_time,f,10.0","slice_spacing,f,60.0","power,f,4.0","thresh,f,0.98","extensions,s,.mp4 .wmv .avi .flv .m4v .mkv .mov .mpeg .mpg .mpv .qt .rm .webm .3gp","bad_chars,s,&","preview_height,i,432","preview_width,i,768"};
+      std::vector<std::string> defaults={"win_height,i,600","win_width,i,800","thumb_size,s,240x136","progress_time,i,200","thumb_time,f,18.0","image_thresh,i,4","threads,i,6","trace_fps,f,30.0","border_frames,i,6","cut_thresh,f,1.0","comp_time,f,10.0","slice_spacing,f,60.0","power,f,4.0","thresh,f,0.98","extensions,s,.mp4 .wmv .avi .flv .m4v .mkv .mov .mpeg .mpg .mpv .qt .rm .webm .3gp","bad_chars,s,&","preview_height,i,432","preview_width,i,768","sort_by,s,size","sort_ascending,i,0"};
       boost::char_separator<char> sep(",");
       for( auto &a: defaults) {
 	boost::tokenizer<boost::char_separator<char>> tok(a,sep);
 	auto beg=tok.begin();
-	 std::string label(*beg);
-	 beg++;
-	 char dType((*beg)[0]);
-	 beg++;
-	 std::string val(*beg);
+	std::string label(*beg);
+	beg++;
+	char dType((*beg)[0]);
+	beg++;
+	std::string val(*beg);
 	if(dType == 'i') config_data[label]=std::stoi(val);
 	else if(dType == 'f') config_data[label]=std::stof(val);
 	else if(dType == 's') config_data[label]=val;
@@ -67,7 +67,7 @@ public:
     return config_data;
   };
   
- private:
+private:
 
   std::map<std::string,boost::variant<int, float, std::string > > config_data;
 

@@ -30,8 +30,9 @@ QVBrowser::QVBrowser() : QMainWindow() {
   qCfg = vu->get_config();
   qMD = vu->mdInterface();
   resize(qCfg->get_int("win_width"),qCfg->get_int("win_height"));
-  sort_by="size"; //size, name, length  TODO: make it remember last selection
-  sOrder = Qt::DescendingOrder;  //Qt::DescendingOrder Qt::AscendingOrder TODO: TODO: make it remember last selection
+  sort_by=qCfg->get_string("sort_by"); //size, name, length, vid  
+  if(qCfg->get_int("sort_ascending") == 0)sOrder = Qt::DescendingOrder;
+  else sOrder=Qt::AscendingOrder;
   QPushButton *browse_button = new QPushButton("...");
   connect(browse_button, &QPushButton::clicked, this, &QVBrowser::browse_clicked);
   QPushButton * dupe_button = new QPushButton("Find Dupes");
@@ -140,10 +141,11 @@ void QVBrowser::edit_md_clicked() {
 
 void QVBrowser::config_clicked() {
   ConfigDialog * cfgd = new ConfigDialog(this,qCfg);
-  cfgd->exec();
-  int w = qCfg->get_int("win_width");
-  int h = qCfg->get_int("win_height");
-  if(w != width() || h != height()) resize(w,h);
+  if(cfgd->exec()) {
+    int w = qCfg->get_int("win_width");
+    int h = qCfg->get_int("win_height");
+    if(w != width() || h != height()) resize(w,h);
+  }
   return;
 }
 
@@ -307,7 +309,7 @@ void QVBrowser::set_sort(std::string sort) {
 }
 
 void QVBrowser::browse_clicked() {
-  QFileDialog dialog(this, tr("Please choose a folder or folders"));
+  QFileDialog dialog(this, tr("Please Choose a Folder or Folders"));
   dialog.setFileMode(QFileDialog::Directory);
   QStringList fileNames;
   if(dialog.exec()) {
@@ -334,7 +336,8 @@ void QVBrowser::fdupe_clicked(){
 }
 
 void QVBrowser::on_sort_changed(const QString & text) {
-  sort_by = text.toStdString();  
+  sort_by = text.toStdString();
+  qCfg->set("sort_by",sort_by);
   update_sort();
   return;
 }
@@ -343,10 +346,12 @@ void QVBrowser::asc_clicked() {
   QString iname = "view-sort-ascending";
   if(sOrder == Qt::DescendingOrder){
     sOrder = Qt::AscendingOrder;
+    qCfg->set("sort_ascending",1);
   }
   else{
     iname = "view-sort-descending";
     sOrder = Qt::DescendingOrder;
+    qCfg->set("sort_ascending",0);
   }
   asc_button->setIcon(QIcon::fromTheme(iname));
   update_sort();
