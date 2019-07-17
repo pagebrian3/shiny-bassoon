@@ -5,8 +5,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/timer/timer.hpp>
 
-namespace bfs=boost::filesystem;
-
 class qvdb_metadata;
 class qvdb_config;
 class video_utils;

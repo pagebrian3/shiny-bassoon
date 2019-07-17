@@ -29,17 +29,17 @@ video_utils::video_utils() {
     savePath =temp.substr(temp.find("="));
   }
   else std::cout << "Unsupported platform" << std::endl;
-  bfs::path homeP(savePath);
+  std::filesystem::path homeP(savePath);
   savePath+="/.video_proj/";
   tempPath = "/tmp/qvdbtmp/";
-  if(!bfs::exists(tempPath))bfs::create_directory(tempPath);
+  if(!std::filesystem::exists(tempPath))std::filesystem::create_directory(tempPath);
   tracePath=tempPath;
   tracePath+="traces/";
   thumbPath=savePath;
   thumbPath+="thumbs/";
-  if(!bfs::exists(tracePath))bfs::create_directory(tracePath);
-  if(!bfs::exists(savePath)) bfs::create_directory(savePath);
-  if(!bfs::exists(thumbPath)) bfs::create_directory(thumbPath);
+  if(!std::filesystem::exists(tracePath))std::filesystem::create_directory(tracePath);
+  if(!std::filesystem::exists(savePath)) std::filesystem::create_directory(savePath);
+  if(!std::filesystem::exists(thumbPath)) std::filesystem::create_directory(thumbPath);
   dbCon = new DbConnector(savePath,tempPath);
   dbCon->fetch_results(result_map);
   appConfig = new qvdb_config();
@@ -166,13 +166,13 @@ bool video_utils::calculate_trace(VidFile * obj) {
   float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("thumb_time");
   if(obj->length <= start_time) start_time=0.0;
-  bfs::path outPath = createPath(tracePath,obj->vid,".bin");
+  std::filesystem::path outPath = createPath(tracePath,obj->vid,".bin");
   std::vector<int> crop = obj->crop;
   std::vector<int> times;
   std::vector<std::vector<char> > traceDat(12);
   SwsContext *img_convert_ctx;
   AVFormatContext *pFormatContext=NULL;
-  bfs::path fileName = obj->fileName;
+  std::filesystem::path fileName = obj->fileName;
   int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
   if(ret < 0) {
     std::cout << "trouble opening: " << fileName.c_str() << std::endl;
@@ -266,7 +266,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   double frame_spacing = tConv/fps;
   double sample_time=start_time*tConv;
   double length = times.back();
-  bfs::path traceFile = createPath(tracePath,vid,".bin");
+  std::filesystem::path traceFile = createPath(tracePath,vid,".bin");
   std::ofstream ofile(traceFile.c_str(),std::ofstream::binary);
   std::vector<char> dataVec;
   for(; sample_time < length; sample_time+=frame_spacing)
@@ -287,7 +287,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   std::vector<char> first_frame(3*w*h);
   std::vector<int> crop(4);
   if(!find_border(vidFile,first_frame, crop)) return false;
-  bfs::path icon_file(icon_filename(vid));
+  std::filesystem::path icon_file(icon_filename(vid));
   Magick::Image mgk(w, h, "RGB", Magick::CharPixel, &(first_frame[0]));
   vidFile->crop=crop;
   dbCon->save_crop(vidFile);
@@ -303,7 +303,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
 }
 
 bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame, std::vector<int> & crop) {
-  bfs::path fileName = vidFile->fileName;
+  std::filesystem::path fileName = vidFile->fileName;
   unsigned int height = vidFile->height;
   unsigned int width = vidFile->width;
   double length = vidFile->length;
@@ -365,19 +365,19 @@ bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
 }
  
 bool video_utils::thumb_exists(int vid) {
-  return bfs::exists(icon_filename(vid));
+  return std::filesystem::exists(icon_filename(vid));
 }
 
 bool video_utils::trace_exists(int vid) {
-  bfs::path traceSave = savePath;
+  std::filesystem::path traceSave = savePath;
   traceSave+="traces/";
-  return bfs::exists(createPath(traceSave,vid,".bin"));
+  return std::filesystem::exists(createPath(traceSave,vid,".bin"));
 }
 
 Magick::Image *video_utils::get_image(int vid, bool firstImg) {
   if(img_cache.first == vid) return img_cache.second;
   if(firstImg) delete img_cache.second;
-  bfs::path image_file(icon_filename(vid));
+  std::filesystem::path image_file(icon_filename(vid));
   Magick::Image * img = new Magick::Image(image_file.string());
   if(firstImg) img_cache = std::make_pair(vid,img);  
   return img;
@@ -440,29 +440,29 @@ void video_utils::start_thumbs(std::vector<VidFile *> & vFile) {
 
 int video_utils::start_make_traces(std::vector<VidFile *> & vFile) {
   resVec.clear();
-  bfs::path traceDir = savePath;
+  std::filesystem::path traceDir = savePath;
   traceDir+="traces/";
   for(auto & b: vFile) {
-    bfs::path tPath(createPath(traceDir,b->vid,".bin"));
-    if(!bfs::exists(tPath)) resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
+    std::filesystem::path tPath(createPath(traceDir,b->vid,".bin"));
+    if(!std::filesystem::exists(tPath)) resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
   }
   return resVec.size();
 }
 
 void video_utils::move_traces() {
-  bfs::path traceSave = savePath;
+  std::filesystem::path traceSave = savePath;
   traceSave+="traces/";
-  if(!bfs::exists(traceSave)) bfs::create_directory(traceSave);
-  for(auto & x: bfs::directory_iterator(tracePath)) {
+  if(!std::filesystem::exists(traceSave)) std::filesystem::create_directory(traceSave);
+  for(auto & x: std::filesystem::directory_iterator(tracePath)) {
     auto extension = x.path().extension().c_str();
     if(strcmp(extension,".bin") == 0) {
-      bfs::path source = x.path();
-      bfs::path destination = traceSave;
+      std::filesystem::path source = x.path();
+      std::filesystem::path destination = traceSave;
       destination+=relative(source,tracePath);
-      bfs::copy(source,destination);
+      std::filesystem::copy(source,destination);
     }
   }
-  bfs::remove_all(tracePath);
+  std::filesystem::remove_all(tracePath);
   return;
 }
 
@@ -488,22 +488,22 @@ int video_utils::compare_traces() {
 }
 
 int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
-  std::vector<bfs::path> pathVs;
+  std::vector<std::filesystem::path> pathVs;
   fVIDs.clear();
   int counter = 0;
   for(auto & path: paths){
-    std::vector<bfs::path> current_dir_files;
-    for(auto & x: bfs::directory_iterator(path)) {
+    std::vector<std::filesystem::path> current_dir_files;
+    for(auto & x: std::filesystem::directory_iterator(path)) {
       auto extension = x.path().extension().generic_string();
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(extensions.count(extension)) {
-	bfs::path pathName = x.path();
+	std::filesystem::path pathName = x.path();
 	for(auto & bChar: cBadChars) {
 	  std::string nameHolder = pathName.native();
 	  if(nameHolder.find(bChar)!=std::string::npos){
 	    boost::erase_all(nameHolder,bChar);
-	    bfs::path newName(nameHolder);
-	    bfs::rename(pathName,newName);
+	    std::filesystem::path newName(nameHolder);
+	    std::filesystem::rename(pathName,newName);
 	    pathName = newName;
 	  }
 	}	
@@ -520,19 +520,19 @@ int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
       }     
     }    
     std::vector<int> orphans = dbCon->cleanup(path,current_dir_files);
-    bfs::path traceSave = savePath;
+    std::filesystem::path traceSave = savePath;
     traceSave+="traces/";
     for(auto & a: orphans) {
-      bfs::remove(icon_filename(a));
-      bfs::remove(createPath(traceSave,a,".bin"));
+      std::filesystem::remove(icon_filename(a));
+      std::filesystem::remove(createPath(traceSave,a,".bin"));
     }
   }
-  TPool->push([this](std::vector<bfs::path> pathvs) {return vid_factory(pathvs);},pathVs);
+  TPool->push([this](std::vector<std::filesystem::path> pathvs) {return vid_factory(pathvs);},pathVs);
   resVec.clear();  //need to do it here because start_thumbs is called multiple times.
   return counter;
 }
 
-void video_utils::set_paths(std::vector<bfs::path> & folders) {
+void video_utils::set_paths(std::vector<std::filesystem::path> & folders) {
   paths.clear();
   for(auto & a: folders) paths.push_back(a);
   return;
@@ -549,7 +549,7 @@ qvdb_config * video_utils::get_config(){
   return appConfig;
 }
 
-bool video_utils::vid_factory(std::vector<bfs::path> & files) {
+bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
   MediaInfoLib::MediaInfo MI;
   unsigned int nThreads = appConfig->get_int("threads");
   std::vector<int> blank(4);
@@ -560,10 +560,10 @@ bool video_utils::vid_factory(std::vector<bfs::path> & files) {
       auto fileName = files[i+h*nThreads];
       zFile += fileName.wstring();
       int size = 0;
-      if(bfs::is_symlink(fileName)) {
-	size = bfs::file_size(bfs::read_symlink(fileName));
+      if(std::filesystem::is_symlink(fileName)) {
+	size = std::filesystem::file_size(std::filesystem::read_symlink(fileName));
       }
-      else size = bfs::file_size(fileName); 
+      else size = std::filesystem::file_size(fileName); 
       MI.Open(zFile);
       MI.Option(__T("Inform"),__T("Video;%Duration%"));
       float length = 0.001*ZenLib::Ztring(MI.Inform()).To_float32();
@@ -605,9 +605,9 @@ bool video_utils::getVidBatch(std::vector<VidFile*> & batch) {
 
 bool video_utils::load_trace(int vid) {
   if(!trace_exists(vid)) return false;
-  bfs::path traceSave = savePath;
+  std::filesystem::path traceSave = savePath;
   traceSave+="traces/";
-  bfs::path traceFN = createPath(traceSave,vid,".bin");  
+  std::filesystem::path traceFN = createPath(traceSave,vid,".bin");  
   std::ifstream dataFile(traceFN.string(),std::ios::in|std::ios::binary|std::ios::ate);
   dataFile.seekg (0, dataFile.end);
   int length = dataFile.tellg();
@@ -622,15 +622,15 @@ bool video_utils::load_trace(int vid) {
   return true;
 }
 
-bfs::path video_utils::createPath(bfs::path & path, int vid, std::string extension) {
-  return bfs::path((boost::format("%s%i%s") % path.string() % vid % extension).str());
+std::filesystem::path video_utils::createPath(std::filesystem::path & path, int vid, std::string extension) {
+  return std::filesystem::path((boost::format("%s%i%s") % path.string() % vid % extension).str());
 }
 
-bfs::path video_utils::icon_filename(int vid) {
+std::filesystem::path video_utils::icon_filename(int vid) {
   return createPath(thumbPath,vid,".jpg");
 }
 
-bool video_utils::frameNoCrop(bfs::path & fileName, double start_time, std::vector<char> & imgDat) {
+bool video_utils::frameNoCrop(std::filesystem::path & fileName, double start_time, std::vector<char> & imgDat) {
   SwsContext *img_convert_ctx;
   AVFormatContext *pFormatContext=NULL;
   int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);

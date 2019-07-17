@@ -3,7 +3,7 @@
 
 #include <set>
 #include <cxxpool.h>
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <mutex>
 #if defined(_WIN32)
  #define PLATFORM_NAME "windows" // Windows
@@ -12,8 +12,6 @@
 #elif defined(__linux__)
 #define PLATFORM_NAME "linux"
 #endif
-
-namespace bfs=boost::filesystem;
 
 namespace Magick {
    class Image;
@@ -36,7 +34,7 @@ class video_utils
 
   bool create_thumb(VidFile * vFile);
 
-  void create_image(bfs::path & fileName, float start_time, std::vector<char> * imgDat);
+  void create_image(std::filesystem::path & fileName, float start_time, std::vector<char> * imgDat);
 
   bool compare_images(int vid1, int vid2);
 
@@ -64,11 +62,11 @@ class video_utils
 
   std::set<std::string> get_extensions();
 
-  void set_paths(std::vector<bfs::path> & paths);
+  void set_paths(std::vector<std::filesystem::path> & paths);
 
-  bfs::path createPath(bfs::path & path, int vid, std::string extension);
+  std::filesystem::path createPath(std::filesystem::path & path, int vid, std::string extension);
 
-  bfs::path icon_filename(int vid);
+  std::filesystem::path icon_filename(int vid);
 
   void close();
 
@@ -76,7 +74,7 @@ class video_utils
 
   qvdb_metadata * mdInterface();
 
-  bool vid_factory(std::vector<bfs::path> & paths);
+  bool vid_factory(std::vector<std::filesystem::path> & paths);
 
   bool getVidBatch(std::vector<VidFile*> & batch);
 
@@ -84,12 +82,12 @@ class video_utils
 
   bool trace_exists(int vid);
 
-  bool frameNoCrop(bfs::path & fileName, double start_time, std::vector<char> & imgDat);
+  bool frameNoCrop(std::filesystem::path & fileName, double start_time, std::vector<char> & imgDat);
 
  private:
   
   cxxpool::thread_pool * TPool;
-  bfs::path tempPath, tracePath, savePath, thumbPath;
+  std::filesystem::path tempPath, tracePath, savePath, thumbPath;
   DbConnector * dbCon;
   qvdb_config * appConfig;
   qvdb_metadata * metaData;
@@ -100,7 +98,7 @@ class video_utils
   std::vector<std::future<bool> > resVec;
   std::vector<std::string> cBadChars;
   std::vector<int> fVIDs;
-  std::vector<bfs::path> paths;
+  std::vector<std::filesystem::path> paths;
   std::set<std::string> extensions;
   std::mutex mtx;
   

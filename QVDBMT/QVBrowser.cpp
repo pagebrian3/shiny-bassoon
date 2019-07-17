@@ -212,7 +212,7 @@ bool QVBrowser::progress_timeout() {
 	if(iExists) {  //if icon exists set as background and mark as done.
 	  b = new QStandardItem();
 	  iconVec.push_back(b);
-	  bfs::path icon_file(vu->icon_filename(vid));
+	  std::filesystem::path icon_file(vu->icon_filename(vid));
 	  QPixmap img(QString(icon_file.c_str()));
 	  iconVec[position]->setSizeHint(img.size());
 	  iconVec[position]->setBackground(QBrush(img));
@@ -240,7 +240,7 @@ bool QVBrowser::progress_timeout() {
     for(auto &b: res) {  //this leads to alot of redundant looping, perhaps we can remove completed elements from res and and vid_list, or remember the position of the first job which was not completed from the last loop.
       if(b == std::future_status::ready) { //Job is done, icon needs to be added
 	if(vid_list[i] != 0) {  
-	  bfs::path iconFilename(vu->icon_filename(vid_list[i]));
+	  std::filesystem::path iconFilename(vu->icon_filename(vid_list[i]));
 	  QPixmap img(QString(iconFilename.c_str()));
 	  iconVec[i]->setSizeHint(img.size());
 	  iconVec[i]->setBackground(QBrush(img));
@@ -312,8 +312,8 @@ void QVBrowser::browse_clicked() {
   QStringList fileNames;
   if(dialog.exec()) {
     fileNames = dialog.selectedFiles();
-    std::vector<bfs::path> files;
-    for(auto &a: fileNames) files.push_back(bfs::path(a.toStdString()));
+    std::vector<std::filesystem::path> files;
+    for(auto &a: fileNames) files.push_back(std::filesystem::path(a.toStdString()));
     vu->set_paths(files);
     populate_icons(true);
   }

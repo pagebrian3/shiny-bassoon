@@ -3,17 +3,18 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <iostream>
+#include <filesystem>
 
-DbConnector::DbConnector(bfs::path & appPath,bfs::path & tempPath) {
+DbConnector::DbConnector(std::filesystem::path & appPath,std::filesystem::path & tempPath) {
   db_path = appPath;
-  bfs::path tmpPath = tempPath;
+  std::filesystem::path tmpPath = tempPath;
   db_path+="vdb.db";
   db_tmp = tmpPath;
   db_tmp+="vdb.db";
   newDB = true;
-  if (bfs::exists(db_path)) {
+  if (std::filesystem::exists(db_path)) {
     newDB=false;
-    bfs::copy_file(db_path,db_tmp,bfs::copy_option::overwrite_if_exists);
+    std::filesystem::copy_file(db_path,db_tmp,std::filesystem::copy_options::overwrite_existing);
   }  
   sqlite3_open(db_tmp.c_str(),&db);
   if (newDB) {
@@ -28,11 +29,11 @@ DbConnector::DbConnector(bfs::path & appPath,bfs::path & tempPath) {
 
 void DbConnector::save_db_file() {
   sqlite3_close(db);
-  bfs::copy_file(db_tmp,db_path,bfs::copy_option::overwrite_if_exists);
-  bfs::remove(db_tmp);
+  std::filesystem::copy_file(db_tmp,db_path,std::filesystem::copy_options::overwrite_existing);
+  std::filesystem::remove(db_tmp);
 }
 
-VidFile * DbConnector::fetch_video(bfs::path & filename){
+VidFile * DbConnector::fetch_video(std::filesystem::path & filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT crop, length, size, okflag, rotate, vid, height, width FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
@@ -138,7 +139,7 @@ void DbConnector::save_crop(VidFile* a) {
   return;
 }
 
-bool DbConnector::video_exists(bfs::path & filename){
+bool DbConnector::video_exists(std::filesystem::path & filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM videos WHERE path = ? limit 1)", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
@@ -217,7 +218,7 @@ void DbConnector::update_results(int  i, int  j, int  k, int l, std::string deta
   return;
 }
 
-std::vector<int> DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & files){
+std::vector<int> DbConnector::cleanup(std::filesystem::path & dir, std::vector<std::filesystem::path> & files){
   if(newDB) return std::vector<int>();
   sqlite3_stmt *stmt;
   std::vector<int> orphans;
@@ -226,8 +227,8 @@ std::vector<int> DbConnector::cleanup(bfs::path & dir, std::vector<bfs::path> & 
   int rc = sqlite3_prepare_v2(db,ss.str().c_str(), -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
   while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-    bfs::path path1(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
-    bfs::path relative = bfs::relative(dir,path1);
+    std::filesystem::path path1(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
+    std::filesystem::path relative = std::filesystem::relative(dir,path1);
     if(relative.string().find_first_of('/') != std::string::npos) continue;
     auto result = std::find(files.begin(),files.end(),path1);
     if(result == files.end()) orphans.push_back(sqlite3_column_int(stmt,1));
@@ -465,7 +466,7 @@ bool DbConnector::video_has_md(int vid){
   return result;
 }
 
-int DbConnector::fileVid(bfs::path & fileName) {
+int DbConnector::fileVid(std::filesystem::path & fileName) {
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT vid FROM videos WHERE path = ? limit 1", -1, &stmt, NULL);
   if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));

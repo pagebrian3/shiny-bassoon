@@ -5,21 +5,19 @@
 #include <map>
 #include <boost/variant.hpp>
 #include <boost/bimap.hpp>
-#include <boost/filesystem.hpp>
+#include <filesystem>
 
 class VidFile;
-
-namespace bfs = boost::filesystem;
 
 class DbConnector {
 
  public:
 
-  DbConnector(bfs::path & path, bfs::path & tempPath);
+  DbConnector(std::filesystem::path & path, std::filesystem::path & tempPath);
 
-  bool video_exists(bfs::path & filename);
+  bool video_exists(std::filesystem::path & filename);
 
-  VidFile* fetch_video(bfs::path & filename);
+  VidFile* fetch_video(std::filesystem::path & filename);
 
   void save_video(VidFile *a);
 
@@ -31,7 +29,7 @@ class DbConnector {
 
   void save_db_file();
 
-  std::vector<int> cleanup(bfs::path & dir, std::vector<bfs::path> & files);
+  std::vector<int> cleanup(std::filesystem::path & dir, std::vector<std::filesystem::path> & files);
 
   std::vector<std::pair<std::string,boost::variant<int,float,std::string> > > fetch_config();
 
@@ -45,7 +43,7 @@ class DbConnector {
 
   bool video_has_md(int vid);
 
-  int fileVid(bfs::path & fileName);
+  int fileVid(std::filesystem::path & fileName);
   
  private:
 
@@ -53,9 +51,9 @@ class DbConnector {
 
   sqlite3 * db;
 
-  bfs::path db_path;
+  std::filesystem::path db_path;
 
-  bfs::path db_tmp;
+  std::filesystem::path db_tmp;
 
 };
 

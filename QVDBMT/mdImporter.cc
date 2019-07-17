@@ -1,17 +1,18 @@
 #include <QVBMetadata.h>
 #include <iostream>
+#include <fstream>
 
 int main(int argc, char *argv[])
 {
-  bfs::path savePath = getenv("HOME");
+  std::filesystem::path savePath = getenv("HOME");
   savePath+="/.video_proj/";
-  bfs::path tempPath = "/tmp/qvdbtmp/";
+  std::filesystem::path tempPath = "/tmp/qvdbtmp/";
   DbConnector *dbCon = new DbConnector(savePath,tempPath);
   qvdb_metadata * md = new qvdb_metadata(dbCon);
   std::string STRING;
   std::string label;
-  bfs::path filename;
-  bfs::path baseDir("/home/pageb/Downloads/blah/");
+  std::filesystem::path filename;
+  std::filesystem::path baseDir("/home/pageb/Downloads/blah/");
   std::ifstream infile;
   infile.open(argv[1]);
   size_t spacePos;
