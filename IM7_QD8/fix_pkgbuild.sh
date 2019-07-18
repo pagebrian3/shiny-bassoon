@@ -23,13 +23,14 @@ sed -i '/\"$pkgdir\/usr\/lib\/perl5\"\ usr\/lib\//d' PKGBUILD
 sed -i '/\"$pkgdir\/usr\/share\/man\"\ usr\/share\//d' PKGBUILD
 sed -i 's/mv\ \"\$pkgdir\/usr\/bin\/\"\ usr\//rm\ -r\ \"$pkgdir\/usr\/bin\/\"\ /' PKGBUILD
 sed -i '/find \"$pkgdir\/usr\/lib\/perl5\"\ -name/d' PKGBUILD
-sed -i '/^makedepends/ {s/openexr//;s/libwmf//;s/librsvg//;s/libwebp//;s/libraw//;}' PKGBUILD
+sed -i '/^makedepends/ {s/openexr //;s/libwmf //;s/librsvg //;s/libwebp //;s/libraw //;s/ghostpcl //;s/ghostxps //;}' PKGBUILD
+sed -i '/^makedepends/ {n;s/ghostpcl //;s/ghostxps //;}' PKGBUILD
 sed -i '/chrpath ocl-icd/ {s/libheif//;s/jbigkit//;}' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/etc' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/include' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/share' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/bin' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ find\ \"$pkgdir\"\/usr\/lib\/pkgconfig\/\ -type\ f\ !\ -name\ \"\*Q8\.pc\"\ -delete' PKGBUILD
-sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ sed\ -i\ \x27\/\^Requires:\/\ s\/$\/-7\\\.Q8\/\x27\ $pkgdir\/usr\/lib\/pkgconfig\/\*\.pc' PKGBUILD
+sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ sed\ -i\ \x27\/\^Requires:\/\ s\/$\/-7\\\.Q8\/\x27\ $pkgdir\/usr\/lib\/pkgconfig\/Magick++\*\.pc' PKGBUILD
 sed -i '/pkgdir\/usr\/share\/doc/d' PKGBUILD
 sed -i '/package_imagemagick-doc()/,$d' PKGBUILD
