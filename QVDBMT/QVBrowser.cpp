@@ -5,8 +5,8 @@
 #include <MetadataDialog.h>
 #include <Miniplayer.h>
 #include <FilterDialog.h>
-#include <QVBConfig.h>
-#include <QVBMetadata.h>
+//#include <QVBConfig.h>
+//#include <QVBMetadata.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <QFileDialog>
