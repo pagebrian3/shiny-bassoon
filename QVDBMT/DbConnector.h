@@ -1,13 +1,13 @@
 #ifndef DBCONNECTOR_H
 #define DBCONNECTOR_H
 
-#include <sqlite3.h>
 #include <map>
 #include <boost/variant.hpp>
 #include <boost/bimap.hpp>
 #include <filesystem>
 
 class VidFile;
+class sqlite3;
 
 class DbConnector {
 

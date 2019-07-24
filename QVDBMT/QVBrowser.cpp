@@ -5,8 +5,6 @@
 #include <MetadataDialog.h>
 #include <Miniplayer.h>
 #include <FilterDialog.h>
-//#include <QVBConfig.h>
-//#include <QVBMetadata.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <QFileDialog>
@@ -14,9 +12,6 @@
 #include <QHBoxLayout>
 #include <QProgressBar>
 #include <QLabel>
-#include <QPushButton>
-#include <QComboBox>
-#include <QGroupBox>
 #include <QAction>
 #include <QTimer>
 #include <QListView>
@@ -31,7 +26,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
   qMD = vu->mdInterface();
   resize(qCfg->get_int("win_width"),qCfg->get_int("win_height"));
   sort_by=qCfg->get_string("sort_by"); //size, name, length, vid  
-  if(qCfg->get_int("sort_ascending") == 0)sOrder = Qt::DescendingOrder;
+  if(qCfg->get_int("sort_ascending") == 0) sOrder = Qt::DescendingOrder;
   else sOrder=Qt::AscendingOrder;
   QPushButton *browse_button = new QPushButton("...");
   connect(browse_button, &QPushButton::clicked, this, &QVBrowser::browse_clicked);
@@ -43,10 +38,8 @@ QVBrowser::QVBrowser() : QMainWindow() {
   QHBoxLayout * hbox = new QHBoxLayout();  
   QLabel sort_label("Sort by:");
   QComboBox * sort_combo = new QComboBox();
-  sort_combo->addItem("size");
-  sort_combo->addItem("length");
-  sort_combo->addItem("name");
-  sort_combo->addItem("vid");
+  QStringList items = {"size","length","name","vid"};
+  sort_combo->addItems(items);
   connect(sort_combo, &QComboBox::currentTextChanged,this,&QVBrowser::on_sort_changed);
   progress_bar = new QProgressBar();
   progress_bar->setMinimum(0);

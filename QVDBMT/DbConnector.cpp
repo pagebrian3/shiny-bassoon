@@ -2,8 +2,8 @@
 #include <VidFile.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
+#include <sqlite3.h>
 #include <iostream>
-#include <filesystem>
 
 DbConnector::DbConnector(std::filesystem::path & appPath,std::filesystem::path & tempPath) {
   db_path = appPath;
