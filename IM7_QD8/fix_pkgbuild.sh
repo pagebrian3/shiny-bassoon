@@ -24,9 +24,9 @@ sed -i '/\"$pkgdir\/usr\/lib\/perl5\"\ usr\/lib\//d' PKGBUILD
 sed -i '/\"$pkgdir\/usr\/share\/man\"\ usr\/share\//d' PKGBUILD
 sed -i 's/mv\ \"\$pkgdir\/usr\/bin\/\"\ usr\//rm\ -r\ \"$pkgdir\/usr\/bin\/\"\ /' PKGBUILD
 sed -i '/find \"$pkgdir\/usr\/lib\/perl5\"\ -name/d' PKGBUILD
-sed -i '/^makedepends/ {s/openexr //;s/libwmf //;s/librsvg //;s/libwebp //;s/libraw //;s/ghostpcl //;s/ghostxps //;}' PKGBUILD
-sed -i '/^makedepends/ {n;s/ghostpcl //;s/ghostxps //;}' PKGBUILD
-sed -i '/chrpath ocl-icd/ {s/libheif//;s/jbigkit//;}' PKGBUILD
+sed -i '/^makedepends/ {s/openexr //;s/libwmf //;s/librsvg //;s/libwebp //;s/libraw //;s/ghostscript //;}' PKGBUILD
+sed -i '/^makedepends/ {n;s/ghostpcl //;s/ghostxps //;s/libheif //;s/jbigkit //;}' PKGBUILD
+sed -i '/^checkdepends/ s/gsfonts //' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/etc' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/include' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/share' PKGBUILD
