@@ -1,7 +1,6 @@
 #ifndef VIDFILE_H
 #define VIDFILE_H
 
-#include <string>
 #include <filesystem>
 
 class VidFile {

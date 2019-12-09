@@ -144,8 +144,7 @@ public:
 	  performerKnown=true;
 	  break;
 	}
-      if(!performerKnown) vidMD.insert(-1);
-    
+      if(!performerKnown) vidMD.insert(-1);   
       if(acceptTags.size() > 0) {
 	bool hasAll = true;
 	for(auto & element: acceptTags) {

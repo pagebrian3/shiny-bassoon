@@ -9,12 +9,9 @@
 #include <boost/algorithm/string.hpp>
 #include <QFileDialog>
 #include <QMenu>
-#include <QHBoxLayout>
 #include <QProgressBar>
-#include <QLabel>
 #include <QAction>
 #include <QTimer>
-#include <QListView>
 #include <QStandardItem>
 #include <QResizeEvent>
 #include <QModelIndex>

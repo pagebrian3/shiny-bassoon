@@ -499,7 +499,7 @@ int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
       if(extensions.count(extension)) {
 	std::filesystem::path pathName = x.path();
 	for(auto & bChar: cBadChars) {
-	  std::string nameHolder = pathName.native();
+	  auto nameHolder = pathName.native();
 	  if(nameHolder.find(bChar)!=std::string::npos){
 	    boost::erase_all(nameHolder,bChar);
 	    std::filesystem::path newName(nameHolder);
