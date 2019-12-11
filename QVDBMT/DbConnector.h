@@ -41,6 +41,8 @@ class DbConnector {
 
   void save_metadata(std::map<int,std::set<int >> & file_metdata,std::map<int,std::pair<int,std::string>> & labelLookup, boost::bimap<int,std::string> & typeLookup);
 
+  void load_fileVIDs(std::map<int,std::filesystem::path> & fvMap);
+
   bool video_has_md(int vid);
 
   int fileVid(std::filesystem::path & fileName);

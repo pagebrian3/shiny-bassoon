@@ -340,6 +340,19 @@ void DbConnector::load_metadata_labels(std::map<int,std::pair<int,std::string> >
   return;
 }
 
+void DbConnector::load_fileVIDs(std::map<int,std::filesystem::path> & fvMap) {
+  sqlite3_stmt *stmt;
+  int rc = sqlite3_prepare_v2(db, "SELECT vid, path FROM videos", -1, &stmt, NULL);
+  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+  while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+    int vid = sqlite3_column_int(stmt,0);
+    std::filesystem::path fPath(reinterpret_cast<const char *>(sqlite3_column_text(stmt,1)));
+    fvMap[vid]=fPath;
+  }
+  sqlite3_finalize(stmt);
+  return;
+}
+
 void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,std::set<int > > & fileMetadata) {
   for(auto & vid: vids) {
     if(!video_has_md(vid)) continue;
