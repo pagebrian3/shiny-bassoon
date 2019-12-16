@@ -3,9 +3,7 @@
 #include <QVBMetadata.h>
 #include <QVBConfig.h>
 #include <VidFile.h>
-#include <MediaInfo/MediaInfo.h>
 #include <Magick++.h>
-#include <ZenLib/Ztring.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/math/interpolators/barycentric_rational.hpp>
@@ -17,6 +15,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/display.h>
 #include <libswscale/swscale.h>
 }
 
@@ -550,34 +549,51 @@ qvdb_config * video_utils::get_config(){
 }
 
 bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
-  MediaInfoLib::MediaInfo MI;
   unsigned int nThreads = appConfig->get_int("threads");
   std::vector<int> blank(4);
   for(uint h = 0; h*nThreads < files.size(); h++) {
     std::vector<VidFile *> batch;   
     for(uint i = 0; i < nThreads && i+h*nThreads < files.size(); i++) {
-      ZenLib::Ztring zFile;
-      auto fileName = files[i+h*nThreads];
-      zFile += fileName.wstring();
+      auto fileName = files[i+h*nThreads].u8string();
       int size = 0;
       if(std::filesystem::is_symlink(fileName)) {
 	size = std::filesystem::file_size(std::filesystem::read_symlink(fileName));
       }
-      else size = std::filesystem::file_size(fileName); 
-      MI.Open(zFile);
-      MI.Option(__T("Inform"),__T("Video;%Duration%"));
-      float length = 0.001*ZenLib::Ztring(MI.Inform()).To_float32();
-      if(length <= 0) {
-	std::cout << "Length failed for " << files[i].string() << std::endl;
-	length = 0.0;
+      else size = std::filesystem::file_size(fileName);
+      AVFormatContext *pFormatCtx=NULL;
+      int ret = avformat_open_input(&pFormatCtx, fileName.c_str(), NULL, NULL);
+      if(ret < 0) {
+	std::cout << "trouble opening: " << fileName.c_str() << std::endl;
+	VidFile * newVid = new VidFile(fileName, 0, 0, 0, -1, blank, 0, 0, 0);
+        batch.push_back(newVid);
+	continue;
       }
-      MI.Option(__T("Inform"),__T("Video;%Rotation%"));
-      int rotate = ZenLib::Ztring(MI.Inform()).To_float32();
-      MI.Option(__T("Inform"),__T("Video;%Height%"));
-      int height = ZenLib::Ztring(MI.Inform()).To_int32s();
-      MI.Option(__T("Inform"),__T("Video;%Width%"));
-      int width = ZenLib::Ztring(MI.Inform()).To_int32s();
-      MI.Close();
+      avformat_find_stream_info(pFormatCtx,NULL);
+      unsigned int videoStream = 0;
+      AVCodec *pCodec;
+      AVRational avr;
+      AVCodecParameters * pCodecParameters;
+      AVStream * st;
+      for(; videoStream<pFormatCtx->nb_streams; videoStream++) {
+	pCodecParameters = pFormatCtx->streams[videoStream]->codecpar;
+	if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
+	  pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
+	  st = pFormatCtx->streams[videoStream];
+	  avr = st->time_base;
+	  break;
+	}
+      }
+      AVCodecContext *pCodecCtx = avcodec_alloc_context3(pCodec);
+      avcodec_parameters_to_context(pCodecCtx, pCodecParameters);
+      avcodec_open2(pCodecCtx, pCodec, NULL);
+      auto ticksPerFrame = pCodecCtx->ticks_per_frame;
+      float length = static_cast<double>(pFormatCtx->streams[videoStream]->duration) * static_cast<double>(ticksPerFrame) / static_cast<double>(avr.den);
+      avcodec_open2(pCodecCtx, pCodec,NULL);
+      int width = pCodecCtx->width;
+      int height = pCodecCtx->height;
+      uint8_t* displaymatrix = av_stream_get_side_data(st, AV_PKT_DATA_DISPLAYMATRIX, NULL);
+      int rotate = 0; 
+      if(displaymatrix) rotate = -av_display_rotation_get((int32_t*) displaymatrix);
       VidFile * newVid = new VidFile(fileName, length, size, 0, -1, blank, rotate, height, width);
       batch.push_back(newVid);
     }
