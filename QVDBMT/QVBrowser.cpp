@@ -74,6 +74,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
 }
 
 QVBrowser::~QVBrowser() {
+  delete vu;
 }
 
 void QVBrowser::onSelChanged() {

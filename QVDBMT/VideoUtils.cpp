@@ -595,6 +595,8 @@ bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
       int rotate = 0; 
       if(displaymatrix) rotate = -av_display_rotation_get((int32_t*) displaymatrix);
       VidFile * newVid = new VidFile(fileName, length, size, 0, -1, blank, rotate, height, width);
+      avformat_close_input(&pFormatCtx);
+      avcodec_free_context(&pCodecCtx);
       batch.push_back(newVid);
     }
     mtx.lock();
