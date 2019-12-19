@@ -323,7 +323,7 @@ bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
   float corrFactorRow = 1.0/(float)(cBFrames*width);
   bool skipBorder = false;
   std::vector<char> ptrHolder;
-  for(int i = 0; i < cBFrames; i++) {
+  for(int i = 0; i < cBFrames-1; i++) {
     frame_time+=frame_spacing;
     frameNoCrop(fileName,frame_time,imgDat1);
     for (unsigned int y=0; y < height; y++)
@@ -358,7 +358,6 @@ bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
       crop[2]=y1;
       crop[3]=y2;
     }
-
   }
   return true;
 }
@@ -587,7 +586,7 @@ bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
       avcodec_parameters_to_context(pCodecCtx, pCodecParameters);
       avcodec_open2(pCodecCtx, pCodec, NULL);
       auto ticksPerFrame = pCodecCtx->ticks_per_frame;
-      float length = static_cast<double>(pFormatCtx->streams[videoStream]->duration) * static_cast<double>(ticksPerFrame) / static_cast<double>(avr.den);
+      float length = static_cast<double>(pFormatCtx->streams[videoStream]->duration)/* * static_cast<double>(ticksPerFrame)*/ / static_cast<double>(avr.den);
       avcodec_open2(pCodecCtx, pCodec,NULL);
       int width = pCodecCtx->width;
       int height = pCodecCtx->height;
@@ -660,45 +659,43 @@ bool video_utils::frameNoCrop(std::filesystem::path & fileName, double start_tim
   AVCodec *pCodec;
   AVCodecParameters *pCodecParameters;
   unsigned int index=0;
+  int index_test = -1;
   AVRational time_base;
   for (; index < pFormatContext->nb_streams; index++) {
     pCodecParameters = pFormatContext->streams[index]->codecpar;
     if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
       pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
       time_base = pFormatContext->streams[index]->time_base;
+      index_test=index;
       break;
     }
   }
+  if(index_test == -1) std::cout << "Video index not found." << std::endl;
   AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
   avcodec_parameters_to_context(pCodecContext, pCodecParameters);
   avcodec_open2(pCodecContext, pCodec, NULL);
   int w = pCodecContext->width;
   int h = pCodecContext->height;
   AVPacket *pPacket = av_packet_alloc();
+  if(pPacket == NULL) std::cout << "ALLOC ISSUES: " << fileName.c_str()<<std::endl;
   AVFrame *pFrame = av_frame_alloc();
   AVFrame *pFrameRGB = av_frame_alloc();
   if(!pFrame || !pFrameRGB)
     std::cout << "Couldn't allocate frame" << std::endl;
   double tConv = 1.0/av_q2d(time_base);
-  bool exit_flag = false;
+  //std::cout <<fileName.c_str() << " "<<start_time <<" "<<av_q2d(time_base) << std::endl;
   ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
   if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
-  double curFT,lastFT;
-  lastFT=0.0;
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
     if(pPacket->stream_index != (signed)index) continue;
-    curFT=(double)pPacket->pts/tConv;
-    if(curFT > start_time) {
-      if(start_time-lastFT < curFT-start_time) break;
-      else exit_flag=true;
-    }
     int ret = avcodec_send_packet(pCodecContext, pPacket);
     if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+      std::cout << "Leaving without frame." << std::endl;
       return false;
     }
-    if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && exit_flag) break;      
-    lastFT=curFT;
+    if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && pFrame->width > 0) break;      
   }
+  if(pFrame->width == 0)std::cout << fileName.c_str() <<" " <<start_time<<" pFrame stuff "<< pFrame->pkt_pos << " " << pFrame->key_frame << " " << pFrame->linesize[0]  <<" "<< pFrame->width << " " << pFrame->height <<" "<< w <<" " << h<< std::endl;
   img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
   sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);

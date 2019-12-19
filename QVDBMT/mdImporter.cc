@@ -12,7 +12,6 @@ int main(int argc, char *argv[])
   std::string STRING;
   std::string label;
   std::filesystem::path filename;
-  std::filesystem::path baseDir("/home/pageb/Downloads/blah/");
   
   std::string operation(argv[1]);
   
@@ -32,10 +31,9 @@ int main(int argc, char *argv[])
 	currentTypeLabel=STRING;
       }
       else {
-	filename=baseDir;
-	label = STRING.substr(0,spacePos);
-	filename +=STRING.substr(spacePos+1);
-	std::cout << filename.string() << std::endl;
+	label = filename = STRING.substr(0,spacePos);
+	filename = STRING.substr(spacePos+1);
+	std::cout <<label <<" "<< filename.string() << std::endl;
 	if(!dbCon->video_exists(filename)) continue;
 	if(!md->labelExists(currentType,label)) md->newLabel(currentTypeLabel,label);
 	md->attachToFile(dbCon->fileVid(filename),label);
