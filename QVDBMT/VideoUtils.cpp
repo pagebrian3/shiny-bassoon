@@ -55,7 +55,17 @@ video_utils::video_utils() {
   boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
   for(auto &a: tok) extensions.insert(a);
   boost::tokenizer<boost::char_separator<char> > tok1(badChars,sep);
+  canHWDecode=true;
   for(auto &a: tok1) cBadChars.push_back(a);
+  enum AVHWDeviceType type = av_hwdevice_find_type_by_name(AV_HWDEVICE_TYPE_VAAPI);  //make detectable/configurable
+  if (type == AV_HWDEVICE_TYPE_NONE) {
+    fprintf(stderr, "Device type %s is not supported.\n", argv[1]);
+    fprintf(stderr, "Available device types:");
+    while((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE)
+      fprintf(stderr, " %s", av_hwdevice_get_type_name(type));
+    fprintf(stderr, "\n");
+    canHWDecode=false;
+  }  
 }
 
 qvdb_metadata * video_utils::mdInterface() {
@@ -160,7 +170,129 @@ bool video_utils::compare_vids_fft(int i, int j) {
   return true;
 }
 
-bool video_utils::calculate_trace(VidFile * obj) {
+bool video_utils::calculate_trace_sw(VidFile * obj) {
+  int vid = obj->vid;
+  float fps = appConfig->get_float("trace_fps");
+  float start_time = appConfig->get_float("thumb_time");
+  if(obj->length <= start_time) start_time=0.0;
+  std::filesystem::path outPath = createPath(tracePath,obj->vid,".bin");
+  std::vector<int> crop = obj->crop;
+  std::vector<int> times;
+  std::vector<std::vector<char> > traceDat(12);
+  SwsContext *img_convert_ctx;
+  AVFormatContext *pFormatContext=NULL;
+  std::filesystem::path fileName = obj->fileName;
+  int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
+  if(ret < 0) {
+    std::cout << "trouble opening: " << fileName.c_str() << std::endl;
+    return false;
+  }
+  avformat_find_stream_info(pFormatContext,  NULL);
+  AVCodec *pCodec;
+  AVCodecParameters *pCodecParameters;
+  uint index=0;
+  AVRational time_base;
+  for (; index < pFormatContext->nb_streams; index++) {
+    pCodecParameters = pFormatContext->streams[index]->codecpar;
+    if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
+      pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
+      time_base = pFormatContext->streams[index]->time_base;
+      break;
+    }
+  }
+  AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
+  avcodec_parameters_to_context(pCodecContext, pCodecParameters);
+  avcodec_open2(pCodecContext, pCodec, NULL);
+  int w = pCodecContext->width;
+  int h = pCodecContext->height;
+  int cropW = w;
+  int cropH = h;
+  cropW -= (crop[0]+crop[1]);
+  cropH -= (crop[2]+crop[3]);
+  std::vector<char> imgDat(3*w*h);
+  AVPacket *pPacket = av_packet_alloc();
+  AVFrame *pFrame = av_frame_alloc();
+  AVFrame *pFrameRGB = av_frame_alloc();
+  if(!pFrame || !pFrameRGB)
+    std::cout << "Couldn't allocate frame" << std::endl;
+  double tConv = 1.0/av_q2d(time_base);
+  img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
+  if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
+  ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
+  if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
+  while(av_read_frame(pFormatContext,pPacket) >= 0) {
+    if(pPacket->stream_index != (signed)index) continue;
+    int ret = avcodec_send_packet(pCodecContext, pPacket);
+    if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+      return false;
+    }
+    float norm = 4.0/(cropW*cropH);
+    //deal with odd numbered cropW/cropH
+    if(avcodec_receive_frame(pCodecContext, pFrame) == 0) {
+      times.push_back(pFrame->pts);
+      std::vector<int> temp(12);
+      sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+      int y = 0;
+      auto dataIter = imgDat.begin();
+      for(; y < cropH/2; y++) {
+	dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
+	int x = 0;
+	for(; x < 3*cropW/2; x++) {
+	  temp[x%3]+=*dataIter;
+	  dataIter++;
+	}
+	for(; x < 3*cropW; x++) {
+	  temp[x%3+3]+=*dataIter;
+	  dataIter++;
+	}
+      }
+      for(; y < cropH; y++) {
+	auto dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
+	int x = 0;
+	for(; x < 3*cropW/2; x++) {
+	  temp[x%3+6]+=*dataIter;
+	  dataIter++;
+	}
+	for(; x < 3*cropW; x++) {
+	  temp[x%3+9]+=*dataIter;
+	  dataIter++;
+	}
+      }      
+      for(int i = 0; i < 12; i++) traceDat[i].push_back(norm*temp[i]);
+    }
+  }
+  avformat_close_input(&pFormatContext);
+  sws_freeContext(img_convert_ctx);
+  avcodec_free_context(&pCodecContext);
+  av_frame_free(&pFrame);
+  av_frame_free(&pFrameRGB);
+  av_packet_free(&pPacket); 
+  std::vector<boost::math::barycentric_rational<float> *> b;
+  for(int i = 0; i < 12; i++) {
+    auto c = new boost::math::barycentric_rational<float>(times.begin(),times.end(),traceDat[i].begin());
+    b.push_back(c);
+  }
+  double frame_spacing = tConv/fps;
+  double sample_time=start_time*tConv;
+  double length = times.back();
+  std::filesystem::path traceFile = createPath(tracePath,vid,".bin");
+  std::ofstream ofile(traceFile.c_str(),std::ofstream::binary);
+  std::vector<char> dataVec;
+  for(; sample_time < length; sample_time+=frame_spacing)
+    for( int i = 0; i < 12; i++) dataVec.push_back((char) (*b[i])(sample_time));
+  int dist_cap = 2*ZSTD_compressBound(dataVec.size());
+  std::vector<char> compressVec(dist_cap);
+  int dist_size = ZSTD_compress(&compressVec[0],dist_cap,&dataVec[0],dataVec.size(),15);
+  ofile.write(&compressVec[0], dist_size);
+  ofile.close();
+  return true; 
+}
+
+bool video_utils::calculate_trace_hw(VidFile * obj) {
+  if (hwDType == AV_HWDEVICE_TYPE_NONE) {
+    calculate_trace_sw(obj);
+    return;
+  }
   int vid = obj->vid;
   float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("thumb_time");
@@ -585,8 +717,7 @@ bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
       AVCodecContext *pCodecCtx = avcodec_alloc_context3(pCodec);
       avcodec_parameters_to_context(pCodecCtx, pCodecParameters);
       avcodec_open2(pCodecCtx, pCodec, NULL);
-      auto ticksPerFrame = pCodecCtx->ticks_per_frame;
-      float length = static_cast<double>(pFormatCtx->streams[videoStream]->duration)/* * static_cast<double>(ticksPerFrame)*/ / static_cast<double>(avr.den);
+      float length = static_cast<double>(pFormatCtx->streams[videoStream]->duration) / static_cast<double>(avr.den);
       avcodec_open2(pCodecCtx, pCodec,NULL);
       int width = pCodecCtx->width;
       int height = pCodecCtx->height;

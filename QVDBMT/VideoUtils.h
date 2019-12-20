@@ -86,6 +86,7 @@ class video_utils
 
  private:
   
+  enum AVHWDeviceType hwDType;
   cxxpool::thread_pool * TPool;
   std::filesystem::path tempPath, tracePath, savePath, thumbPath;
   DbConnector * dbCon;
