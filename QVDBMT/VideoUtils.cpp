@@ -17,7 +17,6 @@ extern "C" {
 #include <libavutil/imgutils.h>
 #include <libavutil/display.h>
 #include <libswscale/swscale.h>
-#include <libavcodec/hw
 }
 
 video_utils::video_utils() {
@@ -58,9 +57,9 @@ video_utils::video_utils() {
   boost::tokenizer<boost::char_separator<char> > tok1(badChars,sep);
   canHWDecode=true;
   for(auto &a: tok1) cBadChars.push_back(a);
-  enum AVHWDeviceType type = av_hwdevice_find_type_by_name(AV_HWDEVICE_TYPE_VAAPI);  //make detectable/configurable
+  enum AVHWDeviceType type = av_hwdevice_find_type_by_name("vaapi");  //make detectable/configurable
   if (type == AV_HWDEVICE_TYPE_NONE) {
-    fprintf(stderr, "Device type %s is not supported.\n", argv[1]);
+    fprintf(stderr, "Device type vaapi is not supported.\n");
     fprintf(stderr, "Available device types:");
     while((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE)
       fprintf(stderr, " %s", av_hwdevice_get_type_name(type));
@@ -306,6 +305,7 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
   AVFormatContext *pFormatContext=NULL;
   static AVBufferRef *hw_device_ctx = NULL;
   std::filesystem::path fileName = obj->fileName;
+  AVStream * video = NULL;
   int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
   if(ret < 0) {
     std::cout << "trouble opening: " << fileName.c_str() << std::endl;
@@ -324,30 +324,34 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
       break;
     }
   }
+  AVCodecContext * decoder_ctx = NULL;
+  if (!(decoder_ctx = avcodec_alloc_context3(pCodec)))
+        return AVERROR(ENOMEM);
+  if (avcodec_parameters_to_context(decoder_ctx, video->codecpar) < 0)
+        return -1;
   decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
-    if (!decoder_ctx->hw_device_ctx) {
-        calculate_trace_sw(obj);
-        return true;
+  if (!decoder_ctx->hw_device_ctx) {
+    calculate_trace_sw(obj);
+    return true;
+  }
+  static enum AVPixelFormat hw_pix_fmt;
+  int i = 0;
+  for (i = 0;; i++) {
+    const AVCodecHWConfig *config = avcodec_get_hw_config(pCodec, i);
+    if (!config) {
+      fprintf(stderr, "Decoder %s does not support device type %s.\n",
+	      pCodec->name, av_hwdevice_get_type_name(hwDType));
+      return -1;
     }
-    for (i = 0;; i++) {
-        const AVCodecHWConfig *config = avcodec_get_hw_config(decoder, i);
-        if (!config) {
-            fprintf(stderr, "Decoder %s does not support device type %s.\n",
-                    decoder->name, av_hwdevice_get_type_name(type));
-            return -1;
-        }
-        if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
-            config->device_type == type) {
-            hw_pix_fmt = config->pix_fmt;
-            break;
-        }
+    if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+	config->device_type == hwDType) {
+      hw_pix_fmt = config->pix_fmt;
+      break;
     }
-  
-  AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
-  avcodec_parameters_to_context(pCodecContext, pCodecParameters);
-  avcodec_open2(pCodecContext, pCodec, NULL);
-  int w = pCodecContext->width;
-  int h = pCodecContext->height;
+  }
+  avcodec_open2(decoder_ctx, pCodec, NULL);
+  int w = decoder_ctx->width;
+  int h = decoder_ctx->height;
   int cropW = w;
   int cropH = h;
   cropW -= (crop[0]+crop[1]);
@@ -359,19 +363,19 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
   if(!pFrame || !pFrameRGB)
     std::cout << "Couldn't allocate frame" << std::endl;
   double tConv = 1.0/av_q2d(time_base);
-  img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
+  img_convert_ctx = sws_getContext(w, h, decoder_ctx->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
   ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
   if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
     if(pPacket->stream_index != (signed)index) continue;
-    int ret = avcodec_send_packet(pCodecContext, pPacket);
+    int ret = avcodec_send_packet(decoder_ctx, pPacket);
     if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
       return false;
     }
     float norm = 4.0/(cropW*cropH);
     //deal with odd numbered cropW/cropH
-    if(avcodec_receive_frame(pCodecContext, pFrame) == 0) {
+    if(avcodec_receive_frame(decoder_ctx, pFrame) == 0) {
       times.push_back(pFrame->pts);
       std::vector<int> temp(12);
       sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
@@ -406,7 +410,7 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
   }
   avformat_close_input(&pFormatContext);
   sws_freeContext(img_convert_ctx);
-  avcodec_free_context(&pCodecContext);
+  avcodec_free_context(&decoder_ctx);
   av_frame_free(&pFrame);
   av_frame_free(&pFrameRGB);
   av_packet_free(&pPacket); 
@@ -595,7 +599,7 @@ int video_utils::start_make_traces(std::vector<VidFile *> & vFile) {
   traceDir+="traces/";
   for(auto & b: vFile) {
     std::filesystem::path tPath(createPath(traceDir,b->vid,".bin"));
-    if(!std::filesystem::exists(tPath)) resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace(b);},b));
+    if(!std::filesystem::exists(tPath)) resVec.push_back(TPool->push([&](VidFile * b ){ return calculate_trace_hw(b);},b));
   }
   return resVec.size();
 }

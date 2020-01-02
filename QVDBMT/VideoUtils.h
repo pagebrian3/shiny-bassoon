@@ -5,6 +5,9 @@
 #include <cxxpool.h>
 #include <filesystem>
 #include <mutex>
+extern "C" {
+     #include <libavutil/hwcontext.h>
+}
 #if defined(_WIN32)
  #define PLATFORM_NAME "windows" // Windows
 #elif defined(_WIN64)
@@ -88,6 +91,7 @@ class video_utils
 
  private:
   
+  bool canHWDecode;
   enum AVHWDeviceType hwDType;
   cxxpool::thread_pool * TPool;
   std::filesystem::path tempPath, tracePath, savePath, thumbPath;
