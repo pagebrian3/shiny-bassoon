@@ -17,6 +17,7 @@ extern "C" {
 #include <libavutil/imgutils.h>
 #include <libavutil/display.h>
 #include <libswscale/swscale.h>
+#include <libavcodec/hw
 }
 
 video_utils::video_utils() {
@@ -291,7 +292,7 @@ bool video_utils::calculate_trace_sw(VidFile * obj) {
 bool video_utils::calculate_trace_hw(VidFile * obj) {
   if (hwDType == AV_HWDEVICE_TYPE_NONE) {
     calculate_trace_sw(obj);
-    return;
+    return true;
   }
   int vid = obj->vid;
   float fps = appConfig->get_float("trace_fps");
@@ -303,6 +304,7 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
   std::vector<std::vector<char> > traceDat(12);
   SwsContext *img_convert_ctx;
   AVFormatContext *pFormatContext=NULL;
+  static AVBufferRef *hw_device_ctx = NULL;
   std::filesystem::path fileName = obj->fileName;
   int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
   if(ret < 0) {
@@ -322,6 +324,25 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
       break;
     }
   }
+  decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+    if (!decoder_ctx->hw_device_ctx) {
+        calculate_trace_sw(obj);
+        return true;
+    }
+    for (i = 0;; i++) {
+        const AVCodecHWConfig *config = avcodec_get_hw_config(decoder, i);
+        if (!config) {
+            fprintf(stderr, "Decoder %s does not support device type %s.\n",
+                    decoder->name, av_hwdevice_get_type_name(type));
+            return -1;
+        }
+        if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+            config->device_type == type) {
+            hw_pix_fmt = config->pix_fmt;
+            break;
+        }
+    }
+  
   AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
   avcodec_parameters_to_context(pCodecContext, pCodecParameters);
   avcodec_open2(pCodecContext, pCodec, NULL);
