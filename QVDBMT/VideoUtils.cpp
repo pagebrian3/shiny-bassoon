@@ -58,6 +58,7 @@ video_utils::video_utils() {
   canHWDecode=true;
   for(auto &a: tok1) cBadChars.push_back(a);
   enum AVHWDeviceType type = av_hwdevice_find_type_by_name("vaapi");  //make detectable/configurable
+  std::cout << "TYPE " << type << " " << av_hwdevice_get_type_name(type) << std::endl;
   if (type == AV_HWDEVICE_TYPE_NONE) {
     fprintf(stderr, "Device type vaapi is not supported.\n");
     fprintf(stderr, "Available device types:");
@@ -228,38 +229,37 @@ bool video_utils::calculate_trace_sw(VidFile * obj) {
     }
     float norm = 4.0/(cropW*cropH);
     //deal with odd numbered cropW/cropH
-    if(avcodec_receive_frame(pCodecContext, pFrame) == 0) {
-      times.push_back(pFrame->pts);
-      std::vector<int> temp(12);
-      sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
-      int y = 0;
-      auto dataIter = imgDat.begin();
-      for(; y < cropH/2; y++) {
-	dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
-	int x = 0;
-	for(; x < 3*cropW/2; x++) {
-	  temp[x%3]+=*dataIter;
-	  dataIter++;
-	}
-	for(; x < 3*cropW; x++) {
-	  temp[x%3+3]+=*dataIter;
-	  dataIter++;
-	}
+    if(avcodec_receive_frame(pCodecContext, pFrame) != 0) continue;
+    times.push_back(pFrame->pts);
+    std::vector<int> temp(12);
+    sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+    int y = 0;
+    auto dataIter = imgDat.begin();
+    for(; y < cropH/2; y++) {
+      dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
+      int x = 0;
+      for(; x < 3*cropW/2; x++) {
+	temp[x%3]+=*dataIter;
+	dataIter++;
       }
-      for(; y < cropH; y++) {
-	auto dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
-	int x = 0;
-	for(; x < 3*cropW/2; x++) {
-	  temp[x%3+6]+=*dataIter;
-	  dataIter++;
-	}
-	for(; x < 3*cropW; x++) {
-	  temp[x%3+9]+=*dataIter;
-	  dataIter++;
-	}
-      }      
-      for(int i = 0; i < 12; i++) traceDat[i].push_back(norm*temp[i]);
+      for(; x < 3*cropW; x++) {
+	temp[x%3+3]+=*dataIter;
+	dataIter++;
+      }
     }
+    for(; y < cropH; y++) {
+      auto dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
+      int x = 0;
+      for(; x < 3*cropW/2; x++) {
+	temp[x%3+6]+=*dataIter;
+	dataIter++;
+      }
+      for(; x < 3*cropW; x++) {
+	temp[x%3+9]+=*dataIter;
+	dataIter++;
+      }
+    }      
+    for(int i = 0; i < 12; i++) traceDat[i].push_back(norm*temp[i]);    
   }
   avformat_close_input(&pFormatContext);
   sws_freeContext(img_convert_ctx);
@@ -320,15 +320,16 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
     pCodecParameters = pFormatContext->streams[index]->codecpar;
     if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
       pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
-      time_base = pFormatContext->streams[index]->time_base;
+      video=pFormatContext->streams[index];
+      time_base = video->time_base;     
       break;
     }
   }
   AVCodecContext * decoder_ctx = NULL;
   if (!(decoder_ctx = avcodec_alloc_context3(pCodec)))
-        return AVERROR(ENOMEM);
+    return AVERROR(ENOMEM);
   if (avcodec_parameters_to_context(decoder_ctx, video->codecpar) < 0)
-        return -1;
+    return -1;
   decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
   if (!decoder_ctx->hw_device_ctx) {
     calculate_trace_sw(obj);
@@ -359,9 +360,9 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
   std::vector<char> imgDat(3*w*h);
   AVPacket *pPacket = av_packet_alloc();
   AVFrame *pFrame = av_frame_alloc();
+  AVFrame *sw_frame = av_frame_alloc();
   AVFrame *pFrameRGB = av_frame_alloc();
-  if(!pFrame || !pFrameRGB)
-    std::cout << "Couldn't allocate frame" << std::endl;
+  if(!pFrame || !pFrameRGB || ! sw_frame) std::cout << "Couldn't allocate frame" << std::endl;
   double tConv = 1.0/av_q2d(time_base);
   img_convert_ctx = sws_getContext(w, h, decoder_ctx->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
@@ -370,48 +371,52 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
     if(pPacket->stream_index != (signed)index) continue;
     int ret = avcodec_send_packet(decoder_ctx, pPacket);
-    if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-      return false;
-    }
+    if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) return false;  
     float norm = 4.0/(cropW*cropH);
     //deal with odd numbered cropW/cropH
-    if(avcodec_receive_frame(decoder_ctx, pFrame) == 0) {
-      times.push_back(pFrame->pts);
-      std::vector<int> temp(12);
-      sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
-      int y = 0;
-      auto dataIter = imgDat.begin();
-      for(; y < cropH/2; y++) {
-	dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
-	int x = 0;
-	for(; x < 3*cropW/2; x++) {
-	  temp[x%3]+=*dataIter;
-	  dataIter++;
-	}
-	for(; x < 3*cropW; x++) {
-	  temp[x%3+3]+=*dataIter;
-	  dataIter++;
-	}
+    if(avcodec_receive_frame(decoder_ctx, pFrame) == 0 && pFrame->format == hw_pix_fmt) { 
+      if ((ret = av_hwframe_transfer_data(sw_frame, pFrame, 0)) < 0) {
+	fprintf(stderr, "Error transferring the data to system memory\n");
+	return false;
       }
-      for(; y < cropH; y++) {
-	auto dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
-	int x = 0;
-	for(; x < 3*cropW/2; x++) {
-	  temp[x%3+6]+=*dataIter;
-	  dataIter++;
-	}
-	for(; x < 3*cropW; x++) {
-	  temp[x%3+9]+=*dataIter;
-	  dataIter++;
-	}
-      }      
-      for(int i = 0; i < 12; i++) traceDat[i].push_back(norm*temp[i]);
     }
+    else continue;
+    times.push_back(sw_frame->pts);
+    std::vector<int> temp(12);
+    sws_scale(img_convert_ctx, sw_frame->data, sw_frame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+    int y = 0;
+    auto dataIter = imgDat.begin();
+    for(; y < cropH/2; y++) {
+      dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
+      int x = 0;
+      for(; x < 3*cropW/2; x++) {
+	temp[x%3]+=*dataIter;
+	dataIter++;
+      }
+      for(; x < 3*cropW; x++) {
+	temp[x%3+3]+=*dataIter;
+	dataIter++;
+      }
+    }
+    for(; y < cropH; y++) {
+      auto dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
+      int x = 0;
+      for(; x < 3*cropW/2; x++) {
+	temp[x%3+6]+=*dataIter;
+	dataIter++;
+      }
+      for(; x < 3*cropW; x++) {
+	temp[x%3+9]+=*dataIter;
+	dataIter++;
+      }
+    }      
+    for(int i = 0; i < 12; i++) traceDat[i].push_back(norm*temp[i]);
   }
   avformat_close_input(&pFormatContext);
   sws_freeContext(img_convert_ctx);
   avcodec_free_context(&decoder_ctx);
   av_frame_free(&pFrame);
+  av_frame_free(&sw_frame);
   av_frame_free(&pFrameRGB);
   av_packet_free(&pPacket); 
   std::vector<boost::math::barycentric_rational<float> *> b;
