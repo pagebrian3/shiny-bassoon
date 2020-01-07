@@ -55,18 +55,25 @@ video_utils::video_utils() {
   boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
   for(auto &a: tok) extensions.insert(a);
   boost::tokenizer<boost::char_separator<char> > tok1(badChars,sep);
-  canHWDecode=true;
   for(auto &a: tok1) cBadChars.push_back(a);
-  enum AVHWDeviceType type = av_hwdevice_find_type_by_name("vaapi");  //make detectable/configurable
-  std::cout << "TYPE " << type << " " << av_hwdevice_get_type_name(type) << std::endl;
-  if (type == AV_HWDEVICE_TYPE_NONE) {
-    fprintf(stderr, "Device type vaapi is not supported.\n");
-    fprintf(stderr, "Available device types:");
-    while((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE)
-      fprintf(stderr, " %s", av_hwdevice_get_type_name(type));
-    fprintf(stderr, "\n");
-    canHWDecode=false;
-  }  
+  canHWDecode=true;
+  hwDType = av_hwdevice_find_type_by_name("VAAPI");  //Make a configurable parameter  also perhaps add VDPAU and others
+  if(hwDType == AV_HWDEVICE_TYPE_NONE) canHWDecode = false;
+  else {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("/usr/bin/vainfo", "r"), pclose);
+    if (!pipe) {
+      throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+      result += buffer.data();
+    }
+    std::string fail("vaInitialize failed with error code -1");
+    std::size_t found = result.find(fail);
+    if(found != std::string::npos) canHWDecode = false;
+  }
+  if(canHWDecode == false) std::cout << "HW Decode disabled." << std::endl;
 }
 
 qvdb_metadata * video_utils::mdInterface() {
@@ -289,7 +296,7 @@ bool video_utils::calculate_trace_sw(VidFile * obj) {
 }
 
 bool video_utils::calculate_trace_hw(VidFile * obj) {
-  if (hwDType == AV_HWDEVICE_TYPE_NONE) {
+  if (canHWDecode == false) {
     calculate_trace_sw(obj);
     return true;
   }
