@@ -57,7 +57,7 @@ video_utils::video_utils() {
   boost::tokenizer<boost::char_separator<char> > tok1(badChars,sep);
   for(auto &a: tok1) cBadChars.push_back(a);
   canHWDecode=appConfig->get_int("hwdecode_enabled");
-  hwDType = av_hwdevice_find_type_by_name(appConfig->get_string("hwdecoder").c_str());  //Make a configurable parameter  also perhaps add VDPAU and others
+  hwDType = av_hwdevice_find_type_by_name(appConfig->get_string("hwdecoder").c_str());  
   if(canHWDecode == false || hwDType == AV_HWDEVICE_TYPE_NONE) canHWDecode = false;
   else {
     std::array<char, 128> buffer;
@@ -221,19 +221,19 @@ bool video_utils::calculate_trace_sw(VidFile * obj) {
   AVPacket *pPacket = av_packet_alloc();
   AVFrame *pFrame = av_frame_alloc();
   AVFrame *pFrameRGB = av_frame_alloc();
-  if(!pFrame || !pFrameRGB)
+  if(!pFrame || !pFrameRGB) {
     std::cout << "Couldn't allocate frame" << std::endl;
+    return false;
+  }
   double tConv = 1.0/av_q2d(time_base);
   img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
-  ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
+  ret = avformat_seek_file(pFormatContext,index,0.5*tConv*start_time,tConv*start_time,tConv*start_time,AVSEEK_FLAG_ANY); //seek before
   if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
     if(pPacket->stream_index != (signed)index) continue;
     int ret = avcodec_send_packet(pCodecContext, pPacket);
-    if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-      return false;
-    }
+    if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) return false;
     float norm = 4.0/(cropW*cropH);
     //deal with odd numbered cropW/cropH
     if(avcodec_receive_frame(pCodecContext, pFrame) != 0) continue;
@@ -851,8 +851,7 @@ bool video_utils::frameNoCrop(std::filesystem::path & fileName, double start_tim
   if(!pFrame || !pFrameRGB)
     std::cout << "Couldn't allocate frame" << std::endl;
   double tConv = 1.0/av_q2d(time_base);
-  //std::cout <<fileName.c_str() << " "<<start_time <<" "<<av_q2d(time_base) << std::endl;
-  ret = avformat_seek_file(pFormatContext,index,0,tConv*start_time,tConv*start_time,0); //seek before
+  ret = avformat_seek_file(pFormatContext,index,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0); 
   if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
     if(pPacket->stream_index != (signed)index) continue;
@@ -863,7 +862,8 @@ bool video_utils::frameNoCrop(std::filesystem::path & fileName, double start_tim
     }
     if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && pFrame->width > 0) break;      
   }
-  if(pFrame->width == 0)std::cout << fileName.c_str() <<" " <<start_time<<" pFrame stuff "<< pFrame->pkt_pos << " " << pFrame->key_frame << " " << pFrame->linesize[0]  <<" "<< pFrame->width << " " << pFrame->height <<" "<< w <<" " << h<< std::endl;
+  std::cout <<fileName.c_str() << " "<<start_time <<" "<<av_q2d(time_base) <<" "<< pFrame->pts/tConv<< std::endl;
+  if(pFrame->width == 0) std::cout << fileName.c_str() <<" " <<start_time<<" pFrame stuff "<< pFrame->pkt_pos << " " << pFrame->key_frame << " " << pFrame->linesize[0]  <<" "<< pFrame->width << " " << pFrame->height <<" "<< w <<" " << h<< std::endl;
   img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
   sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
