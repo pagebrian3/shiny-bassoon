@@ -56,9 +56,9 @@ video_utils::video_utils() {
   for(auto &a: tok) extensions.insert(a);
   boost::tokenizer<boost::char_separator<char> > tok1(badChars,sep);
   for(auto &a: tok1) cBadChars.push_back(a);
-  canHWDecode=true;
-  hwDType = av_hwdevice_find_type_by_name("VAAPI");  //Make a configurable parameter  also perhaps add VDPAU and others
-  if(hwDType == AV_HWDEVICE_TYPE_NONE) canHWDecode = false;
+  canHWDecode=appConfig->get_int("hwdecode_enabled");
+  hwDType = av_hwdevice_find_type_by_name(appConfig->get_string("hwdecoder").c_str());  //Make a configurable parameter  also perhaps add VDPAU and others
+  if(canHWDecode == false || hwDType == AV_HWDEVICE_TYPE_NONE) canHWDecode = false;
   else {
     std::array<char, 128> buffer;
     std::string result;
