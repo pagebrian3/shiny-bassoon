@@ -121,15 +121,15 @@ bool video_utils::compare_vids_fft(int i, int j) {
     offset+=numVars;
   }
   for(k=0; k < numVars*length2; k++)  in[k]=traceData[j][k];
-    while(k<numVars*uSize) {
-      in[k]=0.0;
-      k++;
-    }
-    fftwf_execute(fPlan);
-      for(k=0; k < (uSize/2+1)*numVars; k++)  {
-      cHolder[k][0]=out[k][0];
-      cHolder[k][1]=out[k][1];
-    }
+  while(k<numVars*uSize) {
+    in[k]=0.0;
+    k++;
+  }
+  fftwf_execute(fPlan);
+  for(k=0; k < (uSize/2+1)*numVars; k++)  {
+    cHolder[k][0]=out[k][0];
+    cHolder[k][1]=out[k][1];
+  }
   //loop over slices
   for(t_s =0; t_s < numVars*(length1-trT); t_s+= numVars*cTraceFPS*cSliceSpacing){
     k=0;
@@ -165,7 +165,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
       std::cout << "Match! " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset << std::endl;
       ss <<t_s<<" "<< max_val <<" "<<max_offset;
       match = true;
-	break;
+      break;
     }
   }
   std::tuple<int,int,int> key(i,j,1);
@@ -292,6 +292,7 @@ bool video_utils::calculate_trace_sw(VidFile * obj) {
   int dist_size = ZSTD_compress(&compressVec[0],dist_cap,&dataVec[0],dataVec.size(),15);
   ofile.write(&compressVec[0], dist_size);
   ofile.close();
+  for(int i = 0; i < b.size(); i++) delete b[i];
   return true; 
 }
 
@@ -444,6 +445,7 @@ bool video_utils::calculate_trace_hw(VidFile * obj) {
   int dist_size = ZSTD_compress(&compressVec[0],dist_cap,&dataVec[0],dataVec.size(),15);
   ofile.write(&compressVec[0], dist_size);
   ofile.close();
+  for(int i = 0; i < b.size(); i++) delete b[i];
   return true; 
 }
 
@@ -597,6 +599,7 @@ void video_utils::compare_icons() {
       else result_map[key]=std::make_pair(result,"");  //It would be nice to capture a closeness metric here
     }
   }
+  delete img_cache.second;
   return;
 }
 
