@@ -865,7 +865,6 @@ bool video_utils::frameNoCrop(std::filesystem::path & fileName, double start_tim
     }
     if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && pFrame->width > 0) break;      
   }
-  std::cout <<fileName.c_str() << " "<<start_time <<" "<<av_q2d(time_base) <<" "<< pFrame->pts/tConv<< std::endl;
   if(pFrame->width == 0) std::cout << fileName.c_str() <<" " <<start_time<<" pFrame stuff "<< pFrame->pkt_pos << " " << pFrame->key_frame << " " << pFrame->linesize[0]  <<" "<< pFrame->width << " " << pFrame->height <<" "<< w <<" " << h<< std::endl;
   img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
