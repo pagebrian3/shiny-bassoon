@@ -71,7 +71,7 @@ video_utils::video_utils() {
     }
     std::string fail("vaInitialize failed with error code -1");
     std::size_t found = result.find(fail);
-    if(found != std::string::npos) canHWDecode = false;
+    if(found == std::string::npos) canHWDecode = false;
   }
   if(canHWDecode == false) std::cout << "HW Decode disabled." << std::endl;
 }
