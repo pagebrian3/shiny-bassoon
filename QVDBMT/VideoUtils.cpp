@@ -179,6 +179,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
 }
 
 bool video_utils::calculate_trace(VidFile * obj) {
+  bool canHWDecodeFile = canHWDecode;
   int vid = obj->vid;
   float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("thumb_time");
@@ -216,13 +217,13 @@ bool video_utils::calculate_trace(VidFile * obj) {
     return AVERROR(ENOMEM);
   if (avcodec_parameters_to_context(decoder_ctx, video->codecpar) < 0)
     return -1;
-  if(canHWDecode) {
+  if(canHWDecodeFile) {
     decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
-    if (!decoder_ctx->hw_device_ctx) canHWDecode = false;
+    if (!decoder_ctx->hw_device_ctx) canHWDecodeFile = false;
   }
   static enum AVPixelFormat hw_pix_fmt;
   int i = 0;
-  if(canHWDecode) {
+  if(canHWDecodeFile) {
     for (i = 0;; i++) {
       const AVCodecHWConfig *config = avcodec_get_hw_config(pCodec, i);
       if (!config) {
@@ -253,7 +254,8 @@ bool video_utils::calculate_trace(VidFile * obj) {
   if(!pFrame || !pFrameRGB || ! sw_frame) std::cout << "Couldn't allocate frame(s)" << std::endl;
   double tConv = 1.0/av_q2d(time_base);
   img_convert_ctx = sws_getContext(w, h, decoder_ctx->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
-  if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
+  if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0)
+    std::cout<<"avpicture_fill() failed" << std::endl;
   ret = avformat_seek_file(pFormatContext,index,0.5*tConv*start_time,tConv*start_time,tConv*start_time,AVSEEK_FLAG_ANY); //seek before
   if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
   while(av_read_frame(pFormatContext,pPacket) >= 0) {
@@ -262,14 +264,13 @@ bool video_utils::calculate_trace(VidFile * obj) {
     if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) return false;  
     float norm = 4.0/(cropW*cropH);
     //deal with odd numbered cropW/cropH
-    if(avcodec_receive_frame(decoder_ctx, pFrame) == 0 && (!canHWDecode || pFrame->format == hw_pix_fmt)) { 
-      if(canHWDecode) {
+    if(avcodec_receive_frame(decoder_ctx, pFrame) == 0 && (!canHWDecodeFile || pFrame->format == hw_pix_fmt)) { 
+      if(canHWDecodeFile) {
 	if(ret = av_hwframe_transfer_data(sw_frame, pFrame, 0) < 0) {
 	  fprintf(stderr, "Error transferring the data to system memory\n");
 	  return false;
 	}
-	else frame_ptr=sw_frame;
-	  
+	else frame_ptr=sw_frame;	  
       }
       else frame_ptr=pFrame;
     }
@@ -331,8 +332,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
     traceDat[8].push_back(norm*b3);
     traceDat[9].push_back(norm*r4);
     traceDat[10].push_back(norm*g4);
-    traceDat[11].push_back(norm*b4);
-    
+    traceDat[11].push_back(norm*b4);    
   }
   avformat_close_input(&pFormatContext);
   sws_freeContext(img_convert_ctx);
