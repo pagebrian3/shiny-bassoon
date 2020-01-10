@@ -30,7 +30,7 @@ QVBrowser.o:  QVBrowser.cpp QVBrowser.h ConfigDialog.h MetadataDialog.h FilterDi
 DbConnector.o:  DbConnector.cpp DbConnector.h 
 	$(CC) $(CFLAGS) -c DbConnector.cpp
 
-VideoUtils.o:  VideoUtils.cpp VideoUtils.h QVBMetadata.h QVBConfig.h DbConnector.h
+VideoUtils.o:  VideoUtils.cpp VideoUtils.h QVBMetadata.h QVBConfig.h DbConnector.h 
 	$(CC) $(CFLAGS) $(MAGICKFLAGS) -c VideoUtils.cpp
 
 mdImporter: DbConnector.o mdImporter.o

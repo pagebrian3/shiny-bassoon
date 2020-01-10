@@ -33,9 +33,7 @@ class video_utils
 
   bool compare_vids_fft(int i, int j);
 
-  bool calculate_trace_sw(VidFile * obj);
-
-  bool calculate_trace_hw(VidFile * obj);
+  bool calculate_trace(VidFile * obj);
 
   bool create_thumb(VidFile * vFile);
 
