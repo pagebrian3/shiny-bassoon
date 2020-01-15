@@ -131,6 +131,7 @@ bool video_utils::compare_vids_fft(int i, int j) {
     cHolder[k][1]=out[k][1];
   }
   //loop over slices
+  float a,b,c,d,sum,max_val;
   for(t_s =0; t_s < numVars*(length1-trT); t_s+= numVars*cTraceFPS*cSliceSpacing){
     k=0;
     //load and pad data for slice
@@ -143,23 +144,21 @@ bool video_utils::compare_vids_fft(int i, int j) {
     //calculate normalization for slice
     for(uint deltaT=0; deltaT < numVars*trT; deltaT+=numVars) for(l = 0; l < numVars; l++)  compCoeffs[l]+=pow(traceData[i][deltaT+t_s+l],2);
     fftwf_execute(fPlan);
-    for(k=0;k<numVars*(uSize/2+1); k++) {
-      float a,b,c,d;
+    for(k=0;k<numVars*(uSize/2+1); k++) {      
       c = out[k][0];
       d = out[k][1];
-      a =cHolder[k][0];
+      a = cHolder[k][0];
       b = cHolder[k][1];
       out[k][0]=a*c+b*d;
       out[k][1]=b*c-a*d;
     }
     fftwf_execute(rPlan);
-    float sum;
     for(k = 0; k < (unsigned)(length2-trT); k++)  {
       sum=0.0;
       for(l=0; l <numVars; l++) sum+=in[numVars*k+l]/(uSize* 6*(compCoeffs[l]+coeffs[numVars*k+l]));
       result[k]=pow(sum,cPower);
     }
-    float max_val = *max_element(result.begin(),result.end());
+    max_val = *max_element(result.begin(),result.end());
     int max_offset = max_element(result.begin(),result.end()) - result.begin();
     if(max_val > cThresh) {
       std::cout << "Match! " <<i <<" " << j<<" "<<t_s<<" "<< max_val <<" "<<max_offset << std::endl;
@@ -407,26 +406,40 @@ bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
   float corrFactorCol = 1.0/(float)(cBFrames*height);
   float corrFactorRow = 1.0/(float)(cBFrames*width);
   bool skipBorder = false;
+  float value;
   std::vector<char> ptrHolder;
+  auto r0 = imgDat0.begin();
+  auto r1(r0),g0(r0),g1(r0),b0(r0),b1(r0);
   for(int i = 0; i < cBFrames-1; i++) {
     frame_time+=frame_spacing;
     frameNoCrop(fileName,frame_time,imgDat1);
-    for (unsigned int y=0; y < height; y++)
+    auto dataIter0 = imgDat0.begin();
+    auto dataIter1 = imgDat1.begin();
+    for(unsigned int y=0; y < height; y++) 	
       for (unsigned int x=0; x < width; x++) {
-	int rpos=3*(y*width+x);
-	int gpos=rpos+1;
-	int bpos=gpos+1;
-	float value = sqrt(1.0/3.0*(pow(imgDat1[rpos]-imgDat0[rpos],2.0)+pow(imgDat1[gpos]-imgDat0[gpos],2.0)+pow(imgDat1[bpos]-imgDat0[bpos],2.0)));
+	r0=dataIter0;
+	dataIter0++;
+	g0=dataIter0;
+	dataIter0++;
+	b0=dataIter0;
+	dataIter0++;
+	r1=dataIter1;
+	dataIter1++;
+	g1=dataIter1;
+	dataIter1++;
+	b1=dataIter1;
+	dataIter1++;
+	value = sqrt(1.0/3.0*(pow(*r1-*r0,2.0)+pow(*g1-*g0,2.0)+pow(*b1-*b0,2.0)));
 	rowSums[y]+=corrFactorRow*value;
 	colSums[x]+=corrFactorCol*value;      
-      }
+      }   
     if(rowSums[0] > cCutThresh &&
        rowSums[height-1] > cCutThresh &&
        colSums[0] > cCutThresh &&
        colSums[width-1] > cCutThresh) {
       skipBorder=true;
       break;
-    }
+    }    
     ptrHolder=imgDat1;
     imgDat1=imgDat0;
     imgDat0=ptrHolder;
