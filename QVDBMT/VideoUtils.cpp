@@ -198,8 +198,8 @@ bool video_utils::calculate_trace(VidFile * obj) {
     return false;
   }
   avformat_find_stream_info(pFormatContext,  NULL);
-  AVCodec *pCodec;
-  AVCodecParameters *pCodecParameters;
+  AVCodec *pCodec = NULL;
+  AVCodecParameters *pCodecParameters=NULL;
   uint index=0;
   AVRational time_base;
   for (; index < pFormatContext->nb_streams; index++) {
@@ -265,7 +265,8 @@ bool video_utils::calculate_trace(VidFile * obj) {
     //deal with odd numbered cropW/cropH
     if(avcodec_receive_frame(decoder_ctx, pFrame) == 0 && (!canHWDecodeFile || pFrame->format == hw_pix_fmt)) { 
       if(canHWDecodeFile) {
-	if(ret = av_hwframe_transfer_data(sw_frame, pFrame, 0) < 0) {
+	ret = av_hwframe_transfer_data(sw_frame, pFrame, 0);
+	if(ret < 0) {
 	  fprintf(stderr, "Error transferring the data to system memory\n");
 	  return false;
 	}
@@ -275,7 +276,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
     }
     else continue;
     times.push_back(frame_ptr->pts);
-    int r1,r2,r3,r4,g1,g2,g3,g4,b1,b2,b3,b4;
+    int r1(0),r2(0),r3(0),r4(0),g1(0),g2(0),g3(0),g4(0),b1(0),b2(0),b3(0),b4(0);
     sws_scale(img_convert_ctx, frame_ptr->data, frame_ptr->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
     int y = 0;
     auto dataIter = imgDat.begin();
@@ -358,7 +359,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   int dist_size = ZSTD_compress(&compressVec[0],dist_cap,&dataVec[0],dataVec.size(),15);
   ofile.write(&compressVec[0], dist_size);
   ofile.close();
-  for(int i = 0; i < b.size(); i++) delete b[i];
+  for(unsigned int i = 0; i < b.size(); i++) delete b[i];
   return true; 
 }
 
@@ -668,19 +669,18 @@ bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
       }
       avformat_find_stream_info(pFormatCtx,NULL);
       unsigned int videoStream = 0;
-      AVCodec *pCodec;
-      AVRational avr;
-      AVCodecParameters * pCodecParameters;
-      AVStream * st;
+      AVCodec *pCodec = NULL;
+      AVCodecParameters * pCodecParameters = NULL;
+      AVStream * st = NULL;
       for(; videoStream<pFormatCtx->nb_streams; videoStream++) {
 	pCodecParameters = pFormatCtx->streams[videoStream]->codecpar;
 	if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
 	  pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
 	  st = pFormatCtx->streams[videoStream];
-	  avr = st->time_base;
 	  break;
 	}
       }
+      AVRational avr = st->time_base;
       AVCodecContext *pCodecCtx = avcodec_alloc_context3(pCodec);
       avcodec_parameters_to_context(pCodecCtx, pCodecParameters);
       avcodec_open2(pCodecCtx, pCodec, NULL);
@@ -754,8 +754,8 @@ bool video_utils::frameNoCrop(std::filesystem::path & fileName, double start_tim
     return false;
   }
   avformat_find_stream_info(pFormatContext,  NULL);
-  AVCodec *pCodec;
-  AVCodecParameters *pCodecParameters;
+  AVCodec *pCodec = NULL;
+  AVCodecParameters *pCodecParameters = NULL;
   unsigned int index=0;
   int index_test = -1;
   AVRational time_base;

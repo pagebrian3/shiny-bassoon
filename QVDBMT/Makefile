@@ -21,8 +21,8 @@ makepgo: qvbrowser mdImporter
 qvbrowser:   VideoUtils.o DbConnector.o QVBrowser.o qmain.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o qvbrowser VideoUtils.o DbConnector.o QVBrowser.o qmain.o 
 
-qmain.o:  qmain.cc
-	$(CC) $(CFLAGS) $(QTGUIFLAGS) -c qmain.cc 
+qmain.o:  qmain.C
+	$(CC) $(CFLAGS) $(QTGUIFLAGS) -c qmain.cpp
 
 QVBrowser.o:  QVBrowser.cpp QVBrowser.h ConfigDialog.h MetadataDialog.h FilterDialog.h VideoUtils.h QVBMetadata.h QVBConfig.h DbConnector.h
 	$(CC) $(CFLAGS) $(QTMMFLAGS) -c QVBrowser.cpp 
@@ -37,7 +37,7 @@ mdImporter: DbConnector.o mdImporter.o
 	$(CC) $(CFLAGS) -L/usr/lib/ -lsqlite3 -pthread -o mdImporter DbConnector.o mdImporter.o
 
 mdImporter.o: mdImporter.cc QVBMetadata.h
-	$(CC) $(CFLAGS) -c mdImporter.cc 
+	$(CC) $(CFLAGS) -c mdImporter.cpp 
 
 clean:
 	$(RM) qvbrowser mdImporter *.o *~
