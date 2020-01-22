@@ -18,10 +18,10 @@ public:
 ConfigDialog(QWidget * parent, qvdb_config * cfg)  {
   cfgPtr = cfg;
   config = cfg->get_data();
-  QGroupBox * flob = new QGroupBox;
+  QWidget * flob = new QWidget;
   QScrollArea * scrollArea = new QScrollArea;
-  scrollArea->setWidget(flob);
-  formLayout = new QFormLayout;
+  scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+  formLayout = new QFormLayout(flob);
   for(auto & a: config) {
     int type = a.second.which();
     QLineEdit *  tempEdit = new QLineEdit();
@@ -33,16 +33,17 @@ ConfigDialog(QWidget * parent, qvdb_config * cfg)  {
     editPtrs.push_back(tempEdit);
     formLayout->addRow(a.first.c_str(),tempEdit);
   }
-  flob->setLayout(formLayout);
+  scrollArea->setWidget(flob);
   QDialogButtonBox * buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
   connect(buttonBox,&QDialogButtonBox::accepted,this,&ConfigDialog::on_accept);
   connect(buttonBox,&QDialogButtonBox::accepted,this,&QDialog::accept);
   connect(buttonBox,&QDialogButtonBox::rejected,this,&QDialog::reject);
   QVBoxLayout *mainLayout = new QVBoxLayout;
-  mainLayout->addWidget(flob);
+  mainLayout->addWidget(scrollArea);
   mainLayout->addWidget(buttonBox);
   setLayout(mainLayout);
-  setWindowTitle(tr("Video Browser Configuration")); 
+  setWindowTitle(tr("Video Browser Configuration"));
+  scrollArea->show();
 };
 
 void on_accept() {
