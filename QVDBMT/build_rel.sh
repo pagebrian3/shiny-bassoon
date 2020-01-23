@@ -5,11 +5,12 @@ bdir="qvdbmt_rel"
 if [ "$1" == "debug" ]; then
     btype="debug"
     bdir="qvdbmt_deb"
+else
+    OPTFLAGS='-march=native'
 fi
 
-
 if [ ! -d "$bdir" ]; then
-    meson setup $bdir --buildtype $btype
+    CPPFLAGS=$OPTFLAGS meson setup $bdir --buildtype $btype
 fi
 cd $bdir
 ninja
