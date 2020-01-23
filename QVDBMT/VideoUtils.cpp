@@ -58,10 +58,8 @@ video_utils::video_utils() {
   for(auto &a: tok1) cBadChars.push_back(a);
   canHWDecode=appConfig->get_int("hwdecode_enabled");
   hwDType = av_hwdevice_find_type_by_name(appConfig->get_string("hwdecoder").c_str());
-  std::cout << hwDType << std::endl;
   if(canHWDecode == false || hwDType == AV_HWDEVICE_TYPE_NONE) canHWDecode = false;
   else {
-    std::cout << "Here." << std::endl;
     std::array<char, 128> buffer;
     std::string result;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("/usr/bin/vainfo", "r"), pclose);
@@ -73,8 +71,7 @@ video_utils::video_utils() {
     }
     std::string fail("vaInitialize failed with error code -1");
     std::size_t found = result.find(fail);
-    std::cout << result << std::endl;
-    if(found == std::string::npos) canHWDecode = false;
+    if(found != std::string::npos) canHWDecode = false;
   }
   if(canHWDecode == false) std::cout << "HW Decode disabled." << std::endl;
 }
