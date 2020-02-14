@@ -5,6 +5,7 @@
 #include <MetadataDialog.h>
 #include <Miniplayer.h>
 #include <FilterDialog.h>
+#include <FaceDialog.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <QFileDialog>
@@ -29,6 +30,8 @@ QVBrowser::QVBrowser() : QMainWindow() {
   connect(browse_button, &QPushButton::clicked, this, &QVBrowser::browse_clicked);
   QPushButton * dupe_button = new QPushButton("Find Dupes");
   connect(dupe_button, &QPushButton::clicked, this, &QVBrowser::fdupe_clicked);
+  QPushButton * face_button = new QPushButton("Find Faces");
+  connect(face_button, &QPushButton::clicked, this, &QVBrowser::fface_clicked);
   QPushButton *filter_button = new QPushButton("Filter"); //replace with icon
   connect(filter_button, &QPushButton::clicked, this, &QVBrowser::filter_clicked);
   QGroupBox  * sort_opt = new QGroupBox();
@@ -52,6 +55,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
   hbox->addWidget(asc_button);
   hbox->addWidget(filter_button);
   hbox->addWidget(progress_bar);
+  hbox->addWidget(face_button);
   hbox->addWidget(dupe_button);
   hbox->addWidget(browse_button);
   hbox->addWidget(config_button); 
@@ -323,6 +327,12 @@ void QVBrowser::fdupe_clicked(){
   progressFlag=2;
   p_timer->start(qCfg->get_int("progress_time"));
   totalJobs = vu->start_make_traces(vidFiles);
+  return;
+}
+
+void QVBrowser::fface_clicked(){
+  FaceDialog faceDiag(this,vu,vidFiles);
+  faceDiag.exec();
   return;
 }
 

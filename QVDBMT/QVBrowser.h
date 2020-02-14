@@ -2,7 +2,6 @@
 #define QVBROWSER_H
 
 #include <QMainWindow>
-#include <boost/filesystem.hpp>
 #include <boost/timer/timer.hpp>
 
 class qvdb_metadata;
@@ -33,6 +32,7 @@ class QVBrowser: public QMainWindow
   void on_double_click(const QModelIndex & index); 
   void browse_clicked();
   void fdupe_clicked();
+  void fface_clicked();
   void config_clicked();
   void filter_clicked();
   void asc_clicked();
@@ -40,7 +40,6 @@ class QVBrowser: public QMainWindow
   void on_sort_changed(const QString & text);
   void resizeEvent(QResizeEvent * event);
   void closeEvent(QCloseEvent * event);
-
   bool progress_timeout();
   void set_sort(std::string sort);
   void update_sort();
@@ -62,7 +61,7 @@ class QVBrowser: public QMainWindow
   std::vector<VidFile *> loadedVFs;
   std::vector<QStandardItem *> iconVec;
   boost::timer::auto_cpu_timer * t;
-  qvdb_config * qCfg ;
+  qvdb_config * qCfg;
   qvdb_metadata * qMD;
   video_utils * vu;
   QProgressBar * progress_bar;

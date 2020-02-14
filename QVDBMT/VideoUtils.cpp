@@ -386,6 +386,93 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   return true;
 }
 
+bool video_utils::create_frames(VidFile * vidFile) {
+  int w = vidFile->width;
+  int h = vidFile->height;
+  int vid = vidFile->vid;
+  std::vector<char> imgDat(3*w*h);
+  double start_time = appConfig->get_float("thumb_time");
+  double frame_interval=5.0;
+  std::vector<char> first_frame(3*w*h);
+  std::vector<int> crop(4);
+   SwsContext *img_convert_ctx;
+  AVFormatContext *pFormatContext=NULL;
+  int ret = avformat_open_input(&pFormatContext, vidFile->fileName.c_str(), NULL, NULL);
+  if(ret < 0) {
+    std::cout << "trouble opening: " << vidFile->fileName.c_str() << std::endl;
+    return false;
+  }
+  avformat_find_stream_info(pFormatContext,  NULL);
+  AVCodec *pCodec = NULL;
+  AVCodecParameters *pCodecParameters = NULL;
+  unsigned int index=0;
+  int index_test = -1;
+  AVRational time_base;
+  for (; index < pFormatContext->nb_streams; index++) {
+    pCodecParameters = pFormatContext->streams[index]->codecpar;
+    if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
+      pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
+      time_base = pFormatContext->streams[index]->time_base;
+      index_test=index;
+      break;
+    }
+  }
+  if(index_test == -1) std::cout << "Video index not found." << std::endl;
+  AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
+  avcodec_parameters_to_context(pCodecContext, pCodecParameters);
+  avcodec_open2(pCodecContext, pCodec, NULL);
+  AVPacket *pPacket = av_packet_alloc();
+  if(pPacket == NULL) std::cout << "ALLOC ISSUES: " << vidFile->fileName.c_str()<<std::endl;
+  AVFrame *pFrame = av_frame_alloc();
+  AVFrame *pFrameRGB = av_frame_alloc();
+  if(!pFrame || !pFrameRGB)
+    std::cout << "Couldn't allocate frame" << std::endl;
+  double tConv = 1.0/av_q2d(time_base);
+  while(start_time < vidFile->length){
+    ret = avformat_seek_file(pFormatContext,index,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0); 
+    if(ret < 0) std::cout << vidFile->fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
+    while(av_read_frame(pFormatContext,pPacket) >= 0) {
+      if(pPacket->stream_index != (signed)index) continue;
+      int ret = avcodec_send_packet(pCodecContext, pPacket);
+      if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+	std::cout << "Leaving without frame." << std::endl;
+	return false;
+      }
+      if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && pFrame->width > 0) break;      
+    }
+    if(pFrame->width == 0) std::cout << vidFile->fileName.c_str() <<" " <<start_time<<" pFrame stuff "<< pFrame->pkt_pos << " " << pFrame->key_frame << " " << pFrame->linesize[0]  <<" "<< pFrame->width << " " << pFrame->height <<" "<< w <<" " << h<< std::endl;
+    img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
+    if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
+    sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+    avformat_close_input(&pFormatContext);
+    sws_freeContext(img_convert_ctx);
+    avcodec_free_context(&pCodecContext);
+    av_frame_free(&pFrame);
+    av_frame_free(&pFrameRGB);
+    av_packet_free(&pPacket);
+    std::stringstream ss;
+    ss << tempPath.string() << "/face_temp/frames/" << vid << "_"<<start_time<<".png";
+    std::filesystem::path icon_file(ss.str());
+    Magick::Image mgk(w, h, "RGB", Magick::CharPixel, &(first_frame[0]));
+    vidFile->crop=crop;
+    dbCon->save_crop(vidFile);
+    if(crop[0]+crop[1]+crop[2]+crop[3] > 0) {
+      int cropW = w - crop[0] - crop[1];
+      int cropH = h - crop[2] - crop[3];
+      std::string cropStr=(boost::format("%ix%i+%i+%i") % cropW % cropH % crop[0] % crop[2]).str();
+      mgk.crop(cropStr.c_str());
+    }
+    mgk.write(icon_file.c_str());
+    start_time+=frame_interval;
+  }
+  return true;
+}
+
+bool video_utils::StartFaceFrames(std::vector<VidFile *> & vFile) {
+  for(auto &a: vFile) resVec.push_back(TPool->push([&](VidFile *b) {return create_frames(b);}, a));
+  return true;
+}
+
 bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame, std::vector<int> & crop) {
   std::filesystem::path fileName = vidFile->fileName;
   unsigned int height = vidFile->height;
@@ -589,7 +676,7 @@ int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
   std::vector<std::filesystem::path> pathVs;
   fVIDs.clear();
   int counter = 0;
-  for(auto & path: paths){
+  for(auto & path: paths) {
     std::vector<std::filesystem::path> current_dir_files;
     for(auto & x: std::filesystem::directory_iterator(path)) {
       auto extension = x.path().extension().generic_string();

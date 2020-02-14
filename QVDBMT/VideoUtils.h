@@ -37,6 +37,8 @@ class video_utils
 
   bool create_thumb(VidFile * vFile);
 
+  bool create_frames(VidFile * vFile);
+
   void create_image(std::filesystem::path & fileName, float start_time, std::vector<char> * imgDat);
 
   bool compare_images(int vid1, int vid2);
@@ -52,6 +54,8 @@ class video_utils
   void start_thumbs(std::vector<VidFile *> & vFile);
   
   int start_make_traces(std::vector<VidFile *> & vFile);
+
+  bool StartFaceFrames(std::vector<VidFile *> & vFile);
 
   bool load_trace(int vid);
 
@@ -71,6 +75,8 @@ class video_utils
 
   std::filesystem::path icon_filename(int vid);
 
+  std::filesystem::path get_temp_path() {return tempPath;};
+
   void close();
 
   qvdb_config * get_config();
@@ -86,6 +92,8 @@ class video_utils
   bool trace_exists(int vid);
 
   bool frameNoCrop(std::filesystem::path & fileName, double start_time, std::vector<char> & imgDat);
+
+  cxxpool::thread_pool * get_tpool() {return TPool;};
 
  private:
   
