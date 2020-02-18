@@ -2,6 +2,7 @@
 #include "FaceTools.h"
 #include "VidFile.h"
 #include "VideoUtils.h"
+#define DLIB_PNG_SUPPORT
 #include <dlib/image_io.h>
 
 

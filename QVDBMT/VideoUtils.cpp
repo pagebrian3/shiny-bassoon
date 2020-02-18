@@ -392,9 +392,9 @@ bool video_utils::create_frames(VidFile * vidFile) {
   int vid = vidFile->vid;
   std::vector<char> imgDat(3*w*h);
   double start_time = appConfig->get_float("thumb_time");
-  double frame_interval=5.0;
+  double frame_interval=20.0;
   std::vector<char> first_frame(3*w*h);
-  std::vector<int> crop(4);
+  std::vector<int> crop(vidFile->crop);
    SwsContext *img_convert_ctx;
   AVFormatContext *pFormatContext=NULL;
   int ret = avformat_open_input(&pFormatContext, vidFile->fileName.c_str(), NULL, NULL);
@@ -428,6 +428,7 @@ bool video_utils::create_frames(VidFile * vidFile) {
   if(!pFrame || !pFrameRGB)
     std::cout << "Couldn't allocate frame" << std::endl;
   double tConv = 1.0/av_q2d(time_base);
+  img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
   while(start_time < vidFile->length){
     ret = avformat_seek_file(pFormatContext,index,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0); 
     if(ret < 0) std::cout << vidFile->fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
@@ -441,21 +442,12 @@ bool video_utils::create_frames(VidFile * vidFile) {
       if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && pFrame->width > 0) break;      
     }
     if(pFrame->width == 0) std::cout << vidFile->fileName.c_str() <<" " <<start_time<<" pFrame stuff "<< pFrame->pkt_pos << " " << pFrame->key_frame << " " << pFrame->linesize[0]  <<" "<< pFrame->width << " " << pFrame->height <<" "<< w <<" " << h<< std::endl;
-    img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
-    if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
+    if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(first_frame[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
     sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
-    avformat_close_input(&pFormatContext);
-    sws_freeContext(img_convert_ctx);
-    avcodec_free_context(&pCodecContext);
-    av_frame_free(&pFrame);
-    av_frame_free(&pFrameRGB);
-    av_packet_free(&pPacket);
     std::stringstream ss;
-    ss << tempPath.string() << "/face_temp/frames/" << vid << "_"<<start_time<<".png";
+    ss << tempPath.string() << "/face_temp/" << vid << "_"<<start_time<<".png";
     std::filesystem::path icon_file(ss.str());
     Magick::Image mgk(w, h, "RGB", Magick::CharPixel, &(first_frame[0]));
-    vidFile->crop=crop;
-    dbCon->save_crop(vidFile);
     if(crop[0]+crop[1]+crop[2]+crop[3] > 0) {
       int cropW = w - crop[0] - crop[1];
       int cropH = h - crop[2] - crop[3];
@@ -463,8 +455,15 @@ bool video_utils::create_frames(VidFile * vidFile) {
       mgk.crop(cropStr.c_str());
     }
     mgk.write(icon_file.c_str());
+    std::filesystem::rename(icon_file,tempPath/"face_temp/frames"/icon_file.filename());
     start_time+=frame_interval;
   }
+  avformat_close_input(&pFormatContext);
+  sws_freeContext(img_convert_ctx);
+  avcodec_free_context(&pCodecContext);
+  av_frame_free(&pFrame);
+  av_frame_free(&pFrameRGB);
+  av_packet_free(&pPacket);
   return true;
 }
 
