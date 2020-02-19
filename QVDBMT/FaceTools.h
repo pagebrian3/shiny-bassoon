@@ -13,6 +13,7 @@ public:
 
   FaceTools(video_utils * vu);
   void Find_Faces();
+  std::filesystem::path get_face_path() { return fFacePath; };
 
 private:
   
