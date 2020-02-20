@@ -1,6 +1,7 @@
 #ifndef FACEDIALOG_H
 #define FACEDIALOG_H
 
+#include "NameDialog.h"
 #include "VidFile.h"
 #include "VideoUtils.h"
 #include "FaceTools.h"
@@ -8,6 +9,7 @@
 #include <QListView>
 #include <QTimer>
 #include <QStandardItemModel>
+#include <QMenu>
 
 class FaceDialog: public QDialog {
 
@@ -15,7 +17,8 @@ class FaceDialog: public QDialog {
 
 public:
 
-  FaceDialog(QWidget * parent, video_utils * vu, std::vector<VidFile *> & vidFiles) : fVU(vu),fVidFiles(vidFiles) {  
+  FaceDialog(QWidget * parent, video_utils * vu, std::vector<VidFile *> & vidFiles) : fVU(vu),fVidFiles(vidFiles) {
+    fMD=fVU->mdInterface();
     QVBoxLayout * mainLO = new QVBoxLayout;
     fList = new QListView(this);
     fList->setViewMode(QListView::IconMode);
@@ -79,6 +82,28 @@ public:
     fFT->Find_Faces();
     fTimer->start(fVU->get_config()->get_int("progress_time"));
     fList->show();
+  };
+
+#ifndef QT_NO_CONTEXTMENU
+  void contextMenuEvent(QContextMenuEvent *event)
+  {
+    QMenu menu(this);
+    QActionGroup actGrp(&menu);
+    /*
+      loop over guesses and/or metadata for suggested names
+      QAction act(name,&actGrp);   
+    */
+    QAction other("other",&actGrp);
+    connect(&other, &QAction::triggered, this, &FaceDialog::select_other);
+    menu.exec(event->globalPos());
+    return;
+  };
+#endif // QT_NO_CONTEXTMENU
+
+  void select_other()
+  {
+    NameDialog * nameDiag = new NameDialog(this,fMD);
+    nameDiag->open();
   };
 
 private:
