@@ -71,9 +71,11 @@ public:
 	b->setSizeHint(img.size());
 	b->setBackground(QBrush(img));
 	b->setIcon(QIcon());
+	b->setData(vid,Qt::UserRole+1);
 	fLoadedFaces[std::make_tuple(vid,ts,faceNum)]=true;
 	fModel->appendRow(b);
-      } 
+      }
+    return;
   };
 
   void start_face_finder() {
@@ -82,31 +84,52 @@ public:
     fFT->Find_Faces();
     fTimer->start(fVU->get_config()->get_int("progress_time"));
     fList->show();
+    return;
   };
 
 #ifndef QT_NO_CONTEXTMENU
   void contextMenuEvent(QContextMenuEvent *event)
   {
-    QMenu menu(this);
-    QActionGroup actGrp(&menu);
-    /*
-      loop over guesses and/or metadata for suggested names
-      QAction act(name,&actGrp);   
-    */
-    QAction other("other",&actGrp);
-    connect(&other, &QAction::triggered, this, &FaceDialog::select_other);
-    menu.exec(event->globalPos());
+    QMenu * menu = new QMenu(this);
+    QModelIndexList sList = fList->selectionModel()->selectedIndexes();
+    std::set<int> names;
+    std::vector<int> vids;
+    int vid;
+    std::set<std::string> suggested_names;
+    for(int i = 0; i < sList.size(); i++)  {
+      vid = fModel->itemFromIndex(sList[i])->data(Qt::UserRole+1).toInt();
+      names.merge(fMD->mdForFile(vid));
+      for(auto & a: names) 
+	if(fMD->mdType(a) == 1) 
+	  suggested_names.insert(fMD->labelForMDID(a));	      
+    }
+    suggested_names.insert("other");
+    for(auto & entry: suggested_names) menu->addAction(entry.c_str());      
+    connect(menu, &QMenu::triggered, this,&FaceDialog::select_name);
+    menu->popup(event->globalPos());
+    /*for(int i = 0; i < sList.size(); i++) 
+      vid = fModel->itemFromIndex(sList[i])->setData();*/
     return;
   };
 #endif // QT_NO_CONTEXTMENU
 
-  void select_other()
-  {
-    NameDialog * nameDiag = new NameDialog(this,fMD);
-    nameDiag->open();
-  };
-
 private:
+
+  void select_name(QAction * act)
+  {
+    std::cerr << "HERE ";
+    std::cerr << act->text().toStdString() << std::endl;
+    std::string choice(act->text().toStdString());
+    if(strcmp(choice.c_str(),"other") == 0) {
+      NameDialog * nameDiag = new NameDialog(this,fMD);
+      nameDiag->open();
+      choice = nameDiag->get_name();
+    }
+    QModelIndexList sList = fList->selectionModel()->selectedIndexes();
+    for(int i = 0; i < sList.size(); i++) fModel->itemFromIndex(sList[i])->setData(choice.c_str(),Qt::UserRole+2);
+    //These elements should then be used to train the NN and removed from the GUI.
+    return;
+  };
   
   qvdb_metadata * fMD;
   video_utils * fVU;
