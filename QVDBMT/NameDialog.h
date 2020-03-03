@@ -3,14 +3,12 @@
 #include <QWidget>
 #include <QDialogButtonBox>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QGroupBox>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QComboBox>
 #include <QPushButton>
 #include <QInputDialog>
-#include <QGridLayout>
 #include <QLabel>
 
 class NameDialog: public QDialog {
@@ -22,22 +20,15 @@ public:
   NameDialog(QWidget * parent, qvdb_metadata * md)  : fMD(md) {
     firstRun = true;
     QGroupBox * flob = new QGroupBox;
-    QGridLayout *  hlo = new QGridLayout;
+    QGridLayout *  hlo = new VBoxLayout;
     flob->setLayout(hlo);
     fList = new QListWidget(this);
-    //fList->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    QPushButton * addName = new QPushButton("+");
-    addName->setMaximumWidth(20);
+    QPushButton * addName = new QPushButton("New Name");
+    addName->setMaximumWidth(25);
     QLabel * h1 = new QLabel("Available Names");
-    hlo->setColumnMinimumWidth(1,25);
-    hlo->setColumnMinimumWidth(3,25);
-    hlo->setColumnStretch(0,1);
-    hlo->setColumnStretch(4,1);
-    hlo->setRowStretch(1,1);
-    hlo->setRowStretch(7,1);
-    hlo->addWidget(h1,0,0);
-    hlo->addWidget(fList,1,0,7,1);
-    hlo->addWidget(addName,4,2,1,1);
+    hlo->addWidget(addName);
+    hlo->addWidget(h1);
+    hlo->addWidget(fList);
     QDialogButtonBox * buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     updateLabels();
     connect(buttonBox, &QDialogButtonBox::accepted, this, &NameDialog::on_accept);
@@ -75,7 +66,6 @@ public:
     std::string text = QInputDialog::getText(this, "New Name Entry", "New Name:",QLineEdit::Normal, "",&ok).toStdString();
     if (ok && !text.empty())  {
       fMD->newLabel(fMD->typeLabel(1),text);
-      //should also fMD->attachToFile(vid,text) but need VID for that.
       updateLabels();
     }
     return;
