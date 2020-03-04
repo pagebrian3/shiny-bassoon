@@ -20,11 +20,10 @@ public:
   NameDialog(QWidget * parent, qvdb_metadata * md)  : fMD(md) {
     firstRun = true;
     QGroupBox * flob = new QGroupBox;
-    QGridLayout *  hlo = new VBoxLayout;
+    QVBoxLayout *  hlo = new QVBoxLayout;
     flob->setLayout(hlo);
     fList = new QListWidget(this);
     QPushButton * addName = new QPushButton("New Name");
-    addName->setMaximumWidth(25);
     QLabel * h1 = new QLabel("Available Names");
     hlo->addWidget(addName);
     hlo->addWidget(h1);
