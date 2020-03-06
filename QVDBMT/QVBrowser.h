@@ -31,6 +31,7 @@ class QVBrowser: public QMainWindow
   void onSelChanged();
   void on_double_click(const QModelIndex & index); 
   void browse_clicked();
+  void iemd_clicked();
   void fdupe_clicked();
   void fface_clicked();
   void config_clicked();

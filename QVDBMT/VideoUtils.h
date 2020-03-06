@@ -83,6 +83,8 @@ class video_utils
 
   qvdb_metadata * mdInterface();
 
+  DbConnector * get_db() {return dbCon;};
+
   bool vid_factory(std::vector<std::filesystem::path> & paths);
 
   bool getVidBatch(std::vector<VidFile*> & batch);

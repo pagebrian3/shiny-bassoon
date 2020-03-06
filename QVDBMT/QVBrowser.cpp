@@ -3,6 +3,7 @@
 #include <VideoUtils.h>
 #include <ConfigDialog.h>
 #include <MetadataDialog.h>
+#include <MDIEDialog.h>
 #include <Miniplayer.h>
 #include <FilterDialog.h>
 #include <FaceDialog.h>
@@ -28,6 +29,8 @@ QVBrowser::QVBrowser() : QMainWindow() {
   else sOrder=Qt::AscendingOrder;
   QPushButton *browse_button = new QPushButton("...");
   connect(browse_button, &QPushButton::clicked, this, &QVBrowser::browse_clicked);
+  QPushButton *iemd_button = new QPushButton("MD Import/Export");
+  connect(iemd_button, &QPushButton::clicked, this, &QVBrowser::iemd_clicked);
   QPushButton * dupe_button = new QPushButton("Find Dupes");
   connect(dupe_button, &QPushButton::clicked, this, &QVBrowser::fdupe_clicked);
   QPushButton * face_button = new QPushButton("Find Faces");
@@ -58,6 +61,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
   hbox->addWidget(face_button);
   hbox->addWidget(dupe_button);
   hbox->addWidget(browse_button);
+  hbox->addWidget(iemd_button);
   hbox->addWidget(config_button); 
   sort_opt->setLayout(hbox);
   setMenuWidget(sort_opt);
@@ -314,6 +318,12 @@ void QVBrowser::browse_clicked() {
     vu->set_paths(files);
     populate_icons(true);
   }
+  return;
+}
+
+void QVBrowser::iemd_clicked() {
+  MDIEDialog mdieDiag(this,qMD,vu->get_db());
+  mdieDiag.exec();
   return;
 }
 
