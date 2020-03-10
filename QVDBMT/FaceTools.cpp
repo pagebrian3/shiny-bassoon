@@ -34,23 +34,23 @@ void FaceTools::Find_Faces() {
       dlib::load_image(img, p.path());
       float heightCorr=img.nr();
       float widthCorr=img.nc();
-      if(heightCorr < resize_thresh || widthCorr < resize_thresh) dlib::pyramid_up(img) ;
+      if(heightCorr < resize_thresh || widthCorr < resize_thresh) dlib::pyramid_up(img);
       heightCorr/=(float)img.nr();
       widthCorr/=(float)img.nc();
       std::vector<dlib::rectangle> dets = detector(img);
-      /*std::stringstream ss(p.path().stem());
+      std::stringstream ss(p.path().stem());
       std::string item1,item2;
       std::getline(ss,item1,'_');
       int vid = atoi(item1.c_str());
       std::getline(ss,item2);
       int ts = atoi(item2.c_str());
-      if(dets.size() > 0)std::cout << "VID ts rect1x rect2x " << vid << " " << ts << " top " <<dets[0].top() << " left " <<dets[0].left() << " bottom " << dets[0].bottom() << " right " << dets[0].right() <<std::endl; */
+      if(dets.size() > 0)std::cout << "VID ts rect1x rect2x " << vid << " " << ts << " top " <<dets[0].top() << " left " <<dets[0].left() << " bottom " << dets[0].bottom() << " right " << dets[0].right() <<" "<<heightCorr << " " << widthCorr << " " <<img.nr()<< " " << img.nc()<<  std::endl; 
       //build faces images before deleting
       int faceCt = 0;
       for(auto & rect: dets) {
 	Magick::Image mgk;
 	mgk.read(p.path().c_str());
-	//mgk.repage();
+	mgk.repage();
         int cropW = widthCorr*(rect.right()-rect.left());
 	int cropH = heightCorr*(rect.bottom()-rect.top());
 	mgk.crop(Magick::Geometry(cropW,cropH,widthCorr*rect.left(),heightCorr*rect.top()));
@@ -60,6 +60,7 @@ void FaceTools::Find_Faces() {
 	mgk.write(faceIcon.c_str());
 	faceCt++;
       }
+      //This is causing the cutoff faces for some reason.
       std::filesystem::remove(p.path());
     }
   return;

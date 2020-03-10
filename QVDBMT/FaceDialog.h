@@ -117,9 +117,9 @@ private:
   {
     std::string choice(act->text().toStdString());
     if(strcmp(choice.c_str(),"other") == 0) {
-      NameDialog * nameDiag = new NameDialog(this,fMD);
-      nameDiag->open();
-      choice = nameDiag->get_name();
+      NameDialog nameDiag(this,fMD);
+      if(nameDiag.exec()) choice = nameDiag.get_name();
+      else choice.clear();
     }
     if(strcmp(choice.c_str(),"")) for(auto & vID : fVids) fMD->attachToFile(vID,choice);
     fMD->saveMetadata();

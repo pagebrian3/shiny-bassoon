@@ -43,7 +43,6 @@ public:
   };
 
   void on_accept() {
-    fMD->saveMetadata();
     if(fList->selectedItems().size() > 0) selected_name.assign(fList->selectedItems()[0]->text().toStdString());
     return;
   };
