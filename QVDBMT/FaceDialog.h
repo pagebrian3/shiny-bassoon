@@ -10,6 +10,7 @@
 #include <QTimer>
 #include <QStandardItemModel>
 #include <QMenu>
+#include <boost/format.hpp>
 
 class FaceDialog: public QDialog {
 
@@ -21,6 +22,7 @@ public:
     fMD=fVU->mdInterface();
     QVBoxLayout * mainLO = new QVBoxLayout;
     fList = new QListView(this);
+    fList->setResizeMode(QListView::Adjust);
     fList->setViewMode(QListView::IconMode);
     fList->setMovement(QListView::Static);
     fList->setSelectionMode(QListView::ExtendedSelection);
@@ -72,6 +74,9 @@ public:
 	b->setBackground(QBrush(img));
 	b->setIcon(QIcon());
 	b->setData(vid,Qt::UserRole+1);
+	float time = 0.001*ts;
+	QString toolTip((boost::format("VID: %i\nTime: %f\nFaceNum: %i") % vid % time % faceNum).str().c_str());
+	b->setToolTip(toolTip);
 	fLoadedFaces[std::make_tuple(vid,ts,faceNum)]=true;
 	fModel->appendRow(b);
       }
@@ -113,8 +118,7 @@ public:
 
 private:
 
-  void select_name(QAction * act)
-  {
+  void select_name(QAction * act) {
     std::string choice(act->text().toStdString());
     if(strcmp(choice.c_str(),"other") == 0) {
       NameDialog nameDiag(this,fMD);

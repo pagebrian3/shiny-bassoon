@@ -18,6 +18,7 @@ public:
 private:
   
   video_utils * fVU;
+  int loopNum;
   std::filesystem::path fTempPath,fFacePath,fFramePath;
   dlib::frontal_face_detector detector;
   cxxpool::thread_pool * TPool;

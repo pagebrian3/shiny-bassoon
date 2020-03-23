@@ -1,4 +1,3 @@
-#include <list>
 #include "FaceTools.h"
 #include "VidFile.h"
 #include "VideoUtils.h"
@@ -21,11 +20,14 @@ FaceTools::FaceTools(video_utils * vu) : fVU(vu) {
   fFacePath+="/faces/";
   if(!std::filesystem::exists(fFacePath))std::filesystem::create_directory(fFacePath);
   Magick::InitializeMagick("");
+  loopNum=0;
 }
 
 void FaceTools::Find_Faces() {
   //Need logic so files which have been checked aren't rechecked.
   //Periodically check the thumb folder for created snaps and run face detection on them.
+  std::cout << "Loop Num: " << loopNum << std::endl;
+  loopNum++;
   for(auto& p: std::filesystem::directory_iterator(fFramePath))
     if(p.is_regular_file()) 
     {

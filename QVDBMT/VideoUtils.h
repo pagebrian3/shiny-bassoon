@@ -2,6 +2,7 @@
 #define VIDEOUTILS_H
 
 #include <set>
+#include <list>
 #include <cxxpool.h>
 #include <filesystem>
 #include <mutex>
