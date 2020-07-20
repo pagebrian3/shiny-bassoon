@@ -19,11 +19,9 @@ sed -i '/perl-options/d' PKGBUILD
 sed -i '/install -Dt/d' PKGBUILD
 sed -i '/make\ check/d' PKGBUILD
 sed -i '/backup=/d' PKGBUILD
-sed -i '/policymap/d' PKGBUILD
-sed -i '/\"$pkgdir\/usr\/lib\/perl5\"\ usr\/lib\//d' PKGBUILD
 sed -i '/\"$pkgdir\/usr\/share\/man\"\ usr\/share\//d' PKGBUILD
-sed -i 's/mv\ \"\$pkgdir\/usr\/bin\/\"\ usr\//rm\ -r\ \"$pkgdir\/usr\/bin\/\"\ /' PKGBUILD
 sed -i '/find \"$pkgdir\/usr\/lib\/perl5\"\ -name/d' PKGBUILD
+# n means next line, {} group of commands.
 sed -i '/^makedepends/ {s/openexr //;s/libwmf //;s/librsvg //;s/libwebp //;s/libraw //;s/ghostscript //;}' PKGBUILD
 sed -i '/^makedepends/ {n;s/ghostpcl //;s/ghostxps //;s/libheif //;s/jbigkit //;}' PKGBUILD
 sed -i '/^checkdepends/ s/gsfonts //' PKGBUILD
@@ -32,8 +30,7 @@ sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/include' P
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/share' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/bin' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ find\ \"$pkgdir\"\/usr\/lib\/pkgconfig\/\ -type\ f\ !\ -name\ \"\*Q8\.pc\"\ -delete' PKGBUILD
-#sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ sed\ -i\ \x27\/\^Requires:\/\ s\/$\/-7\\\.Q8\/\x27\ $pkgdir\/usr\/lib\/pkgconfig\/Magick++\*\.pc' PKGBUILD
 sed -i '/pkgdir\/usr\/share\/doc/d' PKGBUILD
+sed -i '/policymap/d' PKGBUILD
 sed -i '/package_imagemagick-doc()/,$d' PKGBUILD
-sed -i '/delegates.xml/d' PKGBUILD
 
