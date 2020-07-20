@@ -1,5 +1,6 @@
 #!/bin/bash
 
+sed -i '/package_imagemagick-doc()/,$d' PKGBUILD
 sed -i 's/imagemagick()/libmagick-qd8()/g' PKGBUILD
 sed -i '/\.\/configure/a \ \ \  --disable-docs \\' PKGBUILD
 sed -i '/\.\/configure/a \ \ \  --with-quantum-depth=8 \\' PKGBUILD
@@ -16,11 +17,8 @@ do
 done
 sed -i 's/^pkgname=.*/pkgname=libmagick-qd8/' PKGBUILD
 sed -i '/perl-options/d' PKGBUILD
-sed -i '/install -Dt/d' PKGBUILD
 sed -i '/make\ check/d' PKGBUILD
 sed -i '/backup=/d' PKGBUILD
-sed -i '/\"$pkgdir\/usr\/share\/man\"\ usr\/share\//d' PKGBUILD
-sed -i '/find \"$pkgdir\/usr\/lib\/perl5\"\ -name/d' PKGBUILD
 # n means next line, {} group of commands.
 sed -i '/^makedepends/ {s/openexr //;s/libwmf //;s/librsvg //;s/libwebp //;s/libraw //;s/ghostscript //;}' PKGBUILD
 sed -i '/^makedepends/ {n;s/ghostpcl //;s/ghostxps //;s/libheif //;s/jbigkit //;}' PKGBUILD
@@ -30,7 +28,6 @@ sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/include' P
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/share' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ rm\ -r\ \"$pkgdir\"\/usr\/bin' PKGBUILD
 sed -i '/srcdir\/docpkg\/usr\/share\//a \ \ find\ \"$pkgdir\"\/usr\/lib\/pkgconfig\/\ -type\ f\ !\ -name\ \"\*Q8\.pc\"\ -delete' PKGBUILD
-sed -i '/pkgdir\/usr\/share\/doc/d' PKGBUILD
+sed -i '/pkgdir\/usr\//d' PKGBUILD
 sed -i '/policymap/d' PKGBUILD
-sed -i '/package_imagemagick-doc()/,$d' PKGBUILD
 
