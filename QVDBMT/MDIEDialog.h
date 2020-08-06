@@ -57,7 +57,7 @@ public:
   };
 
   void on_accept() {
-    if(fBGrp->checkedId() == 0) importMD();
+    if(fBGrp->checkedId() == 1) importMD();
     else exportMD();
     return;
   };

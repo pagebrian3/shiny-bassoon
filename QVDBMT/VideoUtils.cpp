@@ -11,12 +11,10 @@
 #include <zstd.h>
 #include <fstream>
 #include <iostream>
+#include "QVDec.h"
 extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/display.h>
-#include <libswscale/swscale.h>
 }
 
 video_utils::video_utils() {
@@ -47,15 +45,11 @@ video_utils::video_utils() {
   Magick::InitializeMagick("");
   paths.push_back(homeP);
   TPool = new cxxpool::thread_pool(appConfig->get_int("threads"));
-  std::string badChars;
-  badChars = appConfig->get_string("bad_chars");
   std::string extStrin;
   extStrin = appConfig->get_string("extensions");
   boost::char_separator<char> sep(" \"");
   boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
   for(auto &a: tok) extensions.insert(a);
-  boost::tokenizer<boost::char_separator<char> > tok1(badChars,sep);
-  for(auto &a: tok1) cBadChars.push_back(a);
   canHWDecode=appConfig->get_int("hwdecode_enabled");
   hwDType = av_hwdevice_find_type_by_name(appConfig->get_string("hwdecoder").c_str());
   if(canHWDecode == false || hwDType == AV_HWDEVICE_TYPE_NONE) canHWDecode = false;
@@ -178,7 +172,6 @@ bool video_utils::compare_vids_fft(int i, int j) {
 }
 
 bool video_utils::calculate_trace(VidFile * obj) {
-  bool canHWDecodeFile = canHWDecode;
   int vid = obj->vid;
   float fps = appConfig->get_float("trace_fps");
   float start_time = appConfig->get_float("thumb_time");
@@ -186,161 +179,9 @@ bool video_utils::calculate_trace(VidFile * obj) {
   std::filesystem::path outPath = createPath(tracePath,obj->vid,".bin");
   std::vector<int> crop = obj->crop;
   std::vector<int> times;
-  std::vector<std::vector<char> > traceDat(12);
-  SwsContext *img_convert_ctx;
-  AVFormatContext *pFormatContext=NULL;
-  static AVBufferRef *hw_device_ctx = NULL;
-  std::filesystem::path fileName = obj->fileName;
-  AVStream * video = NULL;
-  int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
-  if(ret < 0) {
-    std::cout << "trouble opening: " << fileName.c_str() << std::endl;
-    return false;
-  }
-  avformat_find_stream_info(pFormatContext,  NULL);
-  AVCodec *pCodec = NULL;
-  AVCodecParameters *pCodecParameters=NULL;
-  uint index=0;
-  AVRational time_base;
-  for (; index < pFormatContext->nb_streams; index++) {
-    pCodecParameters = pFormatContext->streams[index]->codecpar;
-    if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
-      pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
-      video=pFormatContext->streams[index];
-      time_base = video->time_base;     
-      break;
-    }
-  }
-  AVCodecContext * decoder_ctx = NULL;
-  if (!(decoder_ctx = avcodec_alloc_context3(pCodec)))
-    return AVERROR(ENOMEM);
-  if (avcodec_parameters_to_context(decoder_ctx, video->codecpar) < 0)
-    return -1;
-  if(canHWDecodeFile) {
-    decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
-    if (!decoder_ctx->hw_device_ctx) canHWDecodeFile = false;
-  }
-  static enum AVPixelFormat hw_pix_fmt;
-  int i = 0;
-  if(canHWDecodeFile) {
-    for (i = 0;; i++) {
-      const AVCodecHWConfig *config = avcodec_get_hw_config(pCodec, i);
-      if (!config) {
-	fprintf(stderr, "Decoder %s does not support device type %s.\n",
-		pCodec->name, av_hwdevice_get_type_name(hwDType));
-	return -1;
-      }
-      if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
-	  config->device_type == hwDType) {
-	hw_pix_fmt = config->pix_fmt;
-	break;
-      }
-    }
-  }
-  avcodec_open2(decoder_ctx, pCodec, NULL);
-  int w = decoder_ctx->width;
-  int h = decoder_ctx->height;
-  int cropW = w;
-  int cropH = h;
-  cropW -= (crop[0]+crop[1]);
-  cropH -= (crop[2]+crop[3]);
-  std::vector<char> imgDat(3*w*h);
-  AVPacket *pPacket = av_packet_alloc();
-  AVFrame *pFrame = av_frame_alloc();
-  AVFrame *sw_frame = av_frame_alloc();
-  AVFrame *frame_ptr= NULL;
-  AVFrame *pFrameRGB = av_frame_alloc();
-  if(!pFrame || !pFrameRGB || ! sw_frame) std::cout << "Couldn't allocate frame(s)" << std::endl;
-  double tConv = 1.0/av_q2d(time_base);
-  img_convert_ctx = sws_getContext(w, h, decoder_ctx->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
-  if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0)
-    std::cout<<"avpicture_fill() failed" << std::endl;
-  ret = avformat_seek_file(pFormatContext,index,0.5*tConv*start_time,tConv*start_time,tConv*start_time,AVSEEK_FLAG_ANY); //seek before
-  if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
-  while(av_read_frame(pFormatContext,pPacket) >= 0) {
-    if(pPacket->stream_index != (signed)index) continue;
-    int ret = avcodec_send_packet(decoder_ctx, pPacket);
-    if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) return false;  
-    float norm = 4.0/(cropW*cropH);
-    //deal with odd numbered cropW/cropH
-    if(avcodec_receive_frame(decoder_ctx, pFrame) == 0 && (!canHWDecodeFile || pFrame->format == hw_pix_fmt)) { 
-      if(canHWDecodeFile) {
-	ret = av_hwframe_transfer_data(sw_frame, pFrame, 0);
-	if(ret < 0) {
-	  fprintf(stderr, "Error transferring the data to system memory\n");
-	  return false;
-	}
-	else frame_ptr=sw_frame;	  
-      }
-      else frame_ptr=pFrame;
-    }
-    else continue;
-    times.push_back(frame_ptr->pts);
-    int r1(0),r2(0),r3(0),r4(0),g1(0),g2(0),g3(0),g4(0),b1(0),b2(0),b3(0),b4(0);
-    sws_scale(img_convert_ctx, frame_ptr->data, frame_ptr->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
-    int y = 0;
-    auto dataIter = imgDat.begin();
-    for(; y < cropH/2; y++) {
-      r1=r2=r3=r4=g1=g2=g3=g4=b1=b2=b3=b4=0;
-      dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
-      int x = 0;
-      for(; x < 3*cropW/2; x+=3) {
-	r1+=*dataIter;
-	dataIter++;
-	g1+=*dataIter;
-	dataIter++;
-	b1+=*dataIter;
-	dataIter++;
-      }
-      for(; x < 3*cropW; x+=3) {
-	r2+=*dataIter;
-	dataIter++;
-	g2+=*dataIter;
-	dataIter++;
-	b2+=*dataIter;
-	dataIter++;
-      }
-    }
-    for(; y < cropH; y++) {
-      auto dataIter = imgDat.begin()+3*((crop[3]+y)*w+crop[0]);
-      int x = 0;
-      for(; x < 3*cropW/2; x+=3) {
-	r3+=*dataIter;
-	dataIter++;
-	g3+=*dataIter;
-	dataIter++;
-	b3+=*dataIter;
-	dataIter++;
-      }
-      for(; x < 3*cropW; x+=3) {
-	r4+=*dataIter;
-	dataIter++;
-	g4+=*dataIter;
-	dataIter++;
-	b4+=*dataIter;
-	dataIter++;
-      }
-    }      
-    traceDat[0].push_back(norm*r1);
-    traceDat[1].push_back(norm*g1);
-    traceDat[2].push_back(norm*b1);
-    traceDat[3].push_back(norm*r2);
-    traceDat[4].push_back(norm*g2);
-    traceDat[5].push_back(norm*b2);
-    traceDat[6].push_back(norm*r3);
-    traceDat[7].push_back(norm*g3);
-    traceDat[8].push_back(norm*b3);
-    traceDat[9].push_back(norm*r4);
-    traceDat[10].push_back(norm*g4);
-    traceDat[11].push_back(norm*b4);    
-  }
-  avformat_close_input(&pFormatContext);
-  sws_freeContext(img_convert_ctx);
-  avcodec_free_context(&decoder_ctx);
-  av_frame_free(&pFrame);
-  av_frame_free(&sw_frame);
-  av_frame_free(&pFrameRGB);
-  av_packet_free(&pPacket); 
+  std::vector<std::vector<uint8_t> > traceDat(12);
+  qvdec decoder(obj->fileName,appConfig->get_string("hwdecoder"));
+  double tConv = decoder.get_trace_data(start_time,crop,times,traceDat);
   std::vector<boost::math::barycentric_rational<float> *> b;
   for(int i = 0; i < 12; i++) {
     auto c = new boost::math::barycentric_rational<float>(times.begin(),times.end(),traceDat[i].begin());
@@ -368,11 +209,12 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   int w = vidFile->width;
   int h = vidFile->height;
   int vid = vidFile->vid;
-  std::vector<char> first_frame(3*w*h);
+  uint8_t * first_frame[4];
+  first_frame[0]=NULL;
   std::vector<int> crop(4);
   if(!find_border(vidFile,first_frame, crop)) return false;
   std::filesystem::path icon_file(icon_filename(vid));
-  Magick::Image mgk(w, h, "RGB", Magick::CharPixel, &(first_frame[0]));
+  Magick::Image mgk(w, h, "RGB", Magick::CharPixel, first_frame[0]);
   vidFile->crop=crop;
   dbCon->save_crop(vidFile);
   if(crop[0]+crop[1]+crop[2]+crop[3] > 0) {
@@ -383,6 +225,7 @@ bool video_utils::create_thumb(VidFile * vidFile) {
   }
   mgk.resize(thumb_size);
   mgk.write(icon_file.c_str());
+  av_freep(&(first_frame[0]));
   return true;
 }
 
@@ -395,11 +238,11 @@ bool video_utils::create_frames(VidFile * vidFile) {
   double frame_interval=20.0;
   std::vector<char> first_frame(3*w*h);
   std::vector<int> crop(vidFile->crop);
-   SwsContext *img_convert_ctx;
+  SwsContext *img_convert_ctx;
   AVFormatContext *pFormatContext=NULL;
   int ret = avformat_open_input(&pFormatContext, vidFile->fileName.c_str(), NULL, NULL);
   if(ret < 0) {
-    std::cout << "trouble opening: " << vidFile->fileName.c_str() << std::endl;
+    std::cout << "trouble opening: " << vidFile->fileName << std::endl;
     return false;
   }
   avformat_find_stream_info(pFormatContext,  NULL);
@@ -442,7 +285,7 @@ bool video_utils::create_frames(VidFile * vidFile) {
       if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && pFrame->width > 0) break;      
     }
     if(pFrame->width == 0) std::cout << vidFile->fileName.c_str() <<" " <<start_time<<" pFrame stuff "<< pFrame->pkt_pos << " " << pFrame->key_frame << " " << pFrame->linesize[0]  <<" "<< pFrame->width << " " << pFrame->height <<" "<< w <<" " << h<< std::endl;
-    if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(first_frame[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
+    if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(first_frame), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
     sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
     std::stringstream ss;
     ss << tempPath.string() << "/face_temp/" << vid << "_"<<start_time<<".png";
@@ -472,7 +315,7 @@ bool video_utils::StartFaceFrames(std::vector<VidFile *> & vFile) {
   return true;
 }
 
-bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame, std::vector<int> & crop) {
+bool video_utils::find_border(VidFile * vidFile, uint8_t ** first_frame, std::vector<int> & crop) {
   std::filesystem::path fileName = vidFile->fileName;
   unsigned int height = vidFile->height;
   unsigned int width = vidFile->width;
@@ -480,28 +323,29 @@ bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
   double thumb_t = appConfig->get_float("thumb_time");
   int cBFrames = appConfig->get_int("border_frames");
   double cCutThresh = appConfig->get_float("cut_thresh");
-  double frame_time = thumb_t;
+  float frame_time = thumb_t;
   double frame_spacing = (length-thumb_t)/(double)cBFrames;
-  std::vector<char> imgDat0;
-  std::vector<char> imgDat1(3*width*height);
   if(!frameNoCrop(fileName, frame_time, first_frame)) {
     return false;
   }
-  imgDat0 = first_frame;
+  uint8_t *imgDat0[4];
+  imgDat0[0] = first_frame[0];
+  uint8_t * imgDat1[4];
+  uint8_t * ptrHolder[4];
+  imgDat1[0] = ptrHolder[0] = NULL;
   std::vector<float> rowSums(height);
   std::vector<float> colSums(width);
   float corrFactorCol = 1.0/(float)(cBFrames*height);
   float corrFactorRow = 1.0/(float)(cBFrames*width);
   bool skipBorder = false;
   float value;
-  std::vector<char> ptrHolder;
-  auto r0 = imgDat0.begin();
+  auto r0 = imgDat0[0];
   auto r1(r0),g0(r0),g1(r0),b0(r0),b1(r0);
   for(int i = 0; i < cBFrames-1; i++) {
     frame_time+=frame_spacing;
-    frameNoCrop(fileName,frame_time,imgDat1);
-    auto dataIter0 = imgDat0.begin();
-    auto dataIter1 = imgDat1.begin();
+    if(!frameNoCrop(fileName,frame_time,imgDat1))std::cout << "FAILURE" << std::endl;
+    auto dataIter0 = imgDat0[0];
+    auto dataIter1 = imgDat1[0];
     for(unsigned int y=0; y < height; y++) 	
       for (unsigned int x=0; x < width; x++) {
 	r0=dataIter0;
@@ -526,10 +370,14 @@ bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
        colSums[width-1] > cCutThresh) {
       skipBorder=true;
       break;
-    }    
-    ptrHolder=imgDat1;
-    imgDat1=imgDat0;
-    imgDat0=ptrHolder;
+    }
+    //rotate pointers to ensure new one will be freed before allocation.
+    ptrHolder[0]=imgDat0[0];
+    imgDat0[0]=imgDat1[0];
+    imgDat1[0]=ptrHolder[0];
+    //preserve first frame
+    if(i == 0) imgDat1[0]=NULL;
+   
   }
   if(!skipBorder) {
     unsigned int x1(0), x2(0), y1(0), y2(0);
@@ -544,6 +392,8 @@ bool video_utils::find_border(VidFile * vidFile, std::vector<char> &first_frame,
       crop[3]=y2;
     }
   }
+  if(imgDat0[0]!=first_frame[0])av_freep(&(imgDat0[0]));
+  av_freep(&(imgDat1[0]));
   return true;
 }
  
@@ -663,7 +513,7 @@ int video_utils::compare_traces() {
     if(!load_trace(fVIDs[i])) continue;
     //loop over files after i
     for(uint j = i+1; j < fVIDs.size(); j++) {
-      if (result_map[std::make_tuple(fVIDs[i],fVIDs[j],1)].first > 0 ) continue;  
+      if (result_map[std::make_tuple(fVIDs[i],fVIDs[j],1)].first > 0 ) continue;
       if(!load_trace(fVIDs[j])) continue;
       resVec.push_back(TPool->push([&](int i, int j){ return compare_vids_fft(i,j);},fVIDs[i],fVIDs[j]));
     }
@@ -681,16 +531,7 @@ int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
       auto extension = x.path().extension().generic_string();
       std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
       if(extensions.count(extension)) {
-	std::filesystem::path pathName = x.path();
-	for(auto & bChar: cBadChars) {
-	  auto nameHolder = pathName.native();
-	  if(nameHolder.find(bChar)!=std::string::npos){
-	    boost::erase_all(nameHolder,bChar);
-	    std::filesystem::path newName(nameHolder);
-	    std::filesystem::rename(pathName,newName);
-	    pathName = newName;
-	  }
-	}	
+	std::filesystem::path pathName = x.path();	
 	if(!dbCon->video_exists(pathName))  {
 	  pathVs.push_back(pathName);
 	}
@@ -735,6 +576,7 @@ qvdb_config * video_utils::get_config(){
 
 bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
   unsigned int nThreads = appConfig->get_int("threads");
+  //for( auto & a : files) std::cout << a << std::endl;
   std::vector<int> blank(4);
   for(uint h = 0; h*nThreads < files.size(); h++) {
     std::vector<VidFile *> batch;   
@@ -748,7 +590,7 @@ bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
       AVFormatContext *pFormatCtx=NULL;
       int ret = avformat_open_input(&pFormatCtx, fileName.c_str(), NULL, NULL);
       if(ret < 0) {
-	std::cout << "trouble opening: " << fileName.c_str() << std::endl;
+	std::cout << "trouble opening: " << fileName << std::endl;
 	VidFile * newVid = new VidFile(fileName, 0, 0, 0, -1, blank, 0, 0, 0);
         batch.push_back(newVid);
 	continue;
@@ -831,62 +673,8 @@ std::filesystem::path video_utils::icon_filename(int vid) {
   return createPath(thumbPath,vid,".jpg");
 }
 
-bool video_utils::frameNoCrop(std::filesystem::path & fileName, double start_time, std::vector<char> & imgDat) {
-  SwsContext *img_convert_ctx;
-  AVFormatContext *pFormatContext=NULL;
-  int ret = avformat_open_input(&pFormatContext, fileName.c_str(), NULL, NULL);
-  if(ret < 0) {
-    std::cout << "trouble opening: " << fileName.c_str() << std::endl;
-    return false;
-  }
-  avformat_find_stream_info(pFormatContext,  NULL);
-  AVCodec *pCodec = NULL;
-  AVCodecParameters *pCodecParameters = NULL;
-  unsigned int index=0;
-  int index_test = -1;
-  AVRational time_base;
-  for (; index < pFormatContext->nb_streams; index++) {
-    pCodecParameters = pFormatContext->streams[index]->codecpar;
-    if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
-      pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
-      time_base = pFormatContext->streams[index]->time_base;
-      index_test=index;
-      break;
-    }
-  }
-  if(index_test == -1) std::cout << "Video index not found." << std::endl;
-  AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
-  avcodec_parameters_to_context(pCodecContext, pCodecParameters);
-  avcodec_open2(pCodecContext, pCodec, NULL);
-  int w = pCodecContext->width;
-  int h = pCodecContext->height;
-  AVPacket *pPacket = av_packet_alloc();
-  if(pPacket == NULL) std::cout << "ALLOC ISSUES: " << fileName.c_str()<<std::endl;
-  AVFrame *pFrame = av_frame_alloc();
-  AVFrame *pFrameRGB = av_frame_alloc();
-  if(!pFrame || !pFrameRGB)
-    std::cout << "Couldn't allocate frame" << std::endl;
-  double tConv = 1.0/av_q2d(time_base);
-  ret = avformat_seek_file(pFormatContext,index,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0); 
-  if(ret < 0) std::cout << fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
-  while(av_read_frame(pFormatContext,pPacket) >= 0) {
-    if(pPacket->stream_index != (signed)index) continue;
-    int ret = avcodec_send_packet(pCodecContext, pPacket);
-    if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-      std::cout << "Leaving without frame." << std::endl;
-      return false;
-    }
-    if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && pFrame->width > 0) break;      
-  }
-  if(pFrame->width == 0) std::cout << fileName.c_str() <<" " <<start_time<<" pFrame stuff "<< pFrame->pkt_pos << " " << pFrame->key_frame << " " << pFrame->linesize[0]  <<" "<< pFrame->width << " " << pFrame->height <<" "<< w <<" " << h<< std::endl;
-  img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
-  if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(imgDat[0]), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
-  sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
-  avformat_close_input(&pFormatContext);
-  sws_freeContext(img_convert_ctx);
-  avcodec_free_context(&pCodecContext);
-  av_frame_free(&pFrame);
-  av_frame_free(&pFrameRGB);
-  av_packet_free(&pPacket);
+bool video_utils::frameNoCrop(std::filesystem::path & fileName, float & start_time, uint8_t ** imgDat) {
+  qvdec decoder(fileName,appConfig->get_string("hwdecoder"));
+  decoder.get_frame(imgDat,start_time);
   return true;
 }

@@ -48,7 +48,7 @@ class video_utils
 
   void compare_icons();
 
-  bool find_border(VidFile * vidFile, std::vector<char> &data, std::vector<int> & crop);
+  bool find_border(VidFile * vidFile, uint8_t ** data, std::vector<int> & crop);
 
   Magick::Image * get_image(int vid, bool firstImg);
 
@@ -94,7 +94,7 @@ class video_utils
 
   bool trace_exists(int vid);
 
-  bool frameNoCrop(std::filesystem::path & fileName, double start_time, std::vector<char> & imgDat);
+  bool frameNoCrop(std::filesystem::path & fileName, float & start_time, uint8_t ** imgDat);
 
   cxxpool::thread_pool * get_tpool() {return TPool;};
 
@@ -117,7 +117,6 @@ class video_utils
   std::vector<std::filesystem::path> paths;
   std::set<std::string> extensions;
   std::mutex mtx;
-  
 };
 
 #endif // VIDEOUTILS_H
