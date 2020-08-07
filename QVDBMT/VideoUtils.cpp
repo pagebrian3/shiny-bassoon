@@ -6,7 +6,7 @@
 #include <Magick++.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/math/interpolators/barycentric_rational.hpp>
+#include <boost/math/interpolators/vector_barycentric_rational.hpp>
 #include <fftw3.h>
 #include <zstd.h>
 #include <fstream>
@@ -50,24 +50,33 @@ video_utils::video_utils() {
   boost::char_separator<char> sep(" \"");
   boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
   for(auto &a: tok) extensions.insert(a);
-  canHWDecode=appConfig->get_int("hwdecode_enabled");
+  bool canHWDecode=appConfig->get_int("hwdecode_enabled");
   hwDType = av_hwdevice_find_type_by_name(appConfig->get_string("hwdecoder").c_str());
-  if(canHWDecode == false || hwDType == AV_HWDEVICE_TYPE_NONE) canHWDecode = false;
+  decodeDevice = appConfig->get_string("hwdecoder");
+  if(hwDType == AV_HWDEVICE_TYPE_NONE) canHWDecode = false;
   else {
-    std::array<char, 128> buffer;
+    std::string tmpname = "blah.blah";
+    std::string scommand = "/usr/bin/vainfo";
+    std::string cmd = scommand + " 2> " + tmpname;
+    std::system(cmd.c_str());
+    std::ifstream file(tmpname, std::ios::in | std::ios::binary );
     std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("/usr/bin/vainfo", "r"), pclose);
-    if (!pipe) {
-      throw std::runtime_error("popen() failed!");
+    if (file) {
+      while (!file.eof()) result.push_back(file.get());
+      file.close();
     }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-      result += buffer.data();
-    }
+    std::remove(tmpname.c_str());
     std::string fail("vaInitialize failed with error code -1");
     std::size_t found = result.find(fail);
-    if(found != std::string::npos) canHWDecode = false;
+    if(found != std::string::npos) {
+      std::cout << "Disabling HW decode." << std::endl;
+      canHWDecode = false;
+    }
   }
-  if(canHWDecode == false) std::cout << "HW Decode disabled." << std::endl;
+  if(canHWDecode == false) {
+    decodeDevice.assign("CPU");
+    std::cout << "HW Decode disabled. " <<decodeDevice << std::endl;
+  }
 }
 
 qvdb_metadata * video_utils::mdInterface() {
@@ -178,29 +187,38 @@ bool video_utils::calculate_trace(VidFile * obj) {
   if(obj->length <= start_time) start_time=0.0;
   std::filesystem::path outPath = createPath(tracePath,obj->vid,".bin");
   std::vector<int> crop = obj->crop;
-  std::vector<int> times;
-  std::vector<std::vector<uint8_t> > traceDat(12);
-  qvdec decoder(obj->fileName,appConfig->get_string("hwdecoder"));
+  std::vector<float> times;
+  std::vector<std::array<float,12> > traceDat;
+  qvdec decoder(obj->fileName,decodeDevice);
+  if(decoder.get_error()) return false;
   double tConv = decoder.get_trace_data(start_time,crop,times,traceDat);
-  std::vector<boost::math::barycentric_rational<float> *> b;
-  for(int i = 0; i < 12; i++) {
-    auto c = new boost::math::barycentric_rational<float>(times.begin(),times.end(),traceDat[i].begin());
-    b.push_back(c);
+  //std::cout << "traceDat size " << traceDat.size()<< " time size " << times.size() <<std::endl;
+  float time1,time2;
+  time1=times[0];
+  for(int i = 1; i < times.size(); i++) {
+    time2=times[i];
+    if(time2 == time1) std::cout <<"Same time" << i << std::endl;
+    if(time2 < time1) std::cout <<"Wrong order " << i << std::endl;
+    time1=time2;
   }
+  double length = times.back();
+  boost::math::vector_barycentric_rational<std::vector<float>,std::vector<std::array<float,12>>> * interpolator = new boost::math::vector_barycentric_rational<std::vector<float>,std::vector<std::array<float,12>>>(std::move(times),std::move(traceDat));
   double frame_spacing = tConv/fps;
   double sample_time=start_time*tConv;
-  double length = times.back();
+  std::cout <<"Time info: "<<sample_time<<" "<< frame_spacing <<" "<<length<< std::endl;
   std::filesystem::path traceFile = createPath(tracePath,vid,".bin");
   std::ofstream ofile(traceFile.c_str(),std::ofstream::binary);
-  std::vector<char> dataVec;
-  for(; sample_time < length; sample_time+=frame_spacing)
-    for( int i = 0; i < 12; i++) dataVec.push_back((char) (*b[i])(sample_time));
+  std::vector<uint8_t> dataVec;
+  for(; sample_time < length; sample_time+=frame_spacing){
+    std::array<float,12> dPoint = (*interpolator)(sample_time);
+    dataVec.insert(dataVec.end(),dPoint.begin(),dPoint.end());
+  }
   int dist_cap = 2*ZSTD_compressBound(dataVec.size());
   std::vector<char> compressVec(dist_cap);
   int dist_size = ZSTD_compress(&compressVec[0],dist_cap,&dataVec[0],dataVec.size(),15);
   ofile.write(&compressVec[0], dist_size);
   ofile.close();
-  for(unsigned int i = 0; i < b.size(); i++) delete b[i];
+  delete interpolator;
   return true; 
 }
 
@@ -343,7 +361,7 @@ bool video_utils::find_border(VidFile * vidFile, uint8_t ** first_frame, std::ve
   auto r1(r0),g0(r0),g1(r0),b0(r0),b1(r0);
   for(int i = 0; i < cBFrames-1; i++) {
     frame_time+=frame_spacing;
-    if(!frameNoCrop(fileName,frame_time,imgDat1))std::cout << "FAILURE" << std::endl;
+    if(!frameNoCrop(fileName,frame_time,imgDat1)) std::cout << "FAILURE" << std::endl;
     auto dataIter0 = imgDat0[0];
     auto dataIter1 = imgDat1[0];
     for(unsigned int y=0; y < height; y++) 	
@@ -674,7 +692,8 @@ std::filesystem::path video_utils::icon_filename(int vid) {
 }
 
 bool video_utils::frameNoCrop(std::filesystem::path & fileName, float & start_time, uint8_t ** imgDat) {
-  qvdec decoder(fileName,appConfig->get_string("hwdecoder"));
+  qvdec decoder(fileName,decodeDevice);
+  if(decoder.get_error()) return false;
   decoder.get_frame(imgDat,start_time);
   return true;
 }

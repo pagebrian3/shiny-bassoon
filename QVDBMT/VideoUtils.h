@@ -99,8 +99,8 @@ class video_utils
   cxxpool::thread_pool * get_tpool() {return TPool;};
 
  private:
-  
-  bool canHWDecode;
+
+  std::string decodeDevice;
   enum AVHWDeviceType hwDType;
   cxxpool::thread_pool * TPool;
   std::filesystem::path tempPath, tracePath, savePath, thumbPath;
