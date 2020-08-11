@@ -195,7 +195,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   //std::cout << "traceDat size " << traceDat.size()<< " time size " << times.size() <<std::endl;
   float time1,time2;
   time1=times[0];
-  for(int i = 1; i < times.size(); i++) {
+  for(size_t i = 1; i < times.size(); i++) {
     time2=times[i];
     if(time2 == time1) std::cout <<"Same time" << i << std::endl;
     if(time2 < time1) std::cout <<"Wrong order " << i << std::endl;
@@ -205,7 +205,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   boost::math::vector_barycentric_rational<std::vector<float>,std::vector<std::array<float,12>>> * interpolator = new boost::math::vector_barycentric_rational<std::vector<float>,std::vector<std::array<float,12>>>(std::move(times),std::move(traceDat));
   double frame_spacing = tConv/fps;
   double sample_time=start_time*tConv;
-  std::cout <<"Time info: "<<sample_time<<" "<< frame_spacing <<" "<<length<< std::endl;
+  //std::cout <<"Time info: "<<sample_time<<" "<< frame_spacing <<" "<<length<< std::endl;
   std::filesystem::path traceFile = createPath(tracePath,vid,".bin");
   std::ofstream ofile(traceFile.c_str(),std::ofstream::binary);
   std::vector<uint8_t> dataVec;
@@ -600,11 +600,7 @@ bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
     std::vector<VidFile *> batch;   
     for(uint i = 0; i < nThreads && i+h*nThreads < files.size(); i++) {
       auto fileName = files[i+h*nThreads].u8string();
-      int size = 0;
-      if(std::filesystem::is_symlink(fileName)) {
-	size = std::filesystem::file_size(std::filesystem::read_symlink(fileName));
-      }
-      else size = std::filesystem::file_size(fileName);
+      int size = std::filesystem::file_size(fileName);
       AVFormatContext *pFormatCtx=NULL;
       int ret = avformat_open_input(&pFormatCtx, fileName.c_str(), NULL, NULL);
       if(ret < 0) {

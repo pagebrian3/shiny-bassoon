@@ -78,11 +78,11 @@ qvdec::qvdec(std::filesystem::path & path, std::string hw_type) : file(path) {
       if ((ret = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0)) >= 0) decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
     }
     if(ret < 0 || (ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0){
-      std::cout <<"Codec open failure on : "<<path<<std::endl;
-      initError=true;
+      std::cout <<"Codec open failure on : "<< path << std::endl;
+      initError = true;
       break;
     }
-    w= decoder_ctx->width;
+    w = decoder_ctx->width;
     h = decoder_ctx->height;
     std::cout << "Working on: " << path << std::endl;
   } while(0);
@@ -107,11 +107,12 @@ int qvdec::decode_write()
     }
     ret = avcodec_receive_frame(decoder_ctx, frame);
     if (!fail && (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)) {
+      //std::cout << "CODEC RET: " << ret << std::endl;
       av_frame_free(&frame);
       av_frame_free(&sw_frame);
       return ret;
     } else if (ret < 0) {
-      std::cout << "Error while decoding"<<std::endl;
+      std::cout << "Error while decoding code ret: "<< ret <<std::endl;
       fail = true;
     }
     if (!fail && (hwEnable && frame->format == hw_pix_fmt)) {
@@ -131,6 +132,7 @@ int qvdec::decode_write()
 			       w, h, dst_pix_fmt,
 			       SWS_POINT, NULL, NULL, NULL);
     if (!sws_ctx) {
+      std::cout << "SWS Context issue." << std::endl;
       ret = AVERROR(EINVAL);
       return 0;
     }
@@ -147,11 +149,16 @@ int qvdec::decode_write()
       std::cout <<"Failed to scale."<<std::endl;
       fail=true;
     }
+    int copied_bytes=0;
     if(dst_linesize[0] > 3*w) {
       for(int j = 1; j < h; j++) 
-	for(int i = 0; i < 3*w; i++) data[0][i+j*3*w]= data[0][i+j*dst_linesize[0]];
+	for(int i = 0; i < 3*w; i++) {
+	  data[0][i+j*3*w]= data[0][i+j*dst_linesize[0]];
+	  copied_bytes++;
+	}
     }
     if(fail == true) {
+      std::cout << "Failed" << std::endl;
       av_frame_free(&frame);
       av_frame_free(&sw_frame);
       if (ret < 0)
@@ -201,22 +208,27 @@ double qvdec::get_trace_data(float & start_time,  std::vector<int> & crop, std::
   int cropW = w;
   int cropH = h;
   prevTime = 0;
+  time=0;
   uint8_t * buffer[4];
-  buffer[0]=NULL;
+  buffer[0] = NULL;
   data = buffer;
   cropW -= (crop[0]+crop[1]);
   cropH -= (crop[2]+crop[3]);
   float norm = 4.0/(cropW*cropH);
-  int ret = avformat_seek_file(input_ctx,video_stream,0.5*tConv*start_time,tConv*start_time,tConv*start_time,0); //seek before
+   int ret = avformat_seek_file(input_ctx,video_stream,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0);
+   //int ret = avformat_seek_file(input_ctx,video_stream,0.5*tConv*start_time,tConv*start_time,tConv*start_time,0); //seek before
   if(ret < 0) std::cout <<  " avformat_seek_file error return " <<ret<< std::endl;
   while (true) {
-    if ((ret = av_read_frame(input_ctx, &packet)) < 0) break;    
+    if ((ret = av_read_frame(input_ctx, &packet)) < 0) {
+      break;
+    }
     if (video_stream == packet.stream_index) {
       ret = decode_write();
       av_packet_unref(&packet);
     }
     else continue;
     if(ret != -11) {
+      std::cout << "Other ret: " <<ret <<std::endl;
       continue;
     }
     else {
