@@ -188,6 +188,10 @@ bool video_utils::calculate_trace(VidFile * obj) {
   double tConv = decoder.get_trace_data(start_time,crop,times,traceDat);
   //std::cout << "traceDat size " << traceDat.size()<< " time size " << times.size() <<std::endl;
   float time1,time2;
+  if(times.size() == 0) {
+    std::cout << "Empty time vec for " <<obj->fileName<< std::endl;
+    return false;
+  }
   time1=times[0];
   for(size_t i = 1; i < times.size(); i++) {
     time2=times[i];

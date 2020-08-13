@@ -132,7 +132,7 @@ int qvdec::decode_write()
       tmp_frame = sw_frame;
     } else tmp_frame = frame;
     int dst_linesize[4];
-    time = tmp_frame->pts;
+    time = frame->pts;
     enum AVPixelFormat src_pix_fmt = (AVPixelFormat) tmp_frame->format;
     enum AVPixelFormat dst_pix_fmt = AV_PIX_FMT_RGB24;
     int alignment = 32;
