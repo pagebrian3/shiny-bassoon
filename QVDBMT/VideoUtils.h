@@ -6,9 +6,6 @@
 #include <cxxpool.h>
 #include <filesystem>
 #include <mutex>
-extern "C" {
-     #include <libavutil/hwcontext.h>
-}
 #if defined(_WIN32)
  #define PLATFORM_NAME "windows" // Windows
 #elif defined(_WIN64)
@@ -94,14 +91,11 @@ class video_utils
 
   bool trace_exists(int vid);
 
-  bool frameNoCrop(std::filesystem::path & fileName, float & start_time, uint8_t ** imgDat);
-
   cxxpool::thread_pool * get_tpool() {return TPool;};
 
  private:
 
   std::string decodeDevice;
-  enum AVHWDeviceType hwDType;
   cxxpool::thread_pool * TPool;
   std::filesystem::path tempPath, tracePath, savePath, thumbPath;
   DbConnector * dbCon;

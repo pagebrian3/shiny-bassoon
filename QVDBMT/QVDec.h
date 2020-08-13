@@ -24,6 +24,8 @@ class qvdec {
 
   int decode_write();
 
+  int flush_decoder();
+
   bool get_error(){return initError;};
 
  private:

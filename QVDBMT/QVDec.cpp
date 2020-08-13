@@ -94,7 +94,7 @@ int qvdec::decode_write()
   AVFrame *tmp_frame = NULL;
   int ret = 0;
   bool fail = false;
-  ret = avcodec_send_packet(decoder_ctx, &packet);
+  ret = avcodec_send_packet(decoder_ctx, &packet);   
   if (ret < 0) {
     std::cout << "Error during decoding"<<std::endl;
     return ret;
@@ -106,20 +106,28 @@ int qvdec::decode_write()
       fail = true;
     }
     ret = avcodec_receive_frame(decoder_ctx, frame);
-    if (!fail && (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)) {
-      //std::cout << "CODEC RET: " << ret << std::endl;
-      av_frame_free(&frame);
-      av_frame_free(&sw_frame);
-      return ret;
-    } else if (ret < 0) {
-      std::cout << "Error while decoding code ret: "<< ret <<std::endl;
-      fail = true;
+    if (!fail) {
+      if(ret == AVERROR(EAGAIN)  ) {
+	av_frame_free(&frame);
+	av_frame_free(&sw_frame);
+	return ret;
+      }
+      else if(ret == AVERROR_EOF){
+	av_frame_free(&frame);
+	av_frame_free(&sw_frame);
+	return 0;
+      }
+      else if (ret < 0) {
+	std::cout << "Error while decoding code ret: "<< ret <<std::endl;
+	fail = true;
+      }
     }
     if (!fail && (hwEnable && frame->format == hw_pix_fmt)) {
       /* retrieve data from GPU to CPU */
       if ((ret = av_hwframe_transfer_data(sw_frame, frame, 0)) < 0) {
 	std::cout << "Error transferring the data to system memory"<<std::endl;
 	fail=true;
+	return ret;
       }
       tmp_frame = sw_frame;
     } else tmp_frame = frame;
@@ -149,12 +157,11 @@ int qvdec::decode_write()
       std::cout <<"Failed to scale."<<std::endl;
       fail=true;
     }
-    int copied_bytes=0;
-    if(dst_linesize[0] > 3*w) {
+
+    if(!fail && dst_linesize[0] > 3*w) {
       for(int j = 1; j < h; j++) 
 	for(int i = 0; i < 3*w; i++) {
 	  data[0][i+j*3*w]= data[0][i+j*dst_linesize[0]];
-	  copied_bytes++;
 	}
     }
     if(fail == true) {
@@ -164,8 +171,11 @@ int qvdec::decode_write()
       if (ret < 0)
 	return ret;
     }
-    av_frame_free(&frame);
-    av_frame_free(&sw_frame);
+    else {
+      av_frame_free(&frame);
+      av_frame_free(&sw_frame);
+      return 9999;
+    }
   }
   return 0;
 }
@@ -189,17 +199,26 @@ int qvdec::run_decode1() {
 int qvdec::get_frame(uint8_t ** buffer, float & start_time) {
   data = buffer;
   int ret = avformat_seek_file(input_ctx,video_stream,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0);
+  if(ret < 0) std::cout << "Seek error: " << ret <<" "<< std::endl;
   while (ret >= 0) {
-    if ((ret = av_read_frame(input_ctx, &packet)) < 0)
-      break;
-    if (video_stream == packet.stream_index) {
-      ret = decode_write();
+    if ((ret = av_read_frame(input_ctx, &packet)) < 0) {
+      std::cout << "Error in read_frame: " << ret << std::endl;
       break;
     }
+    if (video_stream == packet.stream_index) {
+      ret = decode_write();
+      if(ret == 9999) break;
+      else if(ret==-11) ret=0;
+    }
+    av_packet_unref(&packet);
   }
+  return 0;
+}
+
+int qvdec::flush_decoder() {
   packet.data = NULL;
   packet.size = 0;
-  ret = decode_write();
+  decode_write();
   av_packet_unref(&packet);
   return 0;
 }
@@ -215,8 +234,8 @@ double qvdec::get_trace_data(float & start_time,  std::vector<int> & crop, std::
   cropW -= (crop[0]+crop[1]);
   cropH -= (crop[2]+crop[3]);
   float norm = 4.0/(cropW*cropH);
-   int ret = avformat_seek_file(input_ctx,video_stream,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0);
-   //int ret = avformat_seek_file(input_ctx,video_stream,0.5*tConv*start_time,tConv*start_time,tConv*start_time,0); //seek before
+  int ret = avformat_seek_file(input_ctx,video_stream,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0);
+  //int ret = avformat_seek_file(input_ctx,video_stream,0.5*tConv*start_time,tConv*start_time,tConv*start_time,0); //seek before
   if(ret < 0) std::cout <<  " avformat_seek_file error return " <<ret<< std::endl;
   while (true) {
     if ((ret = av_read_frame(input_ctx, &packet)) < 0) {
@@ -227,16 +246,11 @@ double qvdec::get_trace_data(float & start_time,  std::vector<int> & crop, std::
       av_packet_unref(&packet);
     }
     else continue;
-    if(ret != -11) {
-      std::cout << "Other ret: " <<ret <<std::endl;
-      continue;
-    }
-    else {
-      if(prevTime >= time) continue;
-      prevTime=time;
-      times.push_back(time);
-      ret = 0;
-    }
+    if(ret != 9999) continue;
+    if(prevTime >= time) continue;
+    prevTime=time;
+    times.push_back(time);
+    ret = 0;
     float r1(0),r2(0),r3(0),r4(0),g1(0),g2(0),g3(0),g4(0),b1(0),b2(0),b3(0),b4(0);
     int y = 0;
     auto dataIter = &(data[0][0]);

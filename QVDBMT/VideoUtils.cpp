@@ -13,8 +13,7 @@
 #include <iostream>
 #include "QVDec.h"
 extern "C" {
-#include <libavutil/imgutils.h>
-#include <libavutil/display.h>
+  #include <libavutil/display.h>
 }
 
 video_utils::video_utils() {
@@ -51,10 +50,8 @@ video_utils::video_utils() {
   boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
   for(auto &a: tok) extensions.insert(a);
   bool canHWDecode=appConfig->get_int("hwdecode_enabled");
-  hwDType = av_hwdevice_find_type_by_name(appConfig->get_string("hwdecoder").c_str());
   decodeDevice = appConfig->get_string("hwdecoder");
-  if(hwDType == AV_HWDEVICE_TYPE_NONE) canHWDecode = false;
-  else {
+  if(canHWDecode) {
     std::string tmpname = "blah.blah";
     std::string scommand = "/usr/bin/vainfo";
     std::string cmd = scommand + " 2> " + tmpname;
@@ -70,12 +67,9 @@ video_utils::video_utils() {
     std::size_t found = result.find(fail);
     if(found != std::string::npos) {
       std::cout << "Disabling HW decode." << std::endl;
+      decodeDevice.assign("CPU");
       canHWDecode = false;
     }
-  }
-  if(canHWDecode == false) {
-    decodeDevice.assign("CPU");
-    std::cout << "HW Decode disabled. " <<decodeDevice << std::endl;
   }
 }
 
@@ -251,64 +245,19 @@ bool video_utils::create_frames(VidFile * vidFile) {
   int w = vidFile->width;
   int h = vidFile->height;
   int vid = vidFile->vid;
-  std::vector<char> imgDat(3*w*h);
-  double start_time = appConfig->get_float("thumb_time");
-  double frame_interval=20.0;
-  std::vector<char> first_frame(3*w*h);
+  uint8_t * imgDat[4];
+  imgDat[0]=NULL;
+  float start_time = appConfig->get_float("thumb_time");
+  float frame_interval=20.0;
   std::vector<int> crop(vidFile->crop);
-  SwsContext *img_convert_ctx;
-  AVFormatContext *pFormatContext=NULL;
-  int ret = avformat_open_input(&pFormatContext, vidFile->fileName.c_str(), NULL, NULL);
-  if(ret < 0) {
-    std::cout << "trouble opening: " << vidFile->fileName << std::endl;
-    return false;
-  }
-  avformat_find_stream_info(pFormatContext,  NULL);
-  AVCodec *pCodec = NULL;
-  AVCodecParameters *pCodecParameters = NULL;
-  unsigned int index=0;
-  int index_test = -1;
-  AVRational time_base;
-  for (; index < pFormatContext->nb_streams; index++) {
-    pCodecParameters = pFormatContext->streams[index]->codecpar;
-    if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
-      pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
-      time_base = pFormatContext->streams[index]->time_base;
-      index_test=index;
-      break;
-    }
-  }
-  if(index_test == -1) std::cout << "Video index not found." << std::endl;
-  AVCodecContext *pCodecContext = avcodec_alloc_context3(pCodec);
-  avcodec_parameters_to_context(pCodecContext, pCodecParameters);
-  avcodec_open2(pCodecContext, pCodec, NULL);
-  AVPacket *pPacket = av_packet_alloc();
-  if(pPacket == NULL) std::cout << "ALLOC ISSUES: " << vidFile->fileName.c_str()<<std::endl;
-  AVFrame *pFrame = av_frame_alloc();
-  AVFrame *pFrameRGB = av_frame_alloc();
-  if(!pFrame || !pFrameRGB)
-    std::cout << "Couldn't allocate frame" << std::endl;
-  double tConv = 1.0/av_q2d(time_base);
-  img_convert_ctx = sws_getContext(w, h, pCodecContext->pix_fmt, w, h, AV_PIX_FMT_RGB24, SWS_POINT, NULL, NULL, NULL);
+  qvdec decoder(vidFile->fileName,decodeDevice);
+  if(decoder.get_error()) return false;
   while(start_time < vidFile->length){
-    ret = avformat_seek_file(pFormatContext,index,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0); 
-    if(ret < 0) std::cout << vidFile->fileName.c_str() << " avformat_seek_file error return " <<ret<< std::endl;
-    while(av_read_frame(pFormatContext,pPacket) >= 0) {
-      if(pPacket->stream_index != (signed)index) continue;
-      int ret = avcodec_send_packet(pCodecContext, pPacket);
-      if (ret < 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-	std::cout << "Leaving without frame." << std::endl;
-	return false;
-      }
-      if(avcodec_receive_frame(pCodecContext, pFrame) == 0 && pFrame->width > 0) break;      
-    }
-    if(pFrame->width == 0) std::cout << vidFile->fileName.c_str() <<" " <<start_time<<" pFrame stuff "<< pFrame->pkt_pos << " " << pFrame->key_frame << " " << pFrame->linesize[0]  <<" "<< pFrame->width << " " << pFrame->height <<" "<< w <<" " << h<< std::endl;
-    if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize,(const uint8_t *)&(first_frame), AV_PIX_FMT_RGB24, w,h,1) < 0) std::cout <<"avpicture_fill() failed" << std::endl;
-    sws_scale(img_convert_ctx, pFrame->data, pFrame->linesize, 0, h, pFrameRGB->data, pFrameRGB->linesize);
+    decoder.get_frame(imgDat,start_time);
     std::stringstream ss;
     ss << tempPath.string() << "/face_temp/" << vid << "_"<<start_time<<".png";
     std::filesystem::path icon_file(ss.str());
-    Magick::Image mgk(w, h, "RGB", Magick::CharPixel, &(first_frame[0]));
+    Magick::Image mgk(w, h, "RGB", Magick::CharPixel, imgDat[0]);
     if(crop[0]+crop[1]+crop[2]+crop[3] > 0) {
       int cropW = w - crop[0] - crop[1];
       int cropH = h - crop[2] - crop[3];
@@ -319,12 +268,7 @@ bool video_utils::create_frames(VidFile * vidFile) {
     std::filesystem::rename(icon_file,tempPath/"face_temp/frames"/icon_file.filename());
     start_time+=frame_interval;
   }
-  avformat_close_input(&pFormatContext);
-  sws_freeContext(img_convert_ctx);
-  avcodec_free_context(&pCodecContext);
-  av_frame_free(&pFrame);
-  av_frame_free(&pFrameRGB);
-  av_packet_free(&pPacket);
+  decoder.flush_decoder();
   return true;
 }
 
@@ -337,15 +281,16 @@ bool video_utils::find_border(VidFile * vidFile, uint8_t ** first_frame, std::ve
   std::filesystem::path fileName = vidFile->fileName;
   unsigned int height = vidFile->height;
   unsigned int width = vidFile->width;
-  double length = vidFile->length;
-  double thumb_t = appConfig->get_float("thumb_time");
+  float length = vidFile->length;
+  float thumb_t = appConfig->get_float("thumb_time");
   int cBFrames = appConfig->get_int("border_frames");
-  double cCutThresh = appConfig->get_float("cut_thresh");
+  float cCutThresh = appConfig->get_float("cut_thresh");
   float frame_time = thumb_t;
-  double frame_spacing = (length-thumb_t)/(double)cBFrames;
-  if(!frameNoCrop(fileName, frame_time, first_frame)) {
-    return false;
-  }
+  float frame_spacing = (length-thumb_t)/(double)cBFrames;
+  //std::cout << "Time info " << length <<" "<<frame_time<<" "<<frame_spacing << std::endl;
+  qvdec decoder(fileName,decodeDevice);
+  if(decoder.get_error()) return false;
+  decoder.get_frame(first_frame,frame_time);
   uint8_t *imgDat0[4];
   imgDat0[0] = first_frame[0];
   uint8_t * imgDat1[4];
@@ -361,7 +306,7 @@ bool video_utils::find_border(VidFile * vidFile, uint8_t ** first_frame, std::ve
   auto r1(r0),g0(r0),g1(r0),b0(r0),b1(r0);
   for(int i = 0; i < cBFrames-1; i++) {
     frame_time+=frame_spacing;
-    if(!frameNoCrop(fileName,frame_time,imgDat1)) std::cout << "FAILURE" << std::endl;
+    decoder.get_frame(imgDat1,frame_time);
     auto dataIter0 = imgDat0[0];
     auto dataIter1 = imgDat1[0];
     for(unsigned int y=0; y < height; y++) 	
@@ -394,9 +339,9 @@ bool video_utils::find_border(VidFile * vidFile, uint8_t ** first_frame, std::ve
     imgDat0[0]=imgDat1[0];
     imgDat1[0]=ptrHolder[0];
     //preserve first frame
-    if(i == 0) imgDat1[0]=NULL;
-   
+    if(i == 0) imgDat1[0]=NULL;   
   }
+  decoder.flush_decoder();
   if(!skipBorder) {
     unsigned int x1(0), x2(0), y1(0), y2(0);
     while(colSums[x1] < cCutThresh && x1 < width) x1++;
@@ -685,11 +630,4 @@ std::filesystem::path video_utils::createPath(std::filesystem::path & path, int 
 
 std::filesystem::path video_utils::icon_filename(int vid) {
   return createPath(thumbPath,vid,".jpg");
-}
-
-bool video_utils::frameNoCrop(std::filesystem::path & fileName, float & start_time, uint8_t ** imgDat) {
-  qvdec decoder(fileName,decodeDevice);
-  if(decoder.get_error()) return false;
-  decoder.get_frame(imgDat,start_time);
-  return true;
 }
