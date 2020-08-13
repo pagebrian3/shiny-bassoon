@@ -2,7 +2,7 @@ List of future enhancements/fixes:
 
 -Detect when frames are a solid color or stationary, and don't use them for traces and thumbnails.   Perhaps part of the border detection.  Some intros have animation, so perhaps it would be better to just set a later start time.
 -Improve preview feature.  Perhaps add dynamic window size.  Preferrably with no decoration.  Fix bug causing false start of videos.  Perhaps replace with MPV? 
--Further improvements for icon creation speed.
+-Further improvements for icon creation speed.  Try VAAPI based scaling.
 -Facial tracking, perhaps animated PNGs.
 -Facial Categorization.  If this can be done easily, we can use it so that files without matching faces won't need to be compared.
 

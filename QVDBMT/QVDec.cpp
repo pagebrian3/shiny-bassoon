@@ -1,7 +1,5 @@
 extern "C" {
-#include <libavutil/pixdesc.h>
 #include <libavutil/hwcontext.h>
-#include <libavutil/opt.h>
 #include <libavutil/avassert.h>
 #include <libavutil/imgutils.h>
 }
