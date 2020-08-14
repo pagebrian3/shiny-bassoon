@@ -129,6 +129,7 @@ void QVBrowser::edit_md_clicked() {
   QModelIndexList sList = fFBox->selectionModel()->selectedIndexes();
   std::vector<int> selVids;
   for(int i = 0; i < sList.size(); i++)  {
+    if(fFBox->isRowHidden(sList[i].row())) continue;  //Just to be sure we aren't selecting hidden items when filtering.
     QStandardItem *  selItem = fModel->itemFromIndex(sList[i]);
     selVids.push_back(selItem->data(Qt::UserRole+4).toInt());
   }

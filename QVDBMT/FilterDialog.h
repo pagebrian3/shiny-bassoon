@@ -105,6 +105,7 @@ public:
     auto fModel = fListView->model();
     auto root_index = fListView->rootIndex();
     auto rows = fModel->rowCount(root_index);
+    int performerTID = fMD->md_types().right.at("Performer");
     for(int i = 0; i < rows; i++) {
       fListView->setRowHidden(i,false);
       auto index = fModel->index(i,0,root_index);
@@ -140,7 +141,7 @@ public:
       std::set<int> vidMD = fMD->mdForFile(vid);
       bool performerKnown = false;
       for(auto & tagID: vidMD)
-	if(fMD->md_lookup()[tagID].first == 1) {
+	if(fMD->md_lookup()[tagID].first == performerTID) {
 	  performerKnown=true;
 	  break;
 	}
