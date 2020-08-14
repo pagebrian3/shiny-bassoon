@@ -67,22 +67,25 @@ public:
     return ss.str();
   };
 
-  void newType(std::string label) {
+  int newType(std::string label) {
     int maxID = 0;
     for(auto & a:typeMap.left) if( a.first > maxID) maxID=a.first;
     maxID++;
     typeMap.insert({maxID,label});
-    return;
+    return maxID;
   };
 
-  void newLabel(std::string type,std::string label) {
+  int newLabel(std::string type,std::string label) {
     int maxID = 0;
     for(auto & a:labelMap) if( a.first > maxID) maxID=a.first;
     maxID++;
-    int tID = typeMap.right.at(type);
+    int tID = 0;
+    auto s = typeMap.right;
+    if(s.find(type) == s.end()) tID = newType(type);
+    else tID = typeMap.right.at(type);
     labelMap[maxID]=std::make_pair(tID,label);
     labelLookup[tID].insert(label);
-    return;
+    return tID;
   };
 
   void attachToFile(int vid,std::string label) {

@@ -51,7 +51,7 @@ public:
     if(!firstRun) fList->clear();   
     std::set<std::string> lSet;
     for(auto &b: fMD->md_lookup()) { 
-      if(b.second.first == 1) {   //need to fix the Person/Performer type ID.
+      if(b.second.first == performerIndex) { 
 	lSet.insert(b.second.second);
       }
     }
@@ -61,9 +61,10 @@ public:
 
   void onNameAddClicked() {
     bool ok;
+    std::string typeLabel("Performer");
     std::string text = QInputDialog::getText(this, "New Name Entry", "New Name:",QLineEdit::Normal, "",&ok).toStdString();
     if (ok && !text.empty())  {
-      fMD->newLabel(fMD->typeLabel(1),text);
+      performerIndex = fMD->newLabel(typeLabel,text);
       updateLabels();
     }
     return;
@@ -77,6 +78,7 @@ public:
 private:
 
   bool firstRun;
+  int performerIndex;
   qvdb_metadata *  fMD;
   QListWidget * fList;
   std::string selected_name;
