@@ -62,7 +62,6 @@ void FaceTools::Find_Faces() {
 	mgk.write(faceIcon.c_str());
 	faceCt++;
       }
-      //This is causing the cutoff faces for some reason.
       std::filesystem::remove(p.path());
     }
   return;

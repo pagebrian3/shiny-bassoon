@@ -49,6 +49,10 @@ public:
     return typeMap;
   };
 
+  int mdType(std::string tLabel) {
+    return typeMap.right.at(tLabel);
+  };
+
   std::map<int,std::pair<int,std::string> > md_lookup() {
     return labelMap;
   };

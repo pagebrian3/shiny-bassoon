@@ -33,6 +33,9 @@ public:
     connect(fTimer, &QTimer::timeout, this, &FaceDialog::progress_timeout);
     start_face_finder();
     fFacePath = fFT->get_face_path();
+    fTrainPath = fFacePath;
+    fTrainPath+="train";
+    std::filesystem::create_directory(fTrainPath);
     fModel = new QStandardItemModel(0,1,fList);
     fList->setModel(fModel);
     QItemSelectionModel * selModel = fList->selectionModel();
@@ -74,6 +77,7 @@ public:
 	b->setBackground(QBrush(img));
 	b->setIcon(QIcon());
 	b->setData(vid,Qt::UserRole+1);
+	b->setData(p.path().c_str(),Qt::UserRole+2);
 	float time = 0.001*ts;
 	QString toolTip((boost::format("VID: %i\nTime: %f\nFaceNum: %i") % vid % time % faceNum).str().c_str());
 	b->setToolTip(toolTip);
@@ -100,12 +104,14 @@ public:
     std::set<int> names;
     int vid;
     std::set<std::string> suggested_names;
+    std::string typeLabel("Performer");
+    performerIndex = fMD->mdType(typeLabel);
     for(int i = 0; i < sList.size(); i++)  {
       vid = fModel->itemFromIndex(sList[i])->data(Qt::UserRole+1).toInt();
       fVids.insert(vid);
       names.merge(fMD->mdForFile(vid));
       for(auto & a: names) 
-	if(fMD->mdType(a) == 1) 
+	if(fMD->mdType(a) == performerIndex) 
 	  suggested_names.insert(fMD->labelForMDID(a));	      
     }
     suggested_names.insert("other");
@@ -125,21 +131,32 @@ private:
       if(nameDiag.exec()) choice = nameDiag.get_name();
       else choice.clear();
     }
-    if(strcmp(choice.c_str(),"")) for(auto & vID : fVids) fMD->attachToFile(vID,choice);
-    fMD->saveMetadata();
-    QModelIndexList sList = fList->selectionModel()->selectedIndexes();
-    for(int i = 0; i < sList.size(); i++) fModel->itemFromIndex(sList[i])->setData(choice.c_str(),Qt::UserRole+2);
-    //These elements should then be used to train the NN and removed from the GUI.
+    if(strcmp(choice.c_str(),"")) {
+      for(auto & vID : fVids) fMD->attachToFile(vID,choice);
+      fMD->saveMetadata();
+      QModelIndexList sList = fList->selectionModel()->selectedIndexes();
+      for(int i = 0; i < sList.size(); i++) {
+	auto item = fModel->itemFromIndex(sList[i]);
+	std::filesystem::path p = item->data(Qt::UserRole+2).toString().toStdString();
+	std::filesystem::path new_p = fTrainPath;
+	new_p+="/";
+	new_p+=choice;
+	new_p+="_";
+	new_p+=p.filename();
+	std::filesystem::rename(p,new_p);
+      }
+    }
     return;
   };
   
+  int performerIndex;
   qvdb_metadata * fMD;
   video_utils * fVU;
   FaceTools * fFT;
   QListView * fList;
   QTimer * fTimer;
   QStandardItemModel * fModel;
-  std::filesystem::path fFacePath;
+  std::filesystem::path fFacePath,fTrainPath;
   std::set<int> fVids;
   std::vector<VidFile*> fVidFiles;
   std::vector<QStandardItem *> fFaceVec;

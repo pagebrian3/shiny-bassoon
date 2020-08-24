@@ -82,7 +82,7 @@ qvdec::qvdec(std::filesystem::path & path, std::string hw_type) : file(path) {
     }
     w = decoder_ctx->width;
     h = decoder_ctx->height;
-    std::cout << "Working on: " << path << std::endl;
+    //std::cout << "Working on: " << path << std::endl;
   } while(0);
 }
 
@@ -196,6 +196,7 @@ int qvdec::run_decode1() {
 
 int qvdec::get_frame(uint8_t ** buffer, float & start_time) {
   data = buffer;
+  //std::cout << "Seeking to " << start_time << " on " << file << std::endl;
   int ret = avformat_seek_file(input_ctx,video_stream,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0);
   if(ret < 0) std::cout << "Seek error: " << ret <<" "<< std::endl;
   while (ret >= 0) {

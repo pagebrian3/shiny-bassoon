@@ -186,7 +186,6 @@ bool video_utils::calculate_trace(VidFile * obj) {
   qvdec decoder(obj->fileName,decodeDevice);
   if(decoder.get_error()) return false;
   double tConv = decoder.get_trace_data(start_time,crop,times,traceDat);
-  //std::cout << "traceDat size " << traceDat.size()<< " time size " << times.size() <<std::endl;
   float time1,time2;
   if(times.size() == 0) {
     std::cout << "Empty time vec for " <<obj->fileName<< std::endl;
@@ -252,7 +251,7 @@ bool video_utils::create_frames(VidFile * vidFile) {
   uint8_t * imgDat[4];
   imgDat[0]=NULL;
   float start_time = appConfig->get_float("thumb_time");
-  float frame_interval=20.0;
+  float frame_interval = appConfig->get_float("frame_interval");
   std::vector<int> crop(vidFile->crop);
   qvdec decoder(vidFile->fileName,decodeDevice);
   if(decoder.get_error()) return false;
@@ -291,7 +290,6 @@ bool video_utils::find_border(VidFile * vidFile, uint8_t ** first_frame, std::ve
   float cCutThresh = appConfig->get_float("cut_thresh");
   float frame_time = thumb_t;
   float frame_spacing = (length-thumb_t)/(double)cBFrames;
-  //std::cout << "Time info " << length <<" "<<frame_time<<" "<<frame_spacing << std::endl;
   qvdec decoder(fileName,decodeDevice);
   if(decoder.get_error()) return false;
   decoder.get_frame(first_frame,frame_time);
@@ -543,7 +541,6 @@ qvdb_config * video_utils::get_config(){
 
 bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
   unsigned int nThreads = appConfig->get_int("threads");
-  //for( auto & a : files) std::cout << a << std::endl;
   std::vector<int> blank(4);
   for(uint h = 0; h*nThreads < files.size(); h++) {
     std::vector<VidFile *> batch;   
