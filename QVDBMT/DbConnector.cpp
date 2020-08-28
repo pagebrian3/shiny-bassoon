@@ -112,33 +112,6 @@ void DbConnector::save_video(VidFile* a) {
   return;
 }
 
-void DbConnector::save_crop(VidFile* a) {
-  std::string crop_holder;
-  sqlite3_stmt *stmt;
-  int rc = sqlite3_prepare_v2(db, "UPDATE videos SET crop=? WHERE vid=?", -1, &stmt, NULL);
-  if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-  if(a->crop[0]+a->crop[1]+a->crop[2]+a->crop[3] >  0)  {
-     std::stringstream ss;
-    int counter=0;
-    while(counter < 3) {
-      ss << a->crop[counter] << ",";
-      counter++;
-    }
-    ss << a->crop[counter]<<std::endl;
-    crop_holder=ss.str();
-  }
-  sqlite3_bind_text(stmt, 1, crop_holder.c_str(), -1, NULL);
-  sqlite3_bind_int(stmt, 2, a->vid);
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_ROW && rc != SQLITE_DONE) {
-    std::string errmsg(sqlite3_errmsg(db));
-    sqlite3_finalize(stmt);
-    throw errmsg;
-  } 
-  sqlite3_finalize(stmt);
-  return;
-}
-
 bool DbConnector::video_exists(std::filesystem::path & filename){
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "SELECT EXISTS(SELECT 1 FROM videos WHERE path = ? limit 1)", -1, &stmt, NULL);

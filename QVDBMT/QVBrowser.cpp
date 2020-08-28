@@ -27,6 +27,7 @@ QVBrowser::QVBrowser() : QMainWindow() {
   sort_by=qCfg->get_string("sort_by"); //size, name, length, vid  
   if(qCfg->get_int("sort_ascending") == 0) sOrder = Qt::DescendingOrder;
   else sOrder=Qt::AscendingOrder;
+  paths.push_back(vu->home_path());
   QPushButton *browse_button = new QPushButton("...");
   connect(browse_button, &QPushButton::clicked, this, &QVBrowser::browse_clicked);
   QPushButton *iemd_button = new QPushButton("MD Import/Export");
@@ -77,6 +78,11 @@ QVBrowser::QVBrowser() : QMainWindow() {
   connect(mDAct, &QAction::triggered, this, &QVBrowser::edit_md_clicked);
   p_timer = new QTimer(this);
   connect(p_timer, &QTimer::timeout, this, &QVBrowser::progress_timeout);
+  std::string extStrin;
+  extStrin = qCfg->get_string("extensions");
+  boost::char_separator<char> sep(" \"");
+  boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
+  for(auto &a: tok) extensions.insert(a);
   populate_icons();
   show();
 }
@@ -163,17 +169,76 @@ void QVBrowser::closeEvent(QCloseEvent *event) {
 
 void QVBrowser::populate_icons(bool clean) {
   if(clean) {
+    newVids.clear();
+    completedJobs.clear();
     vid_list.clear();
     vidFiles.clear();
     delete fModel;
     iconVec.clear();
   }
-  t = new boost::timer::auto_cpu_timer();
-  int nItems = vu->make_vids(loadedVFs);  //loadedVFs contains those we already have in db, nItems is total icons.
-  totalJobs = nItems - loadedVFs.size();  //totalJobs this is the number left to do.
+  QIcon initIcon = QIcon::fromTheme("image-missing");
+  std::vector<std::string> dims;
+  std::string tDims = qCfg->get_string("thumb_size");
+  boost::split(dims, tDims, boost::is_any_of("x"));
+  QSize size_hint = QSize(std::atoi(dims[0].c_str()),std::atoi(dims[1].c_str()));
   fModel = new QStandardItemModel(0,1,fFBox);
   fFBox->setModel(fModel);
   QItemSelectionModel * selModel = fFBox->selectionModel();
+  t = new boost::timer::auto_cpu_timer();
+  DbConnector * db = vu->get_db();
+  int i = 0;
+  for(auto & path: paths) {
+    std::vector<std::filesystem::path> current_dir_files;
+    for(auto & x: std::filesystem::directory_iterator(path)) {
+      auto extension = x.path().extension().generic_string();
+      std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+      if(extensions.count(extension)) {
+	std::filesystem::path pathName = x.path();
+	current_dir_files.push_back(pathName);
+	VidFile * a;
+	QStandardItem * b;
+	if(!db->video_exists(pathName))  {
+	  new_icon_lookup[i]=newVids.size();
+	  a = new VidFile(pathName);
+	  newVids.push_back(a);
+	  b = new QStandardItem(initIcon,"");
+	  b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
+	  b->setSizeHint(size_hint);
+	}
+	else {
+	  a = db->fetch_video(pathName);
+	  current_dir_files.push_back(pathName);
+	  b = new QStandardItem();
+	  std::filesystem::path icon_file(vu->icon_filename(a->vid));
+	  QPixmap img(QString(icon_file.c_str()));
+	  b->setSizeHint(img.size());
+	  b->setBackground(QBrush(img));
+	  b->setIcon(QIcon());
+	  b->setData(a->vid,Qt::UserRole+4);
+	  b->setData(a->size,Qt::UserRole+1);
+	  b->setData(a->length,Qt::UserRole+2);
+	  b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
+	  iconLookup[a->vid]=i;	  
+	}
+        vidFiles.push_back(a);
+	iconVec.push_back(b);
+	update_tooltip(a->vid);
+	fModel->appendRow(b);
+	i++;
+      }
+    }    
+    std::vector<int> orphans = db->cleanup(path,current_dir_files);
+    std::filesystem::path traceSave = vu->save_path();
+    traceSave+="traces/";
+    for(auto & a: orphans) {
+      //probably need more cleanup tasks here.
+      std::filesystem::remove(vu->icon_filename(a));
+      std::filesystem::remove(vu->createPath(traceSave,a,".bin"));
+    }
+  }
+  totalJobs=newVids.size();
+  completedJobs.resize(totalJobs);
+  vu->make_vids(newVids); 
   connect(selModel,&QItemSelectionModel::selectionChanged,this,&QVBrowser::onSelChanged);
   p_timer->start(qCfg->get_int("progress_time"));
   progressFlag = 1;
@@ -189,67 +254,29 @@ bool QVBrowser::progress_timeout() {
   std::chrono::milliseconds timer(1);
   auto res = vu->get_status();
   if(progressFlag==1) {
-    std::vector<VidFile*> batch;
-    bool batchTest = vu->getVidBatch(batch);
-    if(batchTest || loadedVFs.size() > 0) {
-      if(loadedVFs.size() > 0) {
-	batch.insert(batch.end(),loadedVFs.begin(), loadedVFs.end());
-	loadedVFs.clear();
-      }
-      std::vector<int> vidTemp;
-      for(auto & a: batch) vidTemp.push_back(a->vid);
-      qMD->load_file_md(vidTemp);
-      QIcon initIcon = QIcon::fromTheme("image-missing");
-      std::vector<std::string> dims;
-      std::string tDims = qCfg->get_string("thumb_size");
-      boost::split(dims, tDims, boost::is_any_of("x"));
-      QSize size_hint = QSize(std::atoi(dims[0].c_str()),std::atoi(dims[1].c_str()));
-      std::vector<VidFile*> needIcons;
-      for(auto &a: batch) {  //loop over vector of completed VidFiles
-	int position=iconVec.size();
+    //qMD->load_file_md(vidTemp);  Need to restore this.
+    int i=0;
+    for(auto &c: res) {  //this leads to alot of redundant looping, perhaps we can remove completed elements from res and and vid_list, or remember the position of the first job which was not completed from the last loop.
+      if(completedJobs[i]==1) counter+=1;
+      else if(c == std::future_status::ready) { //Job is done, icon needs to be added
+	VidFile * a = newVids[i];
 	int vid = a->vid;
-	bool iExists = vu->thumb_exists(vid);
-	vidFiles.push_back(a);
-	QStandardItem * b;
-	if(iExists) {  //if icon exists set as background and mark as done.
-	  b = new QStandardItem();
-	  iconVec.push_back(b);
-	  std::filesystem::path icon_file(vu->icon_filename(vid));
-	  QPixmap img(QString(icon_file.c_str()));
-	  iconVec[position]->setSizeHint(img.size());
-	  iconVec[position]->setBackground(QBrush(img));
-	  iconVec[position]->setIcon(QIcon());
-	  vid_list.push_back(0);
+	iconLookup[vid]=new_icon_lookup[i];
+	std::filesystem::path iconFilename(vu->icon_filename(vid));
+	QPixmap img(QString(iconFilename.c_str()));
+	QStandardItem * b = iconVec[new_icon_lookup[i]];
+	b->setSizeHint(img.size());
+	if(a->okflag != -1) {
+	  b->setBackground(QBrush(img));
+	  b->setIcon(QIcon());
 	}
-	else {  //if icon doesn't exist add it's vid to vid_list and needIcons
-	  b = new QStandardItem(initIcon,"");
-	  iconVec.push_back(b);
-	  b->setSizeHint(size_hint);
-	  vid_list.push_back(vid);
-	  needIcons.push_back(a);
-	}
-	iconLookup[vid]=position;
+	b->setData(a->vid,Qt::UserRole+4);
 	b->setData(a->size,Qt::UserRole+1);
 	b->setData(a->length,Qt::UserRole+2);
 	b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
-	b->setData(vid,Qt::UserRole+4);
 	update_tooltip(vid);
-	fModel->appendRow(b);
-      }
-      vu->start_thumbs(needIcons);
-    }
-    int i=0;
-    for(auto &b: res) {  //this leads to alot of redundant looping, perhaps we can remove completed elements from res and and vid_list, or remember the position of the first job which was not completed from the last loop.
-      if(b == std::future_status::ready) { //Job is done, icon needs to be added
-	if(vid_list[i] != 0) {  
-	  std::filesystem::path iconFilename(vu->icon_filename(vid_list[i]));
-	  QPixmap img(QString(iconFilename.c_str()));
-	  iconVec[i]->setSizeHint(img.size());
-	  iconVec[i]->setBackground(QBrush(img));
-	  iconVec[i]->setIcon(QIcon());
-	  vid_list[i]=0;
-	}
         counter+=1.0;  //Job is done and icon already added
+	completedJobs[i] = 1;
       }
       i++;	
     }
@@ -314,9 +341,8 @@ void QVBrowser::browse_clicked() {
   QStringList fileNames;
   if(dialog.exec()) {
     fileNames = dialog.selectedFiles();
-    std::vector<std::filesystem::path> files;
-    for(auto &a: fileNames) files.push_back(std::filesystem::path(a.toStdString()));
-    vu->set_paths(files);
+    paths.clear();
+    for(auto &a: fileNames) paths.push_back(std::filesystem::path(a.toStdString()));
     populate_icons(true);
   }
   return;
@@ -388,6 +414,7 @@ void QVBrowser::update_progress(int fraction, std::string label) {
 }
 
 void QVBrowser::update_tooltip(int vid) {
+  if(vid == 0) return;
   QStandardItem * currItem = iconVec[iconLookup[vid]];
   VidFile * a = vidFiles[iconLookup[vid]];
   float size = a->size;

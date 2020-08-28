@@ -61,19 +61,21 @@ class video_utils
 
   int compare_traces();
 
-  int make_vids(std::vector<VidFile *> & vidFiles);
+  bool make_vids(std::vector<VidFile *> & vidFiles);
 
   std::vector<std::future_status> get_status();
 
   std::set<std::string> get_extensions();
 
-  void set_paths(std::vector<std::filesystem::path> & paths);
-
   std::filesystem::path createPath(std::filesystem::path & path, int vid, std::string extension);
 
   std::filesystem::path icon_filename(int vid);
 
-  std::filesystem::path get_temp_path() {return tempPath;};
+  std::filesystem::path get_temp_path() {return tempPath; };
+
+  std::filesystem::path save_path() {return savePath; };
+
+  std::filesystem::path home_path() { return homePath; };
 
   void close();
 
@@ -83,11 +85,9 @@ class video_utils
 
   DbConnector * get_db() {return dbCon;};
 
-  bool vid_factory(std::vector<std::filesystem::path> & paths);
-
-  bool getVidBatch(std::vector<VidFile*> & batch);
-
   bool thumb_exists(int vid);
+
+  bool video_exists(std::filesystem::path & filename);
 
   bool trace_exists(int vid);
 
@@ -97,20 +97,18 @@ class video_utils
 
   std::string decodeDevice;
   cxxpool::thread_pool * TPool;
-  std::filesystem::path tempPath, tracePath, savePath, thumbPath;
+  std::filesystem::path tempPath, tracePath, savePath, thumbPath, homePath;
   DbConnector * dbCon;
   qvdb_config * appConfig;
   qvdb_metadata * metaData;
   std::pair<int,Magick::Image *> img_cache;
   std::map<int,std::vector<char> > traceData;
   std::map<std::tuple<int,int,int>,std::pair<int,std::string>> result_map;
-  std::list<std::vector<VidFile *> > completedVFs;
   std::vector<std::future<bool> > resVec;
   std::vector<std::string> cBadChars;
   std::vector<int> fVIDs;
-  std::vector<std::filesystem::path> paths;
-  std::set<std::string> extensions;
   std::mutex mtx;
+  
 };
 
 #endif // VIDEOUTILS_H

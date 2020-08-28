@@ -1,7 +1,8 @@
 extern "C" {
-#include <libavutil/hwcontext.h>
-#include <libavutil/avassert.h>
-#include <libavutil/imgutils.h>
+  #include <libavutil/hwcontext.h>
+  #include <libavutil/avassert.h>
+  #include <libavutil/imgutils.h>
+  #include <libavutil/display.h>
 }
 #include "QVDec.h"
 #include <iostream>
@@ -21,7 +22,7 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
   return AV_PIX_FMT_NONE;
 };
 
-qvdec::qvdec(std::filesystem::path & path, std::string hw_type) : file(path) {
+qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
   initError = false;
   input_ctx = NULL;
   sws_ctx = NULL;
@@ -35,6 +36,7 @@ qvdec::qvdec(std::filesystem::path & path, std::string hw_type) : file(path) {
   hwEnable = true;
   hw_device_ctx = NULL;
   data = NULL;
+  int size = std::filesystem::file_size(file);
   if(strcmp(hw_type.c_str(),"CPU") !=0 ) {
     type = av_hwdevice_find_type_by_name(hw_type.c_str());
   }
@@ -44,14 +46,14 @@ qvdec::qvdec(std::filesystem::path & path, std::string hw_type) : file(path) {
   }
   do {
     /* open the input file */
-    if(avformat_open_input(&input_ctx, path.c_str(), NULL, NULL) < 0) {
+    if(avformat_open_input(&input_ctx, file.c_str(), NULL, NULL) < 0) {
       initError=true;
-      std::cout <<"input failure on "<<path <<std::endl;
+      std::cout <<"input failure on "<<file <<std::endl;
       break;
     }
     if(avformat_find_stream_info(input_ctx, NULL) > 0) {
       initError=true;
-      std::cout <<"Failure to find stream for "<<path <<std::endl;
+      std::cout <<"Failure to find stream for "<<file <<std::endl;
       break;
     }
     /* find the video stream information */
@@ -76,13 +78,22 @@ qvdec::qvdec(std::filesystem::path & path, std::string hw_type) : file(path) {
       if ((ret = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0)) >= 0) decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
     }
     if(ret < 0 || (ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0){
-      std::cout <<"Codec open failure on : "<< path << std::endl;
+      std::cout <<"Codec open failure on : "<< file << std::endl;
       initError = true;
       break;
     }
+    float length = static_cast<float>(video->duration) / static_cast<float>(time_base.den);
     w = decoder_ctx->width;
     h = decoder_ctx->height;
-    //std::cout << "Working on: " << path << std::endl;
+    uint8_t* displaymatrix = av_stream_get_side_data(video, AV_PKT_DATA_DISPLAYMATRIX, NULL);
+    int rotate = 0; 
+    if(displaymatrix) rotate = -av_display_rotation_get((int32_t*) displaymatrix);
+    vf->length=length;
+    vf->size=size;
+    vf->rotate=rotate;
+    vf->height=h;
+    vf->width=w;
+    //std::cout << "Working on: " << file << std::endl;
   } while(0);
 }
 

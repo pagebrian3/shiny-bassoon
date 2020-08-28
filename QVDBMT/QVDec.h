@@ -5,14 +5,14 @@ extern "C" {
   #include <libavcodec/avcodec.h>
   #include <libavformat/avformat.h>
 }
-#include <filesystem>
+#include "VidFile.h"
 #include <string>
 #include <vector>
 
 class qvdec {
  public:
 
-  qvdec(std::filesystem::path & path, std::string hw_type);
+  qvdec(VidFile * vf, std::string hw_type);
 
   ~qvdec();
   
@@ -57,6 +57,7 @@ class qvdec {
   int h;
 
   double time;
+  
   double prevTime;
 };
 

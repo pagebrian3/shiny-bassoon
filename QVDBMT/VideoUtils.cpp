@@ -12,9 +12,6 @@
 #include <fstream>
 #include <iostream>
 #include "QVDec.h"
-extern "C" {
-  #include <libavutil/display.h>
-}
 
 video_utils::video_utils() {
   if(strcmp(PLATFORM_NAME,"linux") == 0) {
@@ -25,7 +22,7 @@ video_utils::video_utils() {
     savePath =temp.substr(temp.find("="));
   }
   else std::cout << "Unsupported platform" << std::endl;
-  std::filesystem::path homeP(savePath);
+  homePath = savePath;
   savePath+="/.video_proj/";
   tempPath = "/tmp/qvdbtmp/";
   if(!std::filesystem::exists(tempPath))std::filesystem::create_directory(tempPath);
@@ -42,13 +39,7 @@ video_utils::video_utils() {
   metaData = new qvdb_metadata(dbCon);
   if(appConfig->load_config(dbCon->fetch_config())) dbCon->save_config(appConfig->get_data());
   Magick::InitializeMagick("");
-  paths.push_back(homeP);
   TPool = new cxxpool::thread_pool(appConfig->get_int("threads"));
-  std::string extStrin;
-  extStrin = appConfig->get_string("extensions");
-  boost::char_separator<char> sep(" \"");
-  boost::tokenizer<boost::char_separator<char> > tok(extStrin,sep);
-  for(auto &a: tok) extensions.insert(a);
   bool canHWDecode=appConfig->get_int("hwdecode_enabled");
   decodeDevice = appConfig->get_string("hwdecoder");
   if(canHWDecode) {
@@ -183,7 +174,7 @@ bool video_utils::calculate_trace(VidFile * obj) {
   std::vector<int> crop = obj->crop;
   std::vector<float> times;
   std::vector<std::array<float,12> > traceDat;
-  qvdec decoder(obj->fileName,decodeDevice);
+  qvdec decoder(obj,decodeDevice);
   if(decoder.get_error()) return false;
   double tConv = decoder.get_trace_data(start_time,crop,times,traceDat);
   float time1,time2;
@@ -221,17 +212,21 @@ bool video_utils::calculate_trace(VidFile * obj) {
 
 bool video_utils::create_thumb(VidFile * vidFile) {
   std::string thumb_size = appConfig->get_string("thumb_size");
-  int w = vidFile->width;
-  int h = vidFile->height;
-  int vid = vidFile->vid;
   uint8_t * first_frame[4];
   first_frame[0]=NULL;
   std::vector<int> crop(4);
-  if(!find_border(vidFile,first_frame, crop)) return false;
-  std::filesystem::path icon_file(icon_filename(vid));
+  if(!find_border(vidFile,first_frame, crop)) {
+    vidFile->okflag=-1;
+    dbCon->save_video(vidFile);
+    return false;
+  }
+  int w = vidFile->width;
+  int h = vidFile->height;
   Magick::Image mgk(w, h, "RGB", Magick::CharPixel, first_frame[0]);
   vidFile->crop=crop;
-  dbCon->save_crop(vidFile);
+  dbCon->save_video(vidFile);
+  int vid = vidFile->vid;
+  std::filesystem::path icon_file(icon_filename(vid));
   if(crop[0]+crop[1]+crop[2]+crop[3] > 0) {
     int cropW = w - crop[0] - crop[1];
     int cropH = h - crop[2] - crop[3];
@@ -253,7 +248,7 @@ bool video_utils::create_frames(VidFile * vidFile) {
   float start_time = appConfig->get_float("thumb_time");
   float frame_interval = appConfig->get_float("frame_interval");
   std::vector<int> crop(vidFile->crop);
-  qvdec decoder(vidFile->fileName,decodeDevice);
+  qvdec decoder(vidFile,decodeDevice);
   if(decoder.get_error()) return false;
   while(start_time < vidFile->length){
     decoder.get_frame(imgDat,start_time);
@@ -281,18 +276,18 @@ bool video_utils::StartFaceFrames(std::vector<VidFile *> & vFile) {
 }
 
 bool video_utils::find_border(VidFile * vidFile, uint8_t ** first_frame, std::vector<int> & crop) {
-  std::filesystem::path fileName = vidFile->fileName;
-  unsigned int height = vidFile->height;
-  unsigned int width = vidFile->width;
-  float length = vidFile->length;
   float thumb_t = appConfig->get_float("thumb_time");
   int cBFrames = appConfig->get_int("border_frames");
   float cCutThresh = appConfig->get_float("cut_thresh");
   float frame_time = thumb_t;
-  float frame_spacing = (length-thumb_t)/(double)cBFrames;
-  qvdec decoder(fileName,decodeDevice);
+  qvdec decoder(vidFile,decodeDevice);
   if(decoder.get_error()) return false;
   decoder.get_frame(first_frame,frame_time);
+  unsigned int height = vidFile->height;
+  unsigned int width = vidFile->width;
+  std::filesystem::path fileName = vidFile->fileName;
+  float length = vidFile->length;
+  float frame_spacing = (length-thumb_t)/(double)cBFrames; 
   uint8_t *imgDat0[4];
   imgDat0[0] = first_frame[0];
   uint8_t * imgDat1[4];
@@ -366,6 +361,10 @@ bool video_utils::thumb_exists(int vid) {
   return std::filesystem::exists(icon_filename(vid));
 }
 
+bool video_utils::video_exists(std::filesystem::path & filename) {
+  return dbCon->video_exists(filename);
+}
+
 bool video_utils::trace_exists(int vid) {
   std::filesystem::path traceSave = savePath;
   traceSave+="traces/";
@@ -432,11 +431,6 @@ void video_utils::compare_icons() {
   return;
 }
 
-void video_utils::start_thumbs(std::vector<VidFile *> & vFile) {
-  for(auto &a: vFile) resVec.push_back(TPool->push([&](VidFile *b) {return create_thumb(b);}, a));
-  return;
-}
-
 int video_utils::start_make_traces(std::vector<VidFile *> & vFile) {
   resVec.clear();
   std::filesystem::path traceDir = savePath;
@@ -486,46 +480,9 @@ int video_utils::compare_traces() {
   return resVec.size();
 }
 
-int video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
-  std::vector<std::filesystem::path> pathVs;
-  fVIDs.clear();
-  int counter = 0;
-  for(auto & path: paths) {
-    std::vector<std::filesystem::path> current_dir_files;
-    for(auto & x: std::filesystem::directory_iterator(path)) {
-      auto extension = x.path().extension().generic_string();
-      std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-      if(extensions.count(extension)) {
-	std::filesystem::path pathName = x.path();	
-	if(!dbCon->video_exists(pathName))  {
-	  pathVs.push_back(pathName);
-	}
-	else {
-	  VidFile * v =dbCon->fetch_video(pathName);
-	  vidFiles.push_back(v);
-	  fVIDs.push_back(v->vid);
-	  current_dir_files.push_back(pathName);
-	}
-	counter++;
-      }     
-    }    
-    std::vector<int> orphans = dbCon->cleanup(path,current_dir_files);
-    std::filesystem::path traceSave = savePath;
-    traceSave+="traces/";
-    for(auto & a: orphans) {
-      std::filesystem::remove(icon_filename(a));
-      std::filesystem::remove(createPath(traceSave,a,".bin"));
-    }
-  }
-  TPool->push([this](std::vector<std::filesystem::path> pathvs) {return vid_factory(pathvs);},pathVs);
-  resVec.clear();  //need to do it here because start_thumbs is called multiple times.
-  return counter;
-}
-
-void video_utils::set_paths(std::vector<std::filesystem::path> & folders) {
-  paths.clear();
-  for(auto & a: folders) paths.push_back(a);
-  return;
+bool video_utils::make_vids(std::vector<VidFile *> & vidFiles) {
+  for(auto &a: vidFiles) resVec.push_back(TPool->push([&](VidFile *b) {return create_thumb(b);}, a));
+  return true;
 }
 
 void video_utils::close() {
@@ -537,73 +494,6 @@ void video_utils::close() {
 
 qvdb_config * video_utils::get_config(){
   return appConfig;
-}
-
-bool video_utils::vid_factory(std::vector<std::filesystem::path> & files) {
-  unsigned int nThreads = appConfig->get_int("threads");
-  std::vector<int> blank(4);
-  for(uint h = 0; h*nThreads < files.size(); h++) {
-    std::vector<VidFile *> batch;   
-    for(uint i = 0; i < nThreads && i+h*nThreads < files.size(); i++) {
-      auto fileName = files[i+h*nThreads].u8string();
-      int size = std::filesystem::file_size(fileName);
-      AVFormatContext *pFormatCtx=NULL;
-      int ret = avformat_open_input(&pFormatCtx, fileName.c_str(), NULL, NULL);
-      if(ret < 0) {
-	std::cout << "trouble opening: " << fileName << std::endl;
-	VidFile * newVid = new VidFile(fileName, 0, 0, 0, -1, blank, 0, 0, 0);
-        batch.push_back(newVid);
-	continue;
-      }
-      avformat_find_stream_info(pFormatCtx,NULL);
-      unsigned int videoStream = 0;
-      AVCodec *pCodec = NULL;
-      AVCodecParameters * pCodecParameters = NULL;
-      AVStream * st = NULL;
-      for(; videoStream<pFormatCtx->nb_streams; videoStream++) {
-	pCodecParameters = pFormatCtx->streams[videoStream]->codecpar;
-	if (pCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
-	  pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
-	  st = pFormatCtx->streams[videoStream];
-	  break;
-	}
-      }
-      AVRational avr = st->time_base;
-      AVCodecContext *pCodecCtx = avcodec_alloc_context3(pCodec);
-      avcodec_parameters_to_context(pCodecCtx, pCodecParameters);
-      avcodec_open2(pCodecCtx, pCodec, NULL);
-      float length = static_cast<double>(pFormatCtx->streams[videoStream]->duration) / static_cast<double>(avr.den);
-      avcodec_open2(pCodecCtx, pCodec,NULL);
-      int width = pCodecCtx->width;
-      int height = pCodecCtx->height;
-      uint8_t* displaymatrix = av_stream_get_side_data(st, AV_PKT_DATA_DISPLAYMATRIX, NULL);
-      int rotate = 0; 
-      if(displaymatrix) rotate = -av_display_rotation_get((int32_t*) displaymatrix);
-      VidFile * newVid = new VidFile(fileName, length, size, 0, -1, blank, rotate, height, width);
-      avformat_close_input(&pFormatCtx);
-      avcodec_free_context(&pCodecCtx);
-      batch.push_back(newVid);
-    }
-    mtx.lock();
-    completedVFs.push_back(batch);
-    mtx.unlock();
-  }
-  return true;
-}
-
-bool video_utils::getVidBatch(std::vector<VidFile*> & batch) {
-  if(completedVFs.size() == 0) return false;
-  batch = completedVFs.front();
-  std::vector<int> bVids;
-  for(auto & a: batch) {
-    dbCon->save_video(a);	
-    fVIDs.push_back(a->vid);
-    bVids.push_back(a->vid);
-  }
-  mtx.lock();
-  completedVFs.pop_front();
-  mtx.unlock();
-  return true;
 }
 
 bool video_utils::load_trace(int vid) {
@@ -632,3 +522,4 @@ std::filesystem::path video_utils::createPath(std::filesystem::path & path, int 
 std::filesystem::path video_utils::icon_filename(int vid) {
   return createPath(thumbPath,vid,".jpg");
 }
+
