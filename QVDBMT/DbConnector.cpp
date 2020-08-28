@@ -78,7 +78,6 @@ VidFile * DbConnector::fetch_video(std::filesystem::path & filename){
 }
 
 void DbConnector::save_video(VidFile* a) {
-  a->okflag=1;
   std::string crop_holder("");
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, "INSERT INTO videos(path,crop,length,size,okflag,rotate,width,height) VALUES (?,?,?,?,?,?,?,?) ", -1, &stmt, NULL);

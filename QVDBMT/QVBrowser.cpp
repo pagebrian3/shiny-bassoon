@@ -209,11 +209,14 @@ void QVBrowser::populate_icons(bool clean) {
 	  a = db->fetch_video(pathName);
 	  current_dir_files.push_back(pathName);
 	  b = new QStandardItem();
-	  std::filesystem::path icon_file(vu->icon_filename(a->vid));
-	  QPixmap img(QString(icon_file.c_str()));
-	  b->setSizeHint(img.size());
-	  b->setBackground(QBrush(img));
-	  b->setIcon(QIcon());
+	  if(a->okflag == -1)  b->setIcon(initIcon);
+	  else {
+	    std::filesystem::path icon_file(vu->icon_filename(a->vid));
+	    QPixmap img(QString(icon_file.c_str()));
+	    b->setSizeHint(img.size());
+	    b->setBackground(QBrush(img));
+	    b->setIcon(QIcon());
+	  }
 	  b->setData(a->vid,Qt::UserRole+4);
 	  b->setData(a->size,Qt::UserRole+1);
 	  b->setData(a->length,Qt::UserRole+2);
@@ -262,11 +265,11 @@ bool QVBrowser::progress_timeout() {
 	VidFile * a = newVids[i];
 	int vid = a->vid;
 	iconLookup[vid]=new_icon_lookup[i];
-	std::filesystem::path iconFilename(vu->icon_filename(vid));
-	QPixmap img(QString(iconFilename.c_str()));
 	QStandardItem * b = iconVec[new_icon_lookup[i]];
-	b->setSizeHint(img.size());
 	if(a->okflag != -1) {
+	  std::filesystem::path iconFilename(vu->icon_filename(vid));
+	  QPixmap img(QString(iconFilename.c_str()));
+	  b->setSizeHint(img.size());
 	  b->setBackground(QBrush(img));
 	  b->setIcon(QIcon());
 	}

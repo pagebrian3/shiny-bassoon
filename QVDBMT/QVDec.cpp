@@ -48,6 +48,7 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
     /* open the input file */
     if(avformat_open_input(&input_ctx, file.c_str(), NULL, NULL) < 0) {
       initError=true;
+      vf->okflag = -1;
       std::cout <<"input failure on "<<file <<std::endl;
       break;
     }
@@ -79,6 +80,7 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
     }
     if(ret < 0 || (ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0){
       std::cout <<"Codec open failure on : "<< file << std::endl;
+      vf->okflag = -1;
       initError = true;
       break;
     }
