@@ -93,7 +93,6 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
     vf->rotate=rotate;
     vf->height=h;
     vf->width=w;
-    //std::cout << "Working on: " << file << std::endl;
   } while(0);
 }
 
@@ -105,7 +104,7 @@ int qvdec::decode_write()
   bool fail = false;
   ret = avcodec_send_packet(decoder_ctx, &packet);   
   if (ret < 0) {
-    std::cout << "Error during decoding"<<std::endl;
+    std::cout << "Error during decoding on file " << file<<std::endl;
     return ret;
   }
   while (1) {
@@ -127,7 +126,7 @@ int qvdec::decode_write()
 	return 0;
       }
       else if (ret < 0) {
-	std::cout << "Error while decoding code ret: "<< ret <<std::endl;
+	std::cout << "Error while decoding code ret: "<< ret <<" on file " << file<<std::endl;
 	fail = true;
       }
     }
@@ -209,10 +208,10 @@ int qvdec::get_frame(uint8_t ** buffer, float & start_time) {
   data = buffer;
   //std::cout << "Seeking to " << start_time << " on " << file << std::endl;
   int ret = avformat_seek_file(input_ctx,video_stream,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0);
-  if(ret < 0) std::cout << "Seek error: " << ret <<" "<< std::endl;
+  if(ret < 0) std::cout << "Seek error: " << ret <<" "<<" on file " << file<< std::endl;
   while (ret >= 0) {
     if ((ret = av_read_frame(input_ctx, &packet)) < 0) {
-      std::cout << "Error in read_frame: " << ret << std::endl;
+      std::cout << "Error in read_frame: " << ret << " on file " << file<< std::endl;
       break;
     }
     if (video_stream == packet.stream_index) {
@@ -246,7 +245,7 @@ double qvdec::get_trace_data(float & start_time,  std::vector<int> & crop, std::
   float norm = 4.0/(cropW*cropH);
   int ret = avformat_seek_file(input_ctx,video_stream,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0);
   //int ret = avformat_seek_file(input_ctx,video_stream,0.5*tConv*start_time,tConv*start_time,tConv*start_time,0); //seek before
-  if(ret < 0) std::cout <<  " avformat_seek_file error return " <<ret<< std::endl;
+  if(ret < 0) std::cout <<  " avformat_seek_file error return " <<ret<< " on file " << file<<std::endl;
   while (true) {
     if ((ret = av_read_frame(input_ctx, &packet)) < 0) {
       break;
