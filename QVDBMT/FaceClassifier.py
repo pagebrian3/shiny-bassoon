@@ -14,11 +14,13 @@ np.random.seed(1)
 extension = 'png'
 test_images = []
 test_labels = []
+test_files = []
 test_path = sys.argv[3]
 shape = (int(sys.argv[1]),int(sys.argv[2]))
 
 for filename in os.listdir(test_path):
     if filename.split('.')[1] == extension:
+        test_files.append(filename)
         img = cv2.imread(os.path.join(test_path,filename))
         
         # Spliting file names and storing the labels for image in list
@@ -42,9 +44,9 @@ for label in test_labels:
     output[count]=label
     count+=1
 size = len(test_images)
+f = open("output.txt", "a")
 for i in range(0,size):
-    checkImage = test_images[i:i+1]
-    checklabel = test_labels[i:i+1]
-    predict = model.predict(np.array(checkImage))   
-    print("Actual :- ",checklabel)
-    print("Predicted :- ",output[np.argmax(predict)])
+    checkImage = test_images #[i:i+1]
+    predict = np.argmax(model.predict(np.array(checkImage)),axis=-1)   
+    f.write(test_files[i] +" " +output[predict[i]] + "\n")
+f.close()

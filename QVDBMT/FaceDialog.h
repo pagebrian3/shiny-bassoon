@@ -105,7 +105,8 @@ public:
     int vid;
     std::set<std::string> suggested_names;
     std::string typeLabel("Performer");
-    performerIndex = fMD->mdType(typeLabel);
+    if(fMD->typeExists(typeLabel)) performerIndex = fMD->mdType(typeLabel);
+    else performerIndex = fMD->newType(typeLabel);
     for(int i = 0; i < sList.size(); i++)  {
       vid = fModel->itemFromIndex(sList[i])->data(Qt::UserRole+1).toInt();
       fVids.insert(vid);
