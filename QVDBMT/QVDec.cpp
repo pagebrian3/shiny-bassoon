@@ -39,10 +39,14 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
   int size = std::filesystem::file_size(file);
   if(strcmp(hw_type.c_str(),"CPU") !=0 ) {
     type = av_hwdevice_find_type_by_name(hw_type.c_str());
+    if(type == NULL) {
+      hwEnable=false;
+      std::cout << "Type not found." << std::endl;
+    }
   }
   else {
     hwEnable = false;
-    //std::cout << "CPU encoding." << std::endl;
+    std::cout << "CPU encoding." << std::endl;
   }
   do {
     /* open the input file */
@@ -54,6 +58,7 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
     }
     if(avformat_find_stream_info(input_ctx, NULL) > 0) {
       initError=true;
+      vf->okflag=-1;
       std::cout <<"Failure to find stream for "<<file <<std::endl;
       break;
     }
@@ -77,8 +82,12 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
     if(hwEnable){
       decoder_ctx->get_format  = get_hw_format;
       if ((ret = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0)) >= 0) decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+      else {
+	hwEnable=false;
+	soft_init(decoder,video);
+      }
     }
-    if(ret < 0 || (ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0){
+    if( (ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0){
       std::cout <<"Codec open failure on : "<< file << std::endl;
       vf->okflag = -1;
       initError = true;
@@ -96,6 +105,24 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
     vf->height=h;
     vf->width=w;
   } while(0);
+}
+
+bool qvdec::soft_init(AVCodec * decoder, AVStream * video) {
+  std::cout << "Software decoding for file: " <<file.c_str()<< std::endl;
+  avcodec_free_context(&decoder_ctx);
+  avformat_close_input(&input_ctx);
+  av_buffer_unref(&hw_device_ctx);
+  int ret = avformat_open_input(&input_ctx, file.c_str(), NULL, NULL);
+  if(ret < 0) {
+    std::cout << "trouble opening: " << file.c_str() << std::endl;
+    return false;
+  }
+  avformat_find_stream_info(input_ctx,  NULL);
+  video_stream = av_find_best_stream(input_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
+  decoder_ctx = avcodec_alloc_context3(decoder);
+  video = input_ctx->streams[video_stream];
+  avcodec_parameters_to_context(decoder_ctx, video->codecpar);
+  return true;
 }
 
 int qvdec::decode_write()

@@ -15,6 +15,8 @@ class qvdec {
   qvdec(VidFile * vf, std::string hw_type);
 
   ~qvdec();
+
+  bool soft_init(AVCodec * decoder, AVStream * video);
   
   int run_decode1();
 

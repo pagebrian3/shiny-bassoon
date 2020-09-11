@@ -40,28 +40,7 @@ video_utils::video_utils() {
   if(appConfig->load_config(dbCon->fetch_config())) dbCon->save_config(appConfig->get_data());
   Magick::InitializeMagick("");
   TPool = new cxxpool::thread_pool(appConfig->get_int("threads"));
-  bool canHWDecode=appConfig->get_int("hwdecode_enabled");
   decodeDevice = appConfig->get_string("hwdecoder");
-  if(canHWDecode) {
-    std::string tmpname = "blah.blah";
-    std::string scommand = "/usr/bin/vainfo";
-    std::string cmd = scommand + " 2> " + tmpname;
-    std::system(cmd.c_str());
-    std::ifstream file(tmpname, std::ios::in | std::ios::binary );
-    std::string result;
-    if (file) {
-      while (!file.eof()) result.push_back(file.get());
-      file.close();
-    }
-    std::remove(tmpname.c_str());
-    std::string fail("vaInitialize failed with error code -1");
-    std::size_t found = result.find(fail);
-    if(found != std::string::npos) {
-      std::cout << "Disabling HW decode." << std::endl;
-      decodeDevice.assign("CPU");
-      canHWDecode = false;
-    }
-  }
 }
 
 qvdb_metadata * video_utils::mdInterface() {
