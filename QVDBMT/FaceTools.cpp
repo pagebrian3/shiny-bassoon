@@ -1,5 +1,4 @@
 #include "FaceTools.h"
-#include "VidFile.h"
 #include "VideoUtils.h"
 #include "QVBConfig.h"
 #include <Magick++.h>
@@ -22,7 +21,7 @@ FaceTools::FaceTools(video_utils * vu) : fVU(vu) {
   if(!std::filesystem::exists(fFacePath))std::filesystem::create_directory(fFacePath);
   fTrainPath = fVU->save_path();
   fTrainPath += "/train";
-  std::filesystem::path fModelPath = fVU->save_path();
+  fModelPath = fVU->save_path();
   fModelPath += "model.keras";
   Magick::InitializeMagick("");
 }
@@ -62,6 +61,7 @@ bool FaceTools::face_job(std::filesystem::path p) {
   else {
     detNum = *(available_fds.begin());
     detector = detectors[detNum];
+    available_fds.erase(detNum);
   }
   pthread_mutex_unlock(&fLock);
   int resize_thresh = 480;

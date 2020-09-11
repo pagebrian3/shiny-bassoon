@@ -4,7 +4,6 @@
 #include <cxxpool.h>
 #include <filesystem>
 
-class VidFile;
 class video_utils;
 
 class FaceTools {
@@ -29,7 +28,6 @@ private:
   std::vector<dlib::frontal_face_detector> detectors;
   std::set<int> available_fds;
   cxxpool::thread_pool * TPool;
-  std::vector<VidFile*>  fVideos;
   
 };
 

@@ -2,6 +2,7 @@ import numpy as np
 import os
 import cv2
 import sys
+from pathlib import Path
 from tensorflow.keras import models
 
 extension = 'png'
@@ -12,7 +13,8 @@ test_path = sys.argv[2]
 threshold = float(sys.argv[4]) 
 match_path = test_path+"/match/"
 model_path = sys.argv[3]
-class_path = Path(model_path).parent+"/classes.txt"
+class_path = Path(model_path).parent
+class_path = class_path / 'classes.txt'
 file1 = open( class_path, 'r') 
 classes = file1.readlines()
 file1.close()
