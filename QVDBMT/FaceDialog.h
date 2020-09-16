@@ -213,10 +213,13 @@ private:
 	auto item = fModel->itemFromIndex(sList[i]);
 	std::filesystem::path p = item->data(Qt::UserRole+2).toString().toStdString();
 	std::filesystem::path new_p = fTrainPath;
-	new_p+="/";
-	new_p+=choice;
-	new_p+="_";
-	new_p+=p.filename();
+	std::size_t pos = p.filename().string().rfind(choice,0);
+	new_p+="/";	
+	if(pos == std::string::npos) {  //if this is a guessed name, don't add name a 2nd time
+	  new_p+=choice;
+	  new_p+="_";
+	}	
+	new_p+=p.filename();	
 	std::filesystem::rename(p,new_p);
 	fModel->removeRows(i,1);
       }
