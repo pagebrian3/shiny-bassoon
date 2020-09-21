@@ -39,7 +39,7 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
   int size = std::filesystem::file_size(file);
   if(strcmp(hw_type.c_str(),"CPU") !=0 ) {
     type = av_hwdevice_find_type_by_name(hw_type.c_str());
-    if(type == NULL) {
+    if(!type) {
       hwEnable=false;
       std::cout << "Type not found." << std::endl;
     }

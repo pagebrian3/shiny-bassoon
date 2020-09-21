@@ -6,7 +6,7 @@
 #define DLIB_PNG_SUPPORT
 #include <dlib/image_io.h>
 
-pthread_mutex_t fLock;
+pthread_mutex_t fLock1;
 
 FaceTools::FaceTools(video_utils * vu) : fVU(vu) {
   TPool = fVU->get_tpool();
@@ -52,7 +52,7 @@ void FaceTools::retrain() {
 bool FaceTools::face_job(std::filesystem::path p) {
   int detNum;
   dlib::frontal_face_detector detector;
-  pthread_mutex_lock(&fLock);
+  pthread_mutex_lock(&fLock1);
   if(available_fds.size() == 0) {
     detNum=detectors.size();
     detectors.push_back(dlib::get_frontal_face_detector());
@@ -63,16 +63,23 @@ bool FaceTools::face_job(std::filesystem::path p) {
     detector = detectors[detNum];
     available_fds.erase(detNum);
   }
-  pthread_mutex_unlock(&fLock);
+  pthread_mutex_unlock(&fLock1);
   int resize_thresh = 480;
   dlib::array2d<unsigned char> img;
-  dlib::load_image(img, p);
+  if(std::filesystem::exists(p)) dlib::load_image(img, p);
+  else return false;
   float heightCorr=img.nr();
   float widthCorr=img.nc();
   if(heightCorr < resize_thresh || widthCorr < resize_thresh) dlib::pyramid_up(img);
   heightCorr/=(float)img.nr();
   widthCorr/=(float)img.nc();
-  std::vector<dlib::rectangle> dets = detector(img);
+  std::vector<dlib::rectangle> dets;
+  try {
+    dets = detector(img);
+  }
+  catch(...){
+    return false;
+  }
   /*std::stringstream ss(p.stem());
   std::string item1,item2;
   std::getline(ss,item1,'_');
@@ -95,9 +102,9 @@ bool FaceTools::face_job(std::filesystem::path p) {
     mgk.write(faceIcon.c_str());
     faceCt++;
   }
-  pthread_mutex_lock(&fLock);
+  pthread_mutex_lock(&fLock1);
   available_fds.insert(detNum);
-  pthread_mutex_unlock(&fLock);
+  pthread_mutex_unlock(&fLock1);
   std::filesystem::remove(p);
   return true;
 }

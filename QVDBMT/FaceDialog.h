@@ -12,6 +12,8 @@
 #include <QMenu>
 #include <boost/format.hpp>
 
+pthread_mutex_t fLock;
+
 class FaceDialog: public QDialog {
 
   using QDialog::QDialog;
@@ -48,24 +50,30 @@ public:
     connect(selModel,&QItemSelectionModel::selectionChanged,this,&FaceDialog::onSelChanged);
     fList->show();
   };
-
+  
   void retrain() {
     fFT->retrain();
     //Need to refresh icons here
     return;
   }
-
+  
   void onSelChanged() {
     QModelIndexList sList = fList->selectionModel()->selectedIndexes();
     QStandardItem *  selItem; 
-    for(auto & item: fFaceVec )  item->setText("");
+    for(auto & item: fFaceLookup) if(item.second->text().length() > 0) {
+	pthread_mutex_lock(&fLock);
+	item.second->setText("");
+	pthread_mutex_lock(&fLock);
+      }
     for(int i = 0; i < sList.size(); i++)  {
       selItem = fModel->itemFromIndex(sList[i]);
+      pthread_mutex_lock(&fLock);
       selItem->setText("SELECTED");
+      pthread_mutex_unlock(&fLock);
     }
     update();
     return;
-  };
+  }
   
   void progress_timeout() {
     //update list
@@ -112,7 +120,6 @@ public:
 	  std::cout << "Adding identified face." << std::endl;
 	  fLoadedFaces[std::make_tuple(vid,ts,faceNum)]=2;
 	  fFaceLookup[std::make_tuple(vid,ts,faceNum)]=b;
-	  fFaceVec.push_back(b);
 	  fModel->appendRow(b);
 	}
       }
@@ -140,7 +147,6 @@ public:
 	b->setToolTip(toolTip);
 	fLoadedFaces[std::make_tuple(vid,ts,faceNum)]=1;
 	fFaceLookup[std::make_tuple(vid,ts,faceNum)]=b;
-	fFaceVec.push_back(b);
 	fModel->appendRow(b);
       }
     return;
@@ -176,7 +182,7 @@ public:
       menu->addSection("NN Suggestion:");
       menu->addAction(value.toString());
     }
-    menu->addSection("Metadata Suggestions:");
+    menu->addSection("MD Suggestions:");
     if(fMD->typeExists(typeLabel)) performerIndex = fMD->mdType(typeLabel);
     else performerIndex = fMD->newType(typeLabel);
     for(int i = 0; i < sList.size(); i++)  {
@@ -213,6 +219,15 @@ private:
 	auto item = fModel->itemFromIndex(sList[i]);
 	std::filesystem::path p = item->data(Qt::UserRole+2).toString().toStdString();
 	std::filesystem::path new_p = fTrainPath;
+	std::stringstream ss(p.stem());
+	std::string item1,item2,item3;
+	for(int i = 0; i < 2; i++) std::getline(ss,item1,'_');
+	int vid = atoi(item1.c_str());
+	std::getline(ss,item2);
+	int ts = atoi(item2.c_str());
+	std::getline(ss,item3);
+	int faceNum = atoi(item3.c_str());
+	auto index_tup = std::make_tuple(vid,ts,faceNum);
 	std::size_t pos = p.filename().string().rfind(choice,0);
 	new_p+="/";	
 	if(pos == std::string::npos) {  //if this is a guessed name, don't add name a 2nd time
@@ -221,12 +236,13 @@ private:
 	}	
 	new_p+=p.filename();	
 	std::filesystem::rename(p,new_p);
-	fModel->removeRows(i,1);
+	fModel->removeRows(item->row(),1);
+	fFaceLookup.erase(index_tup);
+	fLoadedFaces.erase(index_tup);
       }
     }
     return;
-  };
-  
+  }; 
   int performerIndex;
   int index;
   qvdb_metadata * fMD;
@@ -238,7 +254,6 @@ private:
   std::filesystem::path fFacePath,fTrainPath,fMatchPath;
   std::set<int> fVids;
   std::vector<VidFile*> fVidFiles;
-  std::vector<QStandardItem *> fFaceVec;
   std::map<std::tuple<unsigned int, unsigned int, unsigned int>,int> fLoadedFaces; //1 mean just loaded, 2 means loaded and unmatched
   std::map<std::tuple<unsigned int, unsigned int, unsigned int>,QStandardItem *> fFaceLookup;
 };
