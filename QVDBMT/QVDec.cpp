@@ -1,7 +1,8 @@
 extern "C" {
-#include <libavutil/hwcontext.h>
-#include <libavutil/avassert.h>
-#include <libavutil/imgutils.h>
+  #include <libavutil/hwcontext.h>
+  #include <libavutil/avassert.h>
+  #include <libavutil/imgutils.h>
+  #include <libavutil/display.h>
 }
 #include "QVDec.h"
 #include <iostream>
@@ -21,7 +22,7 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
   return AV_PIX_FMT_NONE;
 };
 
-qvdec::qvdec(std::filesystem::path & path, std::string hw_type) : file(path) {
+qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
   initError = false;
   input_ctx = NULL;
   sws_ctx = NULL;
@@ -35,23 +36,30 @@ qvdec::qvdec(std::filesystem::path & path, std::string hw_type) : file(path) {
   hwEnable = true;
   hw_device_ctx = NULL;
   data = NULL;
+  int size = std::filesystem::file_size(file);
   if(strcmp(hw_type.c_str(),"CPU") !=0 ) {
     type = av_hwdevice_find_type_by_name(hw_type.c_str());
+    if(!type) {
+      hwEnable=false;
+      std::cout << "Type not found." << std::endl;
+    }
   }
   else {
     hwEnable = false;
-    //std::cout << "CPU encoding." << std::endl;
+    std::cout << "CPU encoding." << std::endl;
   }
   do {
     /* open the input file */
-    if(avformat_open_input(&input_ctx, path.c_str(), NULL, NULL) < 0) {
+    if(avformat_open_input(&input_ctx, file.c_str(), NULL, NULL) < 0) {
       initError=true;
-      std::cout <<"input failure on "<<path <<std::endl;
+      vf->okflag = -1;
+      std::cout <<"input failure on "<<file <<std::endl;
       break;
     }
     if(avformat_find_stream_info(input_ctx, NULL) > 0) {
       initError=true;
-      std::cout <<"Failure to find stream for "<<path <<std::endl;
+      vf->okflag=-1;
+      std::cout <<"Failure to find stream for "<<file <<std::endl;
       break;
     }
     /* find the video stream information */
@@ -74,16 +82,47 @@ qvdec::qvdec(std::filesystem::path & path, std::string hw_type) : file(path) {
     if(hwEnable){
       decoder_ctx->get_format  = get_hw_format;
       if ((ret = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0)) >= 0) decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+      else {
+	hwEnable=false;
+	soft_init(decoder,video);
+      }
     }
-    if(ret < 0 || (ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0){
-      std::cout <<"Codec open failure on : "<< path << std::endl;
+    if( (ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0){
+      std::cout <<"Codec open failure on : "<< file << std::endl;
+      vf->okflag = -1;
       initError = true;
       break;
     }
+    float length = static_cast<float>(video->duration) / static_cast<float>(time_base.den);
     w = decoder_ctx->width;
     h = decoder_ctx->height;
-    //std::cout << "Working on: " << path << std::endl;
+    uint8_t* displaymatrix = av_stream_get_side_data(video, AV_PKT_DATA_DISPLAYMATRIX, NULL);
+    int rotate = 0; 
+    if(displaymatrix) rotate = -av_display_rotation_get((int32_t*) displaymatrix);
+    vf->length=length;
+    vf->size=size;
+    vf->rotate=rotate;
+    vf->height=h;
+    vf->width=w;
   } while(0);
+}
+
+bool qvdec::soft_init(AVCodec * decoder, AVStream * video) {
+  std::cout << "Software decoding for file: " <<file.c_str()<< std::endl;
+  avcodec_free_context(&decoder_ctx);
+  avformat_close_input(&input_ctx);
+  av_buffer_unref(&hw_device_ctx);
+  int ret = avformat_open_input(&input_ctx, file.c_str(), NULL, NULL);
+  if(ret < 0) {
+    std::cout << "trouble opening: " << file.c_str() << std::endl;
+    return false;
+  }
+  avformat_find_stream_info(input_ctx,  NULL);
+  video_stream = av_find_best_stream(input_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
+  decoder_ctx = avcodec_alloc_context3(decoder);
+  video = input_ctx->streams[video_stream];
+  avcodec_parameters_to_context(decoder_ctx, video->codecpar);
+  return true;
 }
 
 int qvdec::decode_write()
@@ -94,7 +133,7 @@ int qvdec::decode_write()
   bool fail = false;
   ret = avcodec_send_packet(decoder_ctx, &packet);   
   if (ret < 0) {
-    std::cout << "Error during decoding"<<std::endl;
+    std::cout << "Error during decoding on file " << file<<std::endl;
     return ret;
   }
   while (1) {
@@ -116,7 +155,7 @@ int qvdec::decode_write()
 	return 0;
       }
       else if (ret < 0) {
-	std::cout << "Error while decoding code ret: "<< ret <<std::endl;
+	std::cout << "Error while decoding code ret: "<< ret <<" on file " << file<<std::endl;
 	fail = true;
       }
     }
@@ -198,10 +237,10 @@ int qvdec::get_frame(uint8_t ** buffer, float & start_time) {
   data = buffer;
   //std::cout << "Seeking to " << start_time << " on " << file << std::endl;
   int ret = avformat_seek_file(input_ctx,video_stream,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0);
-  if(ret < 0) std::cout << "Seek error: " << ret <<" "<< std::endl;
+  if(ret < 0) std::cout << "Seek error: " << ret <<" "<<" on file " << file<< std::endl;
   while (ret >= 0) {
     if ((ret = av_read_frame(input_ctx, &packet)) < 0) {
-      std::cout << "Error in read_frame: " << ret << std::endl;
+      std::cout << "Error in read_frame: " << ret << " on file " << file<< std::endl;
       break;
     }
     if (video_stream == packet.stream_index) {
@@ -235,7 +274,7 @@ double qvdec::get_trace_data(float & start_time,  std::vector<int> & crop, std::
   float norm = 4.0/(cropW*cropH);
   int ret = avformat_seek_file(input_ctx,video_stream,tConv*(start_time-0.2),tConv*start_time,tConv*(start_time+0.2),0);
   //int ret = avformat_seek_file(input_ctx,video_stream,0.5*tConv*start_time,tConv*start_time,tConv*start_time,0); //seek before
-  if(ret < 0) std::cout <<  " avformat_seek_file error return " <<ret<< std::endl;
+  if(ret < 0) std::cout <<  " avformat_seek_file error return " <<ret<< " on file " << file<<std::endl;
   while (true) {
     if ((ret = av_read_frame(input_ctx, &packet)) < 0) {
       break;

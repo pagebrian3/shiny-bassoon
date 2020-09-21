@@ -29,6 +29,11 @@ public:
     else return false;
   };
 
+  bool typeExists(std::string type) {
+    if(typeMap.right.count(type) == 1) return true;
+    else return false;
+  }
+    
   std::string labelForMDID(int id) {
     return labelMap[id].second;
   };

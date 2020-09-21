@@ -1,50 +1,46 @@
-# Split this into train and test
 import numpy as np 
-import pandas as pd 
 import os
-import matplotlib.pyplot as plt
 import cv2
 import sys
-from keras.utils import to_categorical
-from keras.layers import Dense,Conv2D,Flatten,MaxPool2D,Dropout
-from keras.models import Sequential
+from pathlib import Path
 from tensorflow.keras import models
 
-np.random.seed(1)
 extension = 'png'
 test_images = []
-test_labels = []
-test_path = sys.argv[3]
-shape = (int(sys.argv[1]),int(sys.argv[2]))
-
+test_files = []
+shape = (int(sys.argv[1]),int(sys.argv[1]))
+test_path = sys.argv[2]
+threshold = float(sys.argv[4]) 
+match_path = test_path+"/match/"
+model_path = sys.argv[3]
+class_path = Path(model_path).parent
+class_path = class_path / 'classes.txt'
+file1 = open( class_path, 'r') 
+classes = file1.readlines()
+file1.close()
+nFiles = 0
+for i in range(0,len(classes)):
+  classes[i] = classes[i][:-1]  #omit last character
 for filename in os.listdir(test_path):
-    if filename.split('.')[1] == extension:
-        img = cv2.imread(os.path.join(test_path,filename))
-        
-        # Spliting file names and storing the labels for image in list
-        test_labels.append(filename.split('_')[0])
-        
-        # Resize all images to a specific shape
-        img = cv2.resize(img,shape)
-        
-        test_images.append(img)
-        
-# Converting test_images to array
+  split = filename.split('.')
+  if len(split) > 1 and split[1] == extension:
+    test_files.append(filename)
+    img = cv2.imread(os.path.join(test_path,filename))
+    img = cv2.resize(img,shape)
+    test_images.append(img)
+    nFiles+=1
+if nFiles == 0:
+  sys.exit()
 test_images = np.array(test_images)
-
-# Creating a Sequential model
-model= models.load_model("model.keras");
-
-# Testing predictions and the actual label
-output = {}
-count = 0
-for label in test_labels:
-    output[count]=label
-    count+=1
+model= models.load_model(model_path)
 size = len(test_images)
+predict = model.predict(np.array(test_images))
+predictions = np.argmax(predict,axis=-1)
 for i in range(0,size):
-    checkImage = test_images[i:i+1]
-    checklabel = test_labels[i:i+1]
-    predict = model.predict(np.array(checkImage))   
-    print("Actual :- ",checklabel)
-    print("Predicted :- ",output[np.argmax(predict)])
+  old_file = test_path+"/"+test_files[i]
+  if(predict[i][predictions[i]] > threshold):   
+    new_file = match_path+"/"+classes[predictions[i]]+"_"+str(predict[i][predictions[i]])+"_"+test_files[i]
+    os.rename(old_file,new_file)
+  else:
+    new_file = match_path+"/unknown_"+str(predict[i][predictions[i]])+"_"+test_files[i]
+    os.rename(old_file,new_file)

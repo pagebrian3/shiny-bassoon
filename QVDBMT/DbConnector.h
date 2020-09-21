@@ -21,8 +21,6 @@ class DbConnector {
 
   void save_video(VidFile *a);
 
-  void save_crop(VidFile *a);
-
   void fetch_results(std::map<std::tuple<int,int,int>, std::pair<int,std::string> > & map);
 
   void update_results(int i, int j, int k, int l, std::string details);

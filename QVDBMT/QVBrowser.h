@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include <boost/timer/timer.hpp>
+#include <set>
+#include <filesystem>
 
 class qvdb_metadata;
 class qvdb_config;
@@ -57,9 +59,14 @@ class QVBrowser: public QMainWindow
   float totalJobs;
   std::string sort_by;
   std::vector<int> vid_list;
+  std::vector<int> completedJobs;
+  std::vector<std::filesystem::path> paths;
   std::map<int,int> iconLookup;
+  std::map<int,int> new_icon_lookup;
+  std::set<std::string> extensions;
   std::vector<VidFile *> vidFiles;
   std::vector<VidFile *> loadedVFs;
+  std::vector<VidFile *> newVids;
   std::vector<QStandardItem *> iconVec;
   boost::timer::auto_cpu_timer * t;
   qvdb_config * qCfg;
