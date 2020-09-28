@@ -30,7 +30,7 @@ void FaceTools::Find_Faces() {
   for(auto& p: std::filesystem::directory_iterator(fFramePath))
     if(p.is_regular_file())
       resVec.push_back(TPool->push([&](std::filesystem::path p){ return face_job(p);},p.path())); 
-  std::string command((boost::format("python FaceClassifier.py %i %s %s %f") % fVU->get_config()->get_int("face_size") % fFacePath % fModelPath % fVU->get_config()->get_float("confidence_thresh")).str());
+  std::string command((boost::format("python FaceClassifier.py %s %s %f") % fFacePath % fModelPath % fVU->get_config()->get_float("confidence_thresh")).str());
   system(command.c_str());
   return;
 }
@@ -52,6 +52,10 @@ void FaceTools::retrain() {
 bool FaceTools::face_job(std::filesystem::path p) {
   int detNum;
   dlib::frontal_face_detector detector;
+  std::stringstream ss;
+  int face_size = fVU->get_config()->get_int("face_size");
+  ss << face_size << "x" << face_size;
+  std::string size_string = ss.str();
   pthread_mutex_lock(&fLock1);
   if(available_fds.size() == 0) {
     detNum=detectors.size();
@@ -96,6 +100,8 @@ bool FaceTools::face_job(std::filesystem::path p) {
     int cropW = widthCorr*(rect.right()-rect.left());
     int cropH = heightCorr*(rect.bottom()-rect.top());
     mgk.crop(Magick::Geometry(cropW,cropH,widthCorr*rect.left(),heightCorr*rect.top()));
+    mgk.repage();
+    mgk.resize(size_string);
     std::filesystem::path faceIcon(fFacePath);
     faceIcon+=p.stem();
     faceIcon+=(boost::format("_%i.png") % faceCt).str();

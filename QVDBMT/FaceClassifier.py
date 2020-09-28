@@ -8,11 +8,10 @@ from tensorflow.keras import models
 extension = 'png'
 test_images = []
 test_files = []
-shape = (int(sys.argv[1]),int(sys.argv[1]))
-test_path = sys.argv[2]
-threshold = float(sys.argv[4]) 
+test_path = sys.argv[1]
+threshold = float(sys.argv[3]) 
 match_path = test_path+"/match/"
-model_path = sys.argv[3]
+model_path = sys.argv[2]
 class_path = Path(model_path).parent
 class_path = class_path / 'classes.txt'
 file1 = open( class_path, 'r') 
@@ -26,12 +25,11 @@ for filename in os.listdir(test_path):
   if len(split) > 1 and split[1] == extension:
     test_files.append(filename)
     img = cv2.imread(os.path.join(test_path,filename))
-    img = cv2.resize(img,shape)
     test_images.append(img)
     nFiles+=1
 if nFiles == 0:
   sys.exit()
-test_images = np.array(test_images)
+test_images = np.asarray(test_images)
 model= models.load_model(model_path)
 size = len(test_images)
 predict = model.predict(np.array(test_images))

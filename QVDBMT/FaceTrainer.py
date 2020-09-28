@@ -12,7 +12,6 @@ from sklearn.model_selection import train_test_split
 np.random.seed(1)
 train_images = []       
 train_labels = []
-shape = (int(sys.argv[1]),int(sys.argv[1]))
 inputShape = (int(sys.argv[1]),int(sys.argv[1]),3,)
 train_path = sys.argv[2]
 extension = 'png'
@@ -20,7 +19,6 @@ for filename in os.listdir(train_path):
     if filename.split('.')[1] == extension:
         img = cv2.imread(os.path.join(train_path,filename))
         train_labels.append(filename.split('_')[0])
-        img = cv2.resize(img,shape)
         train_images.append(img)
 classes = set(train_labels)
 f = open("classes.txt", "w")
