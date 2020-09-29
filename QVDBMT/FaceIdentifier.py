@@ -39,7 +39,7 @@ for filename in os.listdir(train_path):
 train_labels = pd.get_dummies(train_labels).values
 
 # Converting train_images to array
-train_images = np.array(train_images)
+train_images = np.asarray(train_images)
 
 # Splitting Training data into train and validation dataset
 x_train,x_val,y_train,y_val = train_test_split(train_images,train_labels,random_state=1)
@@ -124,7 +124,7 @@ print(evaluate)
 checkImage = test_images[0:1]
 checklabel = test_labels[0:1]
 
-predict = model.predict(np.array(checkImage))
+predict = model.predict(np.asarray(checkImage))
 
 output = {}
 count = 0
