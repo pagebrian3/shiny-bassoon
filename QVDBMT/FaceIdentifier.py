@@ -23,8 +23,7 @@ np.random.seed(1)
 
 train_images = []       
 train_labels = []
-shape = (int(sys.argv[1]),int(sys.argv[2]))  
-train_path = sys.argv[3]
+train_path = sys.argv[2]
 extension = 'png'
 
 for filename in os.listdir(train_path):
@@ -33,9 +32,6 @@ for filename in os.listdir(train_path):
         
         # Spliting file names and storing the labels for image in list
         train_labels.append(filename.split('_')[0])
-        
-        # Resize all images to a specific shape
-        img = cv2.resize(img,shape)
         
         train_images.append(img)
 
@@ -55,7 +51,7 @@ x_train,x_val,y_train,y_val = train_test_split(train_images,train_labels,random_
 
 test_images = []
 test_labels = []
-test_path = sys.argv[4]
+test_path = sys.argv[3]
 
 for filename in os.listdir(test_path):
     if filename.split('.')[1] == extension:
@@ -63,9 +59,6 @@ for filename in os.listdir(test_path):
         
         # Spliting file names and storing the labels for image in list
         test_labels.append(filename.split('_')[0])
-        
-        # Resize all images to a specific shape
-        img = cv2.resize(img,shape)
         
         test_images.append(img)
         
@@ -82,7 +75,7 @@ plt.imshow(train_images[4])
 
 # Creating a Sequential model
 model= Sequential()
-model.add(Conv2D(kernel_size=(3,3), filters=32, activation='tanh', input_shape=(int(sys.argv[1]),int(sys.argv[2]),3,)))
+model.add(Conv2D(kernel_size=(3,3), filters=32, activation='tanh', input_shape=(int(sys.argv[1]),int(sys.argv[1]),3,)))
 model.add(Conv2D(filters=30,kernel_size = (3,3),activation='tanh'))
 model.add(MaxPool2D(2,2))
 model.add(Conv2D(filters=30,kernel_size = (3,3),activation='tanh'))

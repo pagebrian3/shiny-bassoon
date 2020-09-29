@@ -228,13 +228,7 @@ private:
 	std::getline(ss,item3);
 	int faceNum = atoi(item3.c_str());
 	auto index_tup = std::make_tuple(vid,ts,faceNum);
-	std::size_t pos = p.filename().string().rfind(choice,0);
-	new_p+="/";	
-	if(pos == std::string::npos) {  //if this is a guessed name, don't add name a 2nd time
-	  new_p+=choice;
-	  new_p+="_";
-	}	
-	new_p+=p.filename();	
+	new_p+=(boost::format("/%s_%i_%i_%i.png") % choice % vid % ts % faceNum).str().c_str();		    
 	std::filesystem::rename(p,new_p);
 	fModel->removeRows(item->row(),1);
 	fFaceLookup.erase(index_tup);
