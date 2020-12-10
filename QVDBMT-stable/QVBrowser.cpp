@@ -4,7 +4,6 @@
 #include <ConfigDialog.h>
 #include <MetadataDialog.h>
 #include <MDIEDialog.h>
-#include <Miniplayer.h>
 #include <FilterDialog.h>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
@@ -69,7 +68,6 @@ QVBrowser::QVBrowser() : QMainWindow() {
   fFBox->setViewMode(QListView::IconMode);
   fFBox->setMovement(QListView::Static);
   fFBox->setSelectionMode(QListView::ExtendedSelection);
-  connect(fFBox,&QListView::doubleClicked,this,&QVBrowser::on_double_click);
   setCentralWidget(fFBox);
   mDAct = new QAction( ("&Edit Metadata"), this);
   mDAct->setShortcuts(QKeySequence::New);
@@ -98,15 +96,6 @@ void QVBrowser::onSelChanged() {
     selItem->setText("SELECTED");
   }
   update();
-  return;
-}
-
-void QVBrowser::on_double_click(const QModelIndex & index) {
-  QStandardItem * selItem = fModel->itemFromIndex(index);
-  std::string vid_file = selItem->data(Qt::UserRole+3).toString().toStdString();
-  if(mPlayerThread != NULL) mPlayerThread->quit();  
-  mPlayerThread = new QThread(launchMiniplayer(vid_file,qCfg->get_int("preview_height"),qCfg->get_int("preview_width")));
-  mPlayerThread->start();
   return;
 }
 
@@ -434,12 +423,6 @@ void QVBrowser::update_tooltip(int vid) {
   std::string mdString = qMD->metadata_string(a->vid);
   QString toolTip((boost::format("Filename: %s\nVID: %i\nSize: %3.2f%s\nLength: %i:%02i:%02.1f%s") % a->fileName % a->vid %  size % sizeLabel % h % m % s % mdString).str().c_str());
   currItem->setToolTip(toolTip);
-}
-
-Miniplayer * launchMiniplayer(std::string vid_file, int h, int w) {
-  Miniplayer * player = new Miniplayer(vid_file,h,w);
-  player->open();
-  return player;
 }
 
 
