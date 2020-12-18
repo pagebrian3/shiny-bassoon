@@ -5,12 +5,12 @@ sed -i 's/imagemagick()/libmagick-qd8()/g' PKGBUILD
 sed -i '/\.\/configure/a \ \ \  --disable-docs \\' PKGBUILD
 sed -i '/\.\/configure/a \ \ \  --with-quantum-depth=8 \\' PKGBUILD
 sed -i 's/--enable-hdri/--enable-hdri=no/' PKGBUILD
-cfg_list="tiff jbig heic raqm fontconfig freetype lcms pango lzma x bzlib zlib zstd"
+cfg_list="tiff jbig heic raqm fontconfig freetype lcms pango lzma x bzlib zlib zstd ziplib jng"
 for config in $cfg_list
 do
     sed -i "/--with-xml/a \\ \\ \\  --without-$config \\\\" PKGBUILD
 done
-cfg_list2="webp rsvg wmf xml openexr lqr openjp2 perl"
+cfg_list2="webp rsvg wmf xml openexr lqr openjp2 perl djvu"
 for config2 in $cfg_list2
 do
     sed -i "s/--with-$config2/--without-$config2/" PKGBUILD
