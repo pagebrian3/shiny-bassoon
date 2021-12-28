@@ -1,0 +1,11 @@
+<<<<<<< HEAD
+# Untracked files:
+*.[oa]
+qv.*
+=======
+__pycache__
+*~
+\#*
+qv*
+*.o
+>>>>>>> 9837b771989a1cec35ed4ba7efe2cc82f29f329c
