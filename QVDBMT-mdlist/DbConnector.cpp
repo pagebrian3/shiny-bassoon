@@ -343,14 +343,14 @@ void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,s
       sqlite3_finalize(stmt);
       throw errmsg;
     }
-    std::string tag_str(reinterpret_cast<const char *>(sqlite3_column_text(stmt,0)));
+    auto blob = sqlite3_column_text(stmt,0);
+    std::string tag_str(reinterpret_cast<const char *>(blob));
     std::vector<std::string> split_vec;
     boost::algorithm::split(split_vec, tag_str, boost::is_any_of(","));
     std::set<int> tag_ids;
     for(auto & s: split_vec) tag_ids.insert(std::atoi(s.c_str()));
     fileMetadata[vid]=tag_ids;
     sqlite3_finalize(stmt);
-    //std::cout << *(tag_ids.begin()) << " " << vid << std::endl;
   }
   return;
 }
@@ -395,15 +395,14 @@ void DbConnector::save_metadata(std::map<int,std::set<int> > & file_metadata,std
     } 
     sqlite3_finalize(stmt); 
   }
-  for(auto & a: file_metadata) {
-    
+  for(auto & a: file_metadata) { 
     sqlite3_stmt *stmt;
     std::stringstream ss;
     int rc = 0;
     if(a.second.size() == 0) {
       rc = sqlite3_prepare_v2(db, "DELETE from file_mdx where VID=?", -1, &stmt, NULL);
-    if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
-    rc = sqlite3_bind_int(stmt, 1, a.first);
+      if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
+      rc = sqlite3_bind_int(stmt, 1, a.first);
     }
     else {
       uint counter=0;
@@ -413,11 +412,11 @@ void DbConnector::save_metadata(std::map<int,std::set<int> > & file_metadata,std
 	setIter++;
 	counter++;
       }
-      ss << *setIter;   
+      ss << *setIter;
       rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO  file_mdx(vid, tagids) VALUES (?,?) ", -1, &stmt, NULL);
       if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));
       rc = sqlite3_bind_int(stmt, 1, a.first);
-      rc = sqlite3_bind_text(stmt, 2, ss.str().c_str(),-1, NULL);
+      rc = sqlite3_bind_text(stmt, 2, ss.str().c_str(),-1, SQLITE_TRANSIENT);
     }
     if (rc != SQLITE_OK) {               
       std::string errmsg(sqlite3_errmsg(db)); 
@@ -431,7 +430,7 @@ void DbConnector::save_metadata(std::map<int,std::set<int> > & file_metadata,std
       throw errmsg;
     } 
     sqlite3_finalize(stmt); 
-  } 
+  }
   return;
 }
 

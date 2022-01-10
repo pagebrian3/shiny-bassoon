@@ -78,7 +78,6 @@ public:
       int typeIndex = a.first;
       ss <<"\n"<< typeLabel << ": ";
       std::vector<std::string> tags;
-      //std::cout <<fileMap.size() << std::endl;
       for(auto & tagid: fileMap[vid])  if(labelMap[tagid].first == typeIndex) tags.push_back(labelMap[tagid].second);
       for(unsigned int i=0 ; i +1 < tags.size(); i++)  ss << tags[i] << ", ";
       if(tags.size() > 0)  ss << tags.back() ;

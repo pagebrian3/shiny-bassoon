@@ -97,11 +97,12 @@ void updateLabels() {
     flList->clear();
   }
   if(type_combo->currentText().isEmpty()) return;
-  std::set<int> mdIDs1 = fMD->mdForFile(fVids[0]); 
-  std::set<int> mdIsx;
-  if(mdIDs1.size() > 0) for(uint i = 1; i < fVids.size(); i++) {
-    std::set<int> mdIDs2 = fMD->mdForFile(fVids[i]);
-    for(auto & a:mdIDs1) if(mdIDs2.count(a)==1) mdIsx.insert(a);
+  std::set<int> mdIDs1 = fMD->mdForFile(fVids[0]); //Get IDs for first file
+  std::set<int> mdIsx;  //List of common mdIds
+  if(mdIDs1.size() > 0) 
+    for(uint i = 1; i < fVids.size(); i++){ 
+      std::set<int> mdIDs2 = fMD->mdForFile(fVids[i]);
+      for(auto & a:mdIDs1) if(mdIDs2.count(a)==1) mdIsx.insert(a);  
     mdIDs1 = mdIsx;
   }
   std::set<std::string> lSet;
@@ -158,7 +159,7 @@ private:
   bool firstRun;
   qvdb_metadata *  fMD;
   QComboBox * type_combo;
-  QListWidget * lList;
-  QListWidget * flList;
+  QListWidget * lList;  //Available labels
+  QListWidget * flList;  //Applied labels
   std::vector<int> fVids;
 };
