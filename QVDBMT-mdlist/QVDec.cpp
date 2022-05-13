@@ -29,7 +29,7 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
   int ret;
   AVStream *video = NULL;
   decoder_ctx = NULL;
-  AVCodec *decoder = NULL;
+  const AVCodec * decoder;
   enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
   int i;
   ret = 1;
@@ -107,7 +107,7 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
   } while(0);
 }
 
-bool qvdec::soft_init(AVCodec * decoder, AVStream * video) {
+bool qvdec::soft_init(const AVCodec * decoder, AVStream * video) {
   std::cout << "Software decoding for file: " <<file.c_str()<< std::endl;
   avcodec_free_context(&decoder_ctx);
   avformat_close_input(&input_ctx);

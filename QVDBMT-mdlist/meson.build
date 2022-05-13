@@ -1,4 +1,4 @@
-project('QVideoBrowser','cpp', default_options : 'cpp_std=c++20')
+project('QVideoBrowser','cpp', default_options : ['cpp_std=c++20','b_lto=true'])
 qtdep = dependency('Qt6Widgets')
 magickdep = dependency('Magick++-7.Q8')
 threaddep = dependency('threads')

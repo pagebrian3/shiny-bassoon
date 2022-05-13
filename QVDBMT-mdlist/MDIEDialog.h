@@ -71,7 +71,7 @@ public:
     std::ifstream infile;
     infile.open(fFile);
     size_t spacePos;
-    int currentType;
+    int currentType = 0;
     std::string currentTypeLabel;
     std::filesystem::path filename;
     while(!infile.eof()) {

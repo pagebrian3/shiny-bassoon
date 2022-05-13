@@ -8,6 +8,7 @@ extern "C" {
 #include "VidFile.h"
 #include <string>
 #include <vector>
+#include <array>
 
 class qvdec {
  public:
@@ -16,11 +17,11 @@ class qvdec {
 
   ~qvdec();
 
-  bool soft_init(AVCodec * decoder, AVStream * video);
+  bool soft_init(const AVCodec * decoder, AVStream * video);
   
   int run_decode1();
 
-  double get_trace_data(float & start_time, std::vector<int> & crop, std::vector<float> & times, std::vector<std::array<float,12> > & traceDat);
+  double get_trace_data(float & start_time, std::vector<int> & crop, std::vector<float> & times, std::vector<std::array<float, 12> > & traceDat);
 
   int get_frame(uint8_t ** data, float & start_time);
 
