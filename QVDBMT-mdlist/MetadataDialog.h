@@ -125,7 +125,7 @@ void onTypeAddClicked() {
   if (ok && !text.empty())  {
     fMD->newType(text);
     updateTypes();
-  }
+  } 
   return;
 };
 
@@ -135,6 +135,8 @@ void onLabelAddClicked() {
   if (ok && !text.empty())  {
     fMD->newLabel(type_combo->currentText().toStdString(),text);
     updateLabels();
+    lList->findItems(QString(text.c_str()),Qt::MatchCaseSensitive)[0]->setSelected(true);
+    onRightArrowClicked();
   }
   return;
 };
