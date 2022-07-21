@@ -10,7 +10,6 @@
 #include <QHeaderView>
 #include <QFormLayout>
 #include <QRegularExpression>
-#include <boost/format.hpp>
 
 class FilterDialog: public QDialog {
 
@@ -107,7 +106,6 @@ public:
     for(auto & mPtr: lwPtrs) {
       for(int i = 0; i < numRows-1; i++) {
 	QTableWidgetItem * iPtr = mPtr->item(i,0);
-	std::cout << "Row num : " << i << std::endl;
 	int mdIndex = iPtr->data(Qt::UserRole).toInt();
 	auto state = iPtr->checkState();
 	if(state == Qt::Unchecked) continue;
