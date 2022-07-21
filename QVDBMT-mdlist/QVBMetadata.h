@@ -65,11 +65,15 @@ public:
 
   std::map<int,int> typeCountMap() {
     std::map<int,int> countMap;
-    for(auto & a: fileMap)
-      for(auto & b: a.second)
-	countMap[b]+=1;
+    for(auto & a: fileMap) {
+      if(a.second.size() == 0 )
+	countMap[-1]+=1;
+      else
+	for(auto & b: a.second)
+	  countMap[b]+=1;
+    }
     return countMap;
-  }
+  };
 
   std::string metadata_string(int vid) {
     std::stringstream ss;

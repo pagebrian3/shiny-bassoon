@@ -31,7 +31,7 @@ public:
     mainLayout->addWidget(filterBox);
     auto mdLookup = fMD->md_lookup();
     numRows = mdLookup.size();
-    for(auto & a: fMD->md_types().left) {
+    for(auto & a: fMD->md_types().left) {  //One table for each label type
       std::string tempS(a.second);
       QGroupBox *  tempGroup = new QGroupBox(tempS.c_str());
       QTableWidget * tempTable = new QTableWidget(numRows,2,this);
@@ -40,14 +40,17 @@ public:
       tempTable->setColumnWidth(1,40);
       tempTable->setSortingEnabled(true);
       tempTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
+      std::map<int,int> typeMap=md->typeCountMap();
       if(strcmp(tempS.c_str(),"Performer") == 0) {
 	QTableWidgetItem * tempItem = new QTableWidgetItem("Unknown");
 	tempItem->setData(Qt::UserRole,-1);
 	tempItem->setFlags(tempItem->flags() | Qt::ItemIsUserCheckable |Qt::ItemIsUserTristate);
 	tempItem->setCheckState(Qt::Unchecked);
 	tempTable->setItem(0,0,tempItem);
+	QTableWidgetItem * countItem = new QTableWidgetItem(0);
+	countItem->setData(Qt::DisplayRole,typeMap[-1]);
+	tempTable->setItem(0,1,countItem);
       }
-      std::map<int,int> typeMap=md->typeCountMap();
       int row = 1;
       for(auto & x : mdLookup) {  
 	if(a.first == x.second.first) {
@@ -63,6 +66,7 @@ public:
 	}
 	row++;
       }
+      tempTable->sortByColumn(1,Qt::DescendingOrder);
       lwPtrs.push_back(tempTable);
       QVBoxLayout * tempLayout = new QVBoxLayout;
       tempLayout->addWidget(tempTable);
