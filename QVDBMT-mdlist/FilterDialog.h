@@ -1,12 +1,13 @@
 #include "QVBMetadata.h"
 #include <QDialog>
-#include <QListWidget>
+#include <QTableWidget>
 #include <QDialogButtonBox>
 #include <QVBoxLayout>
 #include <QGroupBox>
 #include <QLineEdit>
 #include <QInputDialog>
 #include <QListView>
+#include <QHeaderView>
 #include <QFormLayout>
 #include <QRegularExpression>
 #include <boost/format.hpp>
@@ -30,33 +31,42 @@ public:
     filterBox->setLayout(formLayout);
     mainLayout->addWidget(filterBox);
     auto mdLookup = fMD->md_lookup();
+    numRows = mdLookup.size();
     for(auto & a: fMD->md_types().left) {
       std::string tempS(a.second);
       QGroupBox *  tempGroup = new QGroupBox(tempS.c_str());
-      QListWidget * tempList = new QListWidget(this);
-      tempList->setSortingEnabled(true);
-      tempList->setSelectionMode(QAbstractItemView::ExtendedSelection);
+      QTableWidget * tempTable = new QTableWidget(numRows,2,this);
+      tempTable->verticalHeader()->setVisible(false);
+      tempTable->setColumnWidth(0,220);
+      tempTable->setColumnWidth(1,40);
+      tempTable->setSortingEnabled(true);
+      tempTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
       if(strcmp(tempS.c_str(),"Performer") == 0) {
-	QListWidgetItem * tempItem = new QListWidgetItem("Unknown");
+	QTableWidgetItem * tempItem = new QTableWidgetItem("Unknown");
 	tempItem->setData(Qt::UserRole,-1);
 	tempItem->setFlags(tempItem->flags() | Qt::ItemIsUserCheckable |Qt::ItemIsUserTristate);
 	tempItem->setCheckState(Qt::Unchecked);
-	tempList->addItem(tempItem);
+	tempTable->setItem(0,0,tempItem);
       }
       std::map<int,int> typeMap=md->typeCountMap();
+      int row = 1;
       for(auto & x : mdLookup) {  
 	if(a.first == x.second.first) {
 	  int count = typeMap[x.first];
-	  QListWidgetItem * tempItem = new QListWidgetItem((boost::format("%03d %s") % count % x.second.second).str().c_str());
-	  tempItem->setData(Qt::UserRole,x.first);
+	  QTableWidgetItem * countItem = new QTableWidgetItem(0);
+	  countItem->setData(Qt::DisplayRole,count);
+	  tempTable->setItem(row,1,countItem);
+	  QTableWidgetItem * tempItem = new QTableWidgetItem(x.second.second.c_str());
 	  tempItem->setFlags(tempItem->flags() | Qt::ItemIsUserCheckable |Qt::ItemIsUserTristate);
 	  tempItem->setCheckState(Qt::Unchecked);
-	  tempList->addItem(tempItem);
+	  tempItem->setData(Qt::UserRole,x.first);
+	  tempTable->setItem(row,0,tempItem);
 	}
+	row++;
       }
-      lwPtrs.push_back(tempList);
+      lwPtrs.push_back(tempTable);
       QVBoxLayout * tempLayout = new QVBoxLayout;
-      tempLayout->addWidget(tempList);
+      tempLayout->addWidget(tempTable);
       tempGroup->setLayout(tempLayout);
       mainLayout->addWidget(tempGroup);
     }
@@ -95,13 +105,15 @@ public:
     std::set<int> acceptTags;
     std::set<int> rejectTags;
     for(auto & mPtr: lwPtrs) {
-      int nRows = mPtr->count();
-      for(int i = 0; i < nRows; i++) {
-	QListWidgetItem * iPtr = mPtr->item(i);
+      for(int i = 0; i < numRows-1; i++) {
+	QTableWidgetItem * iPtr = mPtr->item(i,0);
+	std::cout << "Row num : " << i << std::endl;
 	int mdIndex = iPtr->data(Qt::UserRole).toInt();
 	auto state = iPtr->checkState();
 	if(state == Qt::Unchecked) continue;
-	else if(state == Qt::Checked) acceptTags.insert(mdIndex);
+	else if(state == Qt::Checked) {
+	  acceptTags.insert(mdIndex);
+	}
 	else rejectTags.insert(mdIndex);
       }
     }
@@ -181,9 +193,10 @@ public:
 
 private:
 
+  int numRows;
   qvdb_metadata * fMD;
   QListView * fListView;
-  std::vector<QListWidget *> lwPtrs;
+  std::vector<QTableWidget *> lwPtrs;
   std::vector<QLineEdit *> linePtrs;
   
 };
