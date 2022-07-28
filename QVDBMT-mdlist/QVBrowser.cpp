@@ -49,11 +49,11 @@ QVBrowser::QVBrowser() : QMainWindow() {
   progress_bar->setMinimum(0);
   progress_bar->setMaximum(100);
   asc_button = new QPushButton();
-  if(sOrder == Qt::DescendingOrder) asc_button->setIcon(QIcon::fromTheme("view-sort-descending"));
-  else asc_button->setIcon(QIcon::fromTheme("view-sort-ascending"));
+  if(sOrder == Qt::DescendingOrder) asc_button->setIcon(QIcon::fromTheme("view-sort-descending-symbolic"));
+  else asc_button->setIcon(QIcon::fromTheme("view-sort-ascending-symbolic"));
   connect(asc_button, &QPushButton::clicked, this, &QVBrowser::asc_clicked);
   QPushButton * config_button = new QPushButton();
-  config_button->setIcon(QIcon::fromTheme("preferences-system"));
+  config_button->setIcon(QIcon::fromTheme("preferences-system-symbolic"));
   connect(config_button, &QPushButton::clicked, this, &QVBrowser::config_clicked);
   hbox->addWidget(&sort_label);
   hbox->addWidget(sort_combo);
@@ -189,6 +189,7 @@ void QVBrowser::populate_icons(bool clean) {
   DbConnector * db = vu->get_db();
   int i = 0;
   std::vector<int> tempVids;
+  //Might want to parallelize this proccess or at least put it on a separate thread as it currently tends to cause the UI to freeze
   for(auto & path: paths) {
     std::vector<std::filesystem::path> current_dir_files;
     for(auto & x: std::filesystem::directory_iterator(path)) {
@@ -250,8 +251,8 @@ void QVBrowser::populate_icons(bool clean) {
   completedJobs.resize(totalJobs);
   vu->make_vids(newVids); 
   connect(selModel,&QItemSelectionModel::selectionChanged,this,&QVBrowser::onSelChanged);
-  p_timer->start(qCfg->get_int("progress_time"));
   progressFlag = 1;
+  p_timer->start(qCfg->get_int("progress_time"));
   fFBox->show(); 
   return;
 }
@@ -389,13 +390,13 @@ void QVBrowser::on_sort_changed(const QString & text) {
 }
 
 void QVBrowser::asc_clicked() {
-  QString iname = "view-sort-ascending";
+  QString iname = "view-sort-ascending-symbolic";
   if(sOrder == Qt::DescendingOrder){
     sOrder = Qt::AscendingOrder;
     qCfg->set("sort_ascending",1);
   }
   else{
-    iname = "view-sort-descending";
+    iname = "view-sort-descending-symbolic";
     sOrder = Qt::DescendingOrder;
     qCfg->set("sort_ascending",0);
   }
