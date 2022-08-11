@@ -47,6 +47,12 @@ public:
     return labelMap[id].first;
   };
 
+  int typeCount(int tID) {
+    int count = 0;
+    for(auto & a:labelMap) if(a.second.first == tID) count++;
+    return count;
+  };
+      
   std::string typeLabel(int id) {
     return typeMap.left.at(id);
   };
@@ -63,14 +69,16 @@ public:
     return labelMap;
   };
 
-  std::map<int,int> typeCountMap() {
-    std::map<int,int> countMap;
-    for(auto & a: fileMap) {
-      if(a.second.size() == 0 )
-	countMap[-1]+=1;
-      else
-	for(auto & b: a.second)
-	  countMap[b]+=1;
+  std::map< int, std::map<int,int> > typeCountMap() {
+    std::map< int, std::map<int,int> > countMap;
+    for(auto & a: fileMap) {  //loop over files
+      std::map<int,int> typeCounter;
+      for(auto & b: a.second) {  //loop over labels in set
+	countMap[labelMap[b].first][b]+=1;
+	typeCounter[labelMap[b].first]+=1;
+      }
+      for(unsigned int i=1; i < typeMap.left.size()+1; i++)
+	if(typeCounter[i]==0) countMap[i][-1]+=1;
     }
     return countMap;
   };
@@ -140,10 +148,10 @@ public:
   };
   
 private:
-  std::map<int,std::pair<int,std::string>> labelMap;
-  boost::bimap<int, std::string> typeMap;
-  std::map<int,std::set<int >> fileMap;
-  std::map<int,std::set<std::string>> labelLookup;
+  std::map<int,std::pair<int,std::string>> labelMap; //<labelid,<typeid,label_string>
+  boost::bimap<int, std::string> typeMap; //<typeid,type_string>
+  std::map<int,std::set<int >> fileMap;  //<vid,set(labelid)>
+  std::map<int,std::set<std::string>> labelLookup;  //<labelid,label_string>
   DbConnector * db;
 };
 

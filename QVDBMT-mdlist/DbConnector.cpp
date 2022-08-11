@@ -357,6 +357,10 @@ void DbConnector::load_metadata_for_files(std::vector<int> & vids,std::map<int,s
 
 void DbConnector::save_metadata(std::map<int,std::set<int> > & file_metadata,std::map<int,std::pair<int,std::string> > & labelLookup, boost::bimap<int, std::string> & typeLookup) {
   for(auto & a: typeLookup.left) {
+    if(a.second.length() == 0) {
+      labelLookup.erase(a.first);
+      continue;
+    }
     sqlite3_stmt *stmt;
     int rc = sqlite3_prepare_v2(db, "INSERT or REPLACE INTO  md_types(md_type_index, md_type_label) VALUES (?,?) ", -1, &stmt, NULL);
     if (rc != SQLITE_OK) throw std::string(sqlite3_errmsg(db));

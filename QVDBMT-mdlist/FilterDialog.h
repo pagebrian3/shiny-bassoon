@@ -30,9 +30,10 @@ public:
     filterBox->setLayout(formLayout);
     mainLayout->addWidget(filterBox);
     auto mdLookup = fMD->md_lookup();
-    numRows = mdLookup.size();
+    std::map<int,std::map<int,int> >typeMap=md->typeCountMap();
     for(auto & a: fMD->md_types().left) {  //One table for each label type
       std::string tempS(a.second);
+      int numRows = fMD->typeCount(a.first)+1;
       QGroupBox *  tempGroup = new QGroupBox(tempS.c_str());
       QTableWidget * tempTable = new QTableWidget(numRows,2,this);
       tempTable->verticalHeader()->setVisible(false);
@@ -40,21 +41,18 @@ public:
       tempTable->setColumnWidth(1,40);
       tempTable->setSortingEnabled(true);
       tempTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
-      std::map<int,int> typeMap=md->typeCountMap();
-      if(strcmp(tempS.c_str(),"Performer") == 0) {
-	QTableWidgetItem * tempItem = new QTableWidgetItem("Unknown");
-	tempItem->setData(Qt::UserRole,-1);
-	tempItem->setFlags(tempItem->flags() | Qt::ItemIsUserCheckable |Qt::ItemIsUserTristate);
-	tempItem->setCheckState(Qt::Unchecked);
-	tempTable->setItem(0,0,tempItem);
-	QTableWidgetItem * countItem = new QTableWidgetItem(0);
-	countItem->setData(Qt::DisplayRole,typeMap[-1]);
-	tempTable->setItem(0,1,countItem);
-      }
+      QTableWidgetItem * tempItem = new QTableWidgetItem("Unknown");
+      tempItem->setData(Qt::UserRole,-1);
+      tempItem->setFlags(tempItem->flags() | Qt::ItemIsUserCheckable |Qt::ItemIsUserTristate);
+      tempItem->setCheckState(Qt::Unchecked);
+      tempTable->setItem(0,0,tempItem);
+      QTableWidgetItem * countItem = new QTableWidgetItem(0);
+      countItem->setData(Qt::DisplayRole,typeMap[a.first][-1]);
+      tempTable->setItem(0,1,countItem);
       int row = 1;
       for(auto & x : mdLookup) {  
 	if(a.first == x.second.first) {
-	  int count = typeMap[x.first];
+	  int count = typeMap[a.first][x.first];
 	  QTableWidgetItem * countItem = new QTableWidgetItem(0);
 	  countItem->setData(Qt::DisplayRole,count);
 	  tempTable->setItem(row,1,countItem);
@@ -63,8 +61,8 @@ public:
 	  tempItem->setCheckState(Qt::Unchecked);
 	  tempItem->setData(Qt::UserRole,x.first);
 	  tempTable->setItem(row,0,tempItem);
+	  row++;
 	}
-	row++;
       }
       tempTable->sortByColumn(1,Qt::DescendingOrder);
       lwPtrs.push_back(tempTable);
@@ -108,7 +106,8 @@ public:
     std::set<int> acceptTags;
     std::set<int> rejectTags;
     for(auto & mPtr: lwPtrs) {
-      for(int i = 0; i < numRows-1; i++) {
+      int nRows = mPtr->rowCount();
+      for(int i = 0; i < nRows; i++) {
 	QTableWidgetItem * iPtr = mPtr->item(i,0);
 	int mdIndex = iPtr->data(Qt::UserRole).toInt();
 	auto state = iPtr->checkState();
@@ -195,7 +194,6 @@ public:
 
 private:
 
-  int numRows;
   qvdb_metadata * fMD;
   QListView * fListView;
   std::vector<QTableWidget *> lwPtrs;
