@@ -66,7 +66,7 @@ VidFile * DbConnector::fetch_video(std::filesystem::path & filename){
     for(int i = 0; i < 4; i++) cropArray[i]=std::atoi(split_vec[i].c_str());
   }
   float length = sqlite3_column_double(stmt,1);
-  int size = sqlite3_column_int(stmt,2);
+  long long size = sqlite3_column_int64(stmt,2);
   int flag = sqlite3_column_int(stmt,3);
   int rotate = sqlite3_column_int(stmt,4);
   int vid = sqlite3_column_int(stmt,5);

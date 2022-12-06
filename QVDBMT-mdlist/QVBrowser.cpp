@@ -223,8 +223,9 @@ void QVBrowser::populate_icons(bool clean) {
 	    b->setIcon(QIcon());
 	  }
 	  b->setData(a->vid,Qt::UserRole+4);
+	  if(a->size < 0) std::cout << "BLAH " << a->size << std::endl;
 	  tempVids.push_back(a->vid);
-	  b->setData(a->size,Qt::UserRole+1);
+	  b->setData((float)a->size,Qt::UserRole+1);
 	  b->setData(a->length,Qt::UserRole+2);
 	  b->setData(a->fileName.string().c_str(),Qt::UserRole+3);
 	  b->setData((int)cftime,Qt::UserRole+5);
