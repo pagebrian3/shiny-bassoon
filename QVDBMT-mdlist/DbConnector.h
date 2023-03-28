@@ -2,6 +2,7 @@
 #define DBCONNECTOR_H
 
 #include <map>
+#include <set>
 #include <boost/variant.hpp>
 #include <boost/bimap.hpp>
 #include <filesystem>
