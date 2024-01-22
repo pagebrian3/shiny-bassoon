@@ -4,6 +4,7 @@ extern "C" {
   #include <libswscale/swscale.h>
   #include <libavcodec/avcodec.h>
   #include <libavformat/avformat.h>
+  //#include <codec_par.h>
 }
 #include "VidFile.h"
 #include <string>
@@ -42,6 +43,8 @@ class qvdec {
   AVFormatContext *input_ctx;
 
   AVCodecContext *decoder_ctx;
+
+  AVCodecParameters * codec_params;
 
   AVBufferRef *hw_device_ctx;
 

@@ -96,7 +96,8 @@ qvdec::qvdec(VidFile * vf, std::string hw_type) : file(vf->fileName) {
     float length = static_cast<float>(video->duration) / static_cast<float>(time_base.den);
     w = decoder_ctx->width;
     h = decoder_ctx->height;
-    uint8_t* displaymatrix = av_stream_get_side_data(video, AV_PKT_DATA_DISPLAYMATRIX, NULL);
+    uint8_t* displaymatrix = av_stream_get_side_data(video,
+                                                     AV_PKT_DATA_DISPLAYMATRIX, NULL);
     int rotate = 0; 
     if(displaymatrix) rotate = -av_display_rotation_get((int32_t*) displaymatrix);
     vf->length=length;
