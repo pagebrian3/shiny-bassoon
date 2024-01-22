@@ -20,8 +20,12 @@ sed -i '/make\ check/d' PKGBUILD
 sed -i '/backup=/d' PKGBUILD
 sed -i 's/debug//' PKGBUILD
 # n means next line, {} group of commands.
-sed -i '/^makedepends/ {s/openexr //;s/libwmf //;s/librsvg //;s/libwebp //;s/libraw //;s/ghostscript //;}' PKGBUILD
-sed -i '/^makedepends/ {n;s/ghostpcl //;s/ghostxps //;s/libheif //;s/jbigkit //;}' PKGBUILD
+sed -i '{/openexr/d;/libwmf/d;/librsvg/d;/libwebp/d;/libraw/d;}' PKGBUILD
+mkdepdel="ghostscript ghostpcl ghostxps libheif jbigkit"
+for mkdep in $mkdepdel
+do
+    sed -i "/^makedepends/,/^checkdepends/{/$mkdep/d}" PKGBUILD
+done
 sed -i '/^checkdepends/ s/gsfonts //' PKGBUILD
 sed -i '/perl5/d' PKGBUILD
 sed -i '/windows/a \ \ rm\ -r\ \"$pkgdir\"\/etc' PKGBUILD
