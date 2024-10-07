@@ -1,0 +1,219 @@
+%-------------------------
+% Resume in Latex
+% Author
+% License : MIT
+%------------------------
+
+%---- Required Packages and Functions ----
+
+\documentclass[a4paper,11pt]{article}
+\usepackage{latexsym}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{ragged2e}
+\usepackage[empty]{fullpage}
+\usepackage{wrapfig}
+\usepackage{lipsum}
+\usepackage{tabularx}
+\usepackage{titlesec}
+\usepackage{geometry}
+\usepackage{marvosym}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{fontawesome5}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{cfr-lm}
+\usepackage[T1]{fontenc}
+\setlength{\multicolsep}{0pt} 
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\geometry{left=1.4cm, top=0.8cm, right=1.2cm, bottom=1cm}
+% Adjust margins
+%\addtolength{\oddsidemargin}{-0.5in}
+%\addtolength{\evensidemargin}{-0.5in}
+%\addtolength{\textwidth}{1in}
+\usepackage[most]{tcolorbox}
+\tcbset{
+	frame code={}
+	center title,
+	left=0pt,
+	right=0pt,
+	top=0pt,
+	bottom=0pt,
+	colback=gray!20,
+	colframe=white,
+	width=\dimexpr\textwidth\relax,
+	enlarge left by=-2mm,
+	boxsep=4pt,
+	arc=0pt,outer arc=0pt,
+}
+
+\urlstyle{same}
+
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+	\vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-7pt}]
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[2]{
+	\item{
+		\textbf{#1}{\hspace{0.5mm}#2 \vspace{-0.5mm}}
+	}
+}
+
+\newcommand{\resumePOR}[3]{
+	\vspace{0.5mm}\item
+	\begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+		\textbf{#1}\hspace{0.3mm}#2 & \textit{\small{#3}} 
+	\end{tabular*}
+	\vspace{-2mm}
+}
+
+\newcommand{\resumeSubheading}[4]{
+	\vspace{0.5mm}\item
+	\begin{tabular*}{0.98\textwidth}[t]{l@{\extracolsep{\fill}}r}
+		\textbf{#1} & \textit{\footnotesize{#4}} \\
+		\textit{\footnotesize{#3}} &  \footnotesize{#2}\\
+	\end{tabular*}
+	\vspace{-2.4mm}
+}
+
+\newcommand{\resumeProject}[4]{
+	\vspace{0.5mm}\item
+	\begin{tabular*}{0.98\textwidth}[t]{l@{\extracolsep{\fill}}r}
+		\textbf{#1} & \textit{\footnotesize{#3}} \\
+		\footnotesize{\textit{#2}} & \footnotesize{#4}
+	\end{tabular*}
+	\vspace{-2.4mm}
+}
+
+\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-4pt}}
+% \renewcommand{\labelitemii}{$\circ$}
+\renewcommand{\labelitemi}{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*,labelsep=0mm]}
+	\newcommand{\resumeHeadingSkillStart}{\begin{itemize}[leftmargin=*,itemsep=1.7mm, rightmargin=2ex]}
+		\newcommand{\resumeItemListStart}{\begin{justify}\begin{itemize}[leftmargin=3ex, rightmargin=2ex, noitemsep,labelsep=1.2mm,itemsep=0mm]\small}
+				\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{2mm}}
+			\newcommand{\resumeHeadingSkillEnd}{\end{itemize}\vspace{-2mm}}
+		\newcommand{\resumeItemListEnd}{\end{itemize}\end{justify}\vspace{-2mm}}
+\newcommand{\cvsection}[1]{%
+	\vspace{2mm}
+	\begin{tcolorbox}
+		\textbf{\large #1}
+	\end{tcolorbox}
+	\vspace{-4mm}
+}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}%
+\newcolumntype{R}{>{\raggedleft\arraybackslash}X}%
+\newcolumntype{C}{>{\centering\arraybackslash}X}%
+%---- End of Packages and Functions ------
+
+%-------------------------------------------
+%%%%%%  CV STARTS HERE  %%%%%%%%%%%
+%%%%%% DEFINE ELEMENTS HERE %%%%%%%
+\newcommand{\name}{Brian Page} % Your Name
+\newcommand{\course}{Computer Science and Engineering} % Your Program
+\newcommand{\phone}{517-420-5474} % Your Phone Number
+\newcommand{\emaila}{pagebrian3@gmail.com} %Email 1
+\newcommand{\location}{Holt, Michigan}
+
+\begin{document}
+	\fontfamily{cmr}\selectfont
+	%----------HEADING-----------------
+	
+	{
+		\begin{tabularx}{\linewidth}{L r} 
+			\textbf{\Large \name} & {\raisebox{0.0\height}{\footnotesize \faPhone}\ \phone} \\
+		  {\raisebox{0.0\height}{\footnotesize}\ {\location}}  & \href{mailto:\emaila}{\raisebox{0.0\height}{\footnotesize \faEnvelope}\ {\emaila}} \\  
+			 & \href{www.linkedin.com/in/brian-page-b49067a9}{\raisebox{0.0\height}{\footnotesize \faLinkedin}\ {LinkedIn Profile}}
+		\end{tabularx}
+	}
+		
+	\section{\textbf{Professional Summary}}
+	%\vspace{3mm}
+
+	Results-driven IT Specialist with over 8 years of experience in systems architecture, application management, and identity access management.  Proven ability to implement and maintain complex systems, enhance operational performance, and deliver innovative solutions in fast-paced environments.
+
+	
+
+	%-----------EDUCATION-----------
+	\section{\textbf{Education}}
+	%\vspace{3mm}
+	\resumeSubHeadingListStart
+	\resumeSubheading
+	{Michigan State University}{}
+	{M.S. in Physics}{May 2006 - April 2008}
+    \resumeSubheading
+	{Grand Valley State University}{}
+	{B.S. in Physics}{January 2001 - April 2006}
+	\resumeSubHeadingListEnd
+	\vspace{-5.0mm}
+	
+	%-----------EXPERIENCE-----------------
+	\section{\textbf{Experience}}
+	%\vspace{3mm}
+	\resumeSubHeadingListStart
+	\resumeSubheading
+	{State of Michigan, DTMB, supporting MILogin}{}
+	{IT Specialist}{September 2017 to July 2023}
+	\vspace{-1.0mm}
+	\resumeItemListStart
+	\item {Regarding performance management, analyzed performance data for MILogin using custom software in order to glean more information than could be extracted using out-of-the-box tools.  Worked to automate regular database tuning operations. }
+	\item {Contributed insights relating to system architecture planning and capacity management, helping to guide the solution toward cloud based and containerized platforms in order to improve the system's reliability and adaptability to fluctuating loads. }
+	\item {Administered a separate LDAP service offered by MILogin for legacy systems. Developed many tools in Python and Bash scripting in order to streamline repeatable proccesses.}
+	\item {Directly collected customer requirements and then matched that with a technical solutiuon in MILogin.  Created a business proccess, managed through MS DevOps, to reduce paperwork, and provide a consistent, efficient process for onboarding applications. } 
+	\item {Performed IAM system integrations with many dozens of customer systems, internal and external to the state, using SAML 2.0, OAUTH, OIDC, and header-based (reverse proxy) technology, many of which involved novel technology and customization to complete. }
+	\item {Worked with the MILogin team on the IBM identity management stack configuration, maintenance, vulnerability management, and installation, including ISIM (ISVA), ISAM (ISVG), DB2, TDI, and SDS.}
+	\resumeItemListEnd
+	
+	
+	\resumeSubheading
+	{State of Michigan, DTMB, Agency Services supporting MDOC}{}
+	{System Architect}{March 2015 to September 2017}
+	\vspace{-1.0mm}
+	\resumeItemListStart
+	\item {Design, implementation, and support of computer systems used by the Michigan Department of Corrections.}
+	\item {Technology covered a diverse range of needs including inmate information systems, medical, education, and commerce/ERP software.}
+	\item {Other responsibilities included web administration, application troubleshooting, and release management.}
+	\resumeItemListEnd
+	
+	
+	\resumeSubheading
+	{Michigan State University, Research at Fermi National Accelerator Laboratory}{}
+	{High Energy Physics Research Assistant}{March 2007 to January 2015}
+	\vspace{-1.0mm}
+	\resumeItemListStart
+	\item {Worked on the development of wavelength-shifting fiber scanner for the NOvA experiment.  Wrote LabView software for motion control and data acquisition of this system.}
+	\item {As one of the original authors of the LArSoft data analysis package, developed efficent and reliable software in C++ for reconstruction of events in LArTPCs, including DSP for correcting artifacts in raw data, hit-finding, clustersing, and line-finding algorithms.  Contributed to the simulation software, by providing a more realistic simulation of the raw output of the DAQ electronics. Provided guidance for my colleagues in regards to writing high quality, high performance code.  } 
+	\item {Performed analyses on the data collected in the T962 experiment, in order to make physics measurements.  This involved calibration of the detector by comparing simulated and real events, as well as statiscial analyses of the measurement using the rather large dataset. }  
+	\resumeItemListEnd	
+	
+	\resumeSubHeadingListEnd
+		
+	
+	%-----------Technical skills-----------------
+	\section{\textbf{Technical Skills and Interests}}
+	%\vspace{3mm}
+	\begin{itemize}[leftmargin=0.05in, label={}]
+		\small{\item{
+				\textbf{Environments}{: Linux and MS Windows} \\
+				\textbf{Languages}{: C/C++, Java, Python, Javascript } \\
+				\textbf{Libraries }{: C++ STL, Python Libraries, OpenCV, ROOT }\\
+				\textbf{Dev Tools}{: MS DevOps, Git, GitHub } \\
+				\textbf{Areas of Interest}{: Data Analysis, High Performance Computing, Computer Vision, Numerical Algorithms} \\
+				\textbf{Soft Skills}{: Problem Solving, Self-learning, Presentation, Communication, Adaptability} \\
+		}}
+	\end{itemize}
+
+\end{document}
