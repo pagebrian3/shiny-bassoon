@@ -72,13 +72,13 @@ public:
   std::map< int, std::map<int,int> > typeCountMap() {
     std::map< int, std::map<int,int> > countMap;
     for(auto & a: fileMap) {  //loop over files
-      std::map<int,int> typeCounter;
+      std::map<int,int> typeCounter;  //for each file keep track of the # for each tag type
       for(auto & b: a.second) {  //loop over labels in set
 	countMap[labelMap[b].first][b]+=1;
 	typeCounter[labelMap[b].first]+=1;
       }
       for(unsigned int i=1; i < typeMap.left.size()+1; i++)
-	if(typeCounter[i]==0) countMap[i][-1]+=1;
+	if(typeCounter[i]==0) countMap[i][-i]+=1;
     }
     return countMap;
   };

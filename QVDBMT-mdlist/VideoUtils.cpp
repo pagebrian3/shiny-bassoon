@@ -360,6 +360,7 @@ bool video_utils::find_border(VidFile * vidFile, uint8_t ** first_frame, std::ve
   auto r0 = imgDat0[0];
   auto r1(r0),g0(r0),g1(r0),b0(r0),b1(r0);
   for(int i = 0; i < cBFrames-1; i++) {
+    std::cout << vidFile->fileName << " " << i << std::endl;
     frame_time+=frame_spacing;
     decoder.get_frame(imgDat1,frame_time);
     auto dataIter0 = imgDat0[0];

@@ -6,7 +6,7 @@ if [ "$1" == "debug" ]; then
     btype="debug"
     bdir="qvdbmt_deb"
 else
-    OPTFLAGS='-march=native'
+    OPTFLAGS='-march=native -O3'
 fi
 
 if [ ! -d "$bdir" ]; then

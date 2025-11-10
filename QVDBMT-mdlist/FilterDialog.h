@@ -41,13 +41,14 @@ public:
       tempTable->setColumnWidth(1,40);
       tempTable->setSortingEnabled(true);
       tempTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
-      QTableWidgetItem * tempItem = new QTableWidgetItem("Unknown");
-      tempItem->setData(Qt::UserRole,-1);
+      std::string unknownLabel = "Unknown " + tempS;
+      QTableWidgetItem * tempItem = new QTableWidgetItem(unknownLabel.c_str());
+      tempItem->setData(Qt::UserRole,-a.first);
       tempItem->setFlags(tempItem->flags() | Qt::ItemIsUserCheckable |Qt::ItemIsUserTristate);
       tempItem->setCheckState(Qt::Unchecked);
       tempTable->setItem(0,0,tempItem);
       QTableWidgetItem * countItem = new QTableWidgetItem(0);
-      countItem->setData(Qt::DisplayRole,typeMap[a.first][-1]);
+      countItem->setData(Qt::DisplayRole,typeMap[a.first][-a.first]);
       tempTable->setItem(0,1,countItem);
       int row = 1;
       for(auto & x : mdLookup) {  
@@ -121,7 +122,6 @@ public:
     auto fModel = fListView->model();
     auto root_index = fListView->rootIndex();
     auto rows = fModel->rowCount(root_index);
-    int performerTID = fMD->md_types().right.at("Performer");
     for(int i = 0; i < rows; i++) {
       fListView->setRowHidden(i,false);
       auto index = fModel->index(i,0,root_index);
@@ -155,25 +155,29 @@ public:
 	}
       }
       std::set<int> vidMD = fMD->mdForFile(vid);
-      bool performerKnown = false;
-      for(auto & tagID: vidMD)
-	if(fMD->md_lookup()[tagID].first == performerTID) {
-	  performerKnown=true;
-	  break;
-	}
-      if(!performerKnown) vidMD.insert(-1);   
-      if(acceptTags.size() > 0) {
-	bool hasAny = false;
-	for(auto & element: acceptTags) {
-	  if(vidMD.count(element) != 0) {  //c++20 contains is better
-	    hasAny=true;
+      for(auto  mdType : fMD->md_types().left) {
+	bool typeKnown = false;
+	for(auto & tagID: vidMD)
+	  if(fMD->md_lookup()[tagID].first == mdType.first) {
+	    typeKnown=true;
 	    break;
 	  }
-	}
-	if(!hasAny) {
-	  fListView->setRowHidden(i,true);
-	  continue;
+	if(!typeKnown) vidMD.insert(-mdType.first);
+      }
+      if(acceptTags.size() > 0) {
+	bool hasAll = false;
+	unsigned int aCount = 0;
+	for(auto & element: acceptTags) {
+	  if(vidMD.count(element) != 0) {  //c++20 contains is better
+	    aCount++;
 	  }
+	}
+	if (aCount == acceptTags.size()) {
+	  hasAll = true;
+	}
+	if(!hasAll) {
+	  fListView->setRowHidden(i,true);
+	}
       }
       if(rejectTags.size() > 0) {
 	bool hasAny = false;
